@@ -96,6 +96,7 @@ body {
 }
 .menu-btn:hover {
   background: #444;
+  filter: drop-shadow(0 0 2em #646cffaa);
 }
 .menu-btn.active {
   background: #444;
@@ -114,8 +115,8 @@ body {
 .upload-card input[type="file"] {
   display: none;
 }
+button,
 .upload-card label {
-  display: inline-block;
   background: #222;
   color: #fff;
   border: none;
@@ -127,8 +128,10 @@ body {
   margin: 0.2em 0;
   transition: background 0.2s;
 }
+button:hover,
 .upload-card label:hover {
   background: #444;
+  filter: drop-shadow(0 0 2em #646cffaa);
 }
 @media (max-width: 700px) {
   .upload-card {
@@ -181,5 +184,20 @@ body {
     max-width: 320px;
     height: auto;
   }
+}
+
+
+.preview-img:hover {
+  z-index: 2;
+  box-shadow: 0 4px 24px #000a;
+}
+
+.reference-row img {
+  transition: transform 0.3s cubic-bezier(.25,.8,.25,1), box-shadow 0.3s;
+}
+.reference-row img:hover {
+  transform: scale(3.2);
+  z-index: 3;
+  box-shadow: 0 4px 24px #000a;
 }
 
