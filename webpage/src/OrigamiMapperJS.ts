@@ -201,77 +201,50 @@ function mapPolygonPixels(
     for (let i = 0; i < srcTris.length && i < dstTris.length; i++) {
         const srcTri = srcTris[i];
         const dstTri = dstTris[i];
-        
-        // Get bounding box of destination triangle
-        const dstXs = dstTri.map(p => p[0]);
-        const dstYs = dstTri.map(p => p[1]);
-        const minX = Math.max(0, Math.floor(Math.min(...dstXs)));
-        const maxX = Math.min(dstW - 1, Math.ceil(Math.max(...dstXs)));
-        const minY = Math.max(0, Math.floor(Math.min(...dstYs)));
-        const maxY = Math.min(dstH - 1, Math.ceil(Math.max(...dstYs)));
-        
-        // Compute bounding box center
+        // Precompute triangle bounding box and rotation
+        const dstXs = [dstTri[0][0], dstTri[1][0], dstTri[2][0]];
+        const dstYs = [dstTri[0][1], dstTri[1][1], dstTri[2][1]];
+        const minX = Math.max(0, Math.floor(Math.min(dstXs[0], dstXs[1], dstXs[2])));
+        const maxX = Math.min(dstW - 1, Math.ceil(Math.max(dstXs[0], dstXs[1], dstXs[2])));
+        const minY = Math.max(0, Math.floor(Math.min(dstYs[0], dstYs[1], dstYs[2])));
+        const maxY = Math.min(dstH - 1, Math.ceil(Math.max(dstYs[0], dstYs[1], dstYs[2])));
         const cx = (minX + maxX) / 2;
         const cy = (minY + maxY) / 2;
-        
+        let angleRad = 0, cosA = 1, sinA = 0;
+        if (dstPoly.rotation) {
+            angleRad = -dstPoly.rotation * Math.PI / 180;
+            cosA = Math.cos(angleRad);
+            sinA = Math.sin(angleRad);
+        }
+        // Precompute barycentric matrix
+        const A00 = dstTri[0][0] - dstTri[2][0], A01 = dstTri[1][0] - dstTri[2][0];
+        const A10 = dstTri[0][1] - dstTri[2][1], A11 = dstTri[1][1] - dstTri[2][1];
+        const detA = A00 * A11 - A01 * A10;
+        if (Math.abs(detA) < 0.0001) continue;
+        const invA00 = A11 / detA, invA01 = -A01 / detA;
+        const invA10 = -A10 / detA, invA11 = A00 / detA;
         // For each pixel in the bounding box
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
-                // Apply rotation if specified
-                let xRot = x;
-                let yRot = y;
-                
+                let xRot = x, yRot = y;
                 if (dstPoly.rotation) {
-                    const angleRad = -dstPoly.rotation * Math.PI / 180;
-                    const cosA = Math.cos(angleRad);
-                    const sinA = Math.sin(angleRad);
-                    const xShifted = x - cx;
-                    const yShifted = y - cy;
+                    const xShifted = x - cx, yShifted = y - cy;
                     xRot = cosA * xShifted - sinA * yShifted + cx;
                     yRot = sinA * xShifted + cosA * yShifted + cy;
                 }
-                
-                // Check if the point is inside the triangle
-                if (!PolygonUtils.pointInTriangle([xRot, yRot], dstTri[0], dstTri[1], dstTri[2])) {
-                    continue;
-                }
-                
-                // Compute barycentric coordinates
-                const A: [[number, number], [number, number]] = [
-                    [dstTri[0][0] - dstTri[2][0], dstTri[1][0] - dstTri[2][0]],
-                    [dstTri[0][1] - dstTri[2][1], dstTri[1][1] - dstTri[2][1]]
-                ];
-                
-                const detA = A[0][0] * A[1][1] - A[0][1] * A[1][0];
-                if (Math.abs(detA) < 0.0001) continue; // Skip degenerate triangles
-                
-                const invA: [[number, number], [number, number]] = [
-                    [A[1][1] / detA, -A[0][1] / detA],
-                    [-A[1][0] / detA, A[0][0] / detA]
-                ];
-                
-                const b: [number, number] = [xRot - dstTri[2][0], yRot - dstTri[2][1]];
-                const lambda1 = invA[0][0] * b[0] + invA[0][1] * b[1];
-                const lambda2 = invA[1][0] * b[0] + invA[1][1] * b[1];
+                // Fast point-in-triangle test using barycentric coordinates
+                const bx = xRot - dstTri[2][0], by = yRot - dstTri[2][1];
+                const lambda1 = invA00 * bx + invA01 * by;
+                const lambda2 = invA10 * bx + invA11 * by;
                 const lambda3 = 1 - lambda1 - lambda2;
-                
-                // Skip if outside triangle
-                if (lambda1 < 0 || lambda1 > 1 || lambda2 < 0 || lambda2 > 1 || lambda3 < 0 || lambda3 > 1) {
-                    continue;
-                }
-                
+                if (lambda1 < 0 || lambda1 > 1 || lambda2 < 0 || lambda2 > 1 || lambda3 < 0 || lambda3 > 1) continue;
                 // Map to source coordinates
                 const srcX = lambda1 * srcTri[0][0] + lambda2 * srcTri[1][0] + lambda3 * srcTri[2][0];
                 const srcY = lambda1 * srcTri[0][1] + lambda2 * srcTri[1][1] + lambda3 * srcTri[2][1];
-                
-                // Sample source pixel (with bilinear interpolation for better quality)
                 const srcXInt = Math.round(Math.max(0, Math.min(srcW - 1, srcX)));
                 const srcYInt = Math.round(Math.max(0, Math.min(srcH - 1, srcY)));
-                
-                // Copy pixel data
                 const srcIdx = (srcYInt * srcW + srcXInt) * 4;
                 const dstIdx = (y * dstW + x) * 4;
-                
                 dstImageData.data[dstIdx] = srcImageData.data[srcIdx];
                 dstImageData.data[dstIdx + 1] = srcImageData.data[srcIdx + 1];
                 dstImageData.data[dstIdx + 2] = srcImageData.data[srcIdx + 2];

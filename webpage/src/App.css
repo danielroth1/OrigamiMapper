@@ -94,7 +94,7 @@ body {
 }
 .menu-btn:hover {
   background: #444;
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em #747bff);
 }
 .menu-btn.active {
   background: #444;
@@ -136,7 +136,7 @@ footer {
 }
 .upload-card label:hover {
   background: #444;
-  filter: drop-shadow(0 0 2em #000ac2aa);
+  filter: drop-shadow(0 0 2em #00027e);
 }
 
 @media (max-width: 700px) {
