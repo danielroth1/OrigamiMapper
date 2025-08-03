@@ -40,7 +40,7 @@ function App() {
       <header className="App-header">
         <img src="/logo512x306.png" className="App-logo" alt="logo" />
         <div>To fit your image to your box, you may use the following A4 sheets as reference.</div>
-        <div className="images">
+        <div className="images" style={{ display: 'flex', gap: '2em', justifyContent: 'center' }}>
           <div>
             outside:<br/>
             <img src="/assets/box_outside_mapping.png" width={300} />
