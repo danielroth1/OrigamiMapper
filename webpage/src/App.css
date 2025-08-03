@@ -5,6 +5,10 @@
   text-align: center;
 }
 
+body {
+  background-color: #000;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -16,6 +20,12 @@
 }
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+.App-logo {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @keyframes logo-spin {
@@ -40,3 +50,83 @@
 .read-the-docs {
   color: #888;
 }
+
+.menu-bar {
+  width: 100%;
+  padding: 0.5em 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.menu-left, .menu-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+.menu-left {
+  margin-right: 0;
+}
+.menu-right {
+  margin-left: 0;
+}
+
+.menu-left a, .menu-right a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.2em;
+  padding: 0 0.5em;
+}
+.menu-left a:hover, .menu-right a:hover {
+  text-decoration: underline;
+}
+
+.menu-btn {
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.7em 1.2em;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 0.2em 0;
+  transition: background 0.2s;
+}
+.menu-btn:hover {
+  background: #444;
+}
+.menu-btn.active {
+  background: #444;
+  color: #bbb;
+  cursor: default;
+}
+
+@media (max-width: 700px) {
+  .menu-bar {
+    flex-direction: column;
+    gap: 1em;
+    padding: 0.5em 0;
+  }
+  .menu-left, .menu-right {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.5em;
+    margin: 0;
+  }
+  .App-logo {
+    width: 180px !important;
+    margin: 0 auto;
+  }
+  .images {
+    flex-direction: column !important;
+    gap: 1em !important;
+  }
+  .images img {
+    width: 90vw !important;
+    max-width: 320px;
+    height: auto;
+  }
+}
+

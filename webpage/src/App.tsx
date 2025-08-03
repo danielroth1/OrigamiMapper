@@ -38,7 +38,19 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src="/logo512x306.png" className="App-logo" alt="logo" />
+        <div className="menu-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2em' }}>
+          <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
+            <button className="menu-btn" style={{ minWidth: '100px' }} disabled>The Cube Project</button>
+            <button style={{ minWidth: '100px' }}>Box Builder</button>
+          </div>
+        <img src="/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '350px', height: 'auto' }} />
+        <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
+            <button style={{ minWidth: '100px' }}>Proxy Generator</button>
+            <button style={{ minWidth: '100px' }}>FAQ</button>
+          </div>
+        </div>
+        <ImageUpload label="Upload Outside Image: " onImage={setOutsideImg} />
+        <ImageUpload label="Upload Inside Image: " onImage={setInsideImg} />
         <div>To fit your image to your box, you may use the following A4 sheets as reference.</div>
         <div className="images" style={{ display: 'flex', gap: '2em', justifyContent: 'center' }}>
           <div>
@@ -50,8 +62,6 @@ function App() {
             <img src="/assets/box_inside_mapping.png" width={300} />
           </div>
         </div>
-        <ImageUpload label="Upload Outside Image: " onImage={setOutsideImg} />
-        <ImageUpload label="Upload Inside Image: " onImage={setInsideImg} />
         <TemplateSelect onTemplate={setTemplate} />
         <div>
           <button onClick={handleRun} disabled={loading}>
