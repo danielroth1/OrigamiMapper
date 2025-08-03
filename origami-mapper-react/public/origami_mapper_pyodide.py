@@ -1,7 +1,10 @@
+import io
+import base64
+from PIL import Image
 import json
 import math
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageDraw, ImageFont
 from skimage.draw import polygon as sk_polygon
 
 A4_SIZE_PX = (1654, 2339)  # 210x297mm at 200 DPI
@@ -16,9 +19,7 @@ class Polygon2D:
     def absolute(self, width, height):
         return [(x * width, y * height) for x, y in self.vertices]
 
-def load_json(json_path):
-    with open(json_path, 'r') as f:
-        data = json.load(f)
+def load_json(data):
     offset = tuple(data['offset'])
     input_polys = [Polygon2D(p['id'], p['vertices'], p.get('input_image', 0)) for p in data['input_polygons']]
     output_polys = [
@@ -257,7 +258,7 @@ def main(input_img_path1, input_img_path2, output_img_path1, output_img_path2, i
         new_h = int(round(img_h * scale))
         scaled_img = img.resize((new_w, new_h), Image.LANCZOS)
         # Create a new blank canvas and paste the scaled image centered
-        extended_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,0))
+        extended_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255))
         offset_x = 0
         offset_y = 0
         extended_img.paste(scaled_img, (offset_x, offset_y), scaled_img)
@@ -269,7 +270,7 @@ def main(input_img_path1, input_img_path2, output_img_path1, output_img_path2, i
         (input_imgs[0], interm_img_path1, (255,0,0,255)),
         (input_imgs[1], interm_img_path2, (0,0,255,255))
     ]):
-        interm_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,0))
+        interm_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255))
         interm_offset = (0, 0)
         interm_img.paste(img, interm_offset, img)
         draw_polygons(
@@ -310,27 +311,100 @@ def main(input_img_path1, input_img_path2, output_img_path1, output_img_path2, i
         else:
             output_imgs[idx].save(out_path)
 
-if __name__ == "__main__":
-    import argparse
+def run_mapping_from_data(outside_image_data, inside_image_data, template_json):
+    outside_img = Image.open(io.BytesIO(base64.b64decode(outside_image_data.split(',')[1])))
+    inside_img = Image.open(io.BytesIO(base64.b64decode(inside_image_data.split(',')[1])))
+    data = json.loads(template_json)
+    offset, input_polys, output_polys = load_json(data)
+    input_imgs = [outside_img.convert('RGBA'), inside_img.convert('RGBA')]
+    w = max(img.size[0] for img in input_imgs)
+    h = max(img.size[1] for img in input_imgs)
 
-    parser = argparse.ArgumentParser(
-        description="Map polygons from two input images to two output images using a JSON mapping."
-    )
-    parser.add_argument("-outside", required=True, help="Path to the outside input image (PNG or JPG)")
-    parser.add_argument("-inside", required=True, help="Path to the inside input image (PNG or JPG)")
-    parser.add_argument("-output_page1", required=True, help="Path to the page 1 output image")
-    parser.add_argument("-output_page2", required=True, help="Path to the page 2 output image")
-    parser.add_argument("-output_outside_mapping", required=True, help="Path to the outside intermediate output image")
-    parser.add_argument("-output_inside_mapping", required=True, help="Path to the inside intermediate output image")
-    parser.add_argument("-template", required=True, help="Path to the JSON template file")
+    # Keep A4 aspect ratio, but ensure width and height are at least that of the input images
+    a4_w, a4_h = A4_SIZE_PX
+    aspect = a4_w / a4_h
+    canvas_w, canvas_h = a4_w, a4_h
+    if w > a4_w or h > a4_h:
+        scale_w = w / a4_w
+        scale_h = h / a4_h
+        if scale_w > scale_h:
+            canvas_w = w
+            canvas_h = int(round(w / aspect))
+            if canvas_h < h:
+                canvas_h = h
+        else:
+            canvas_h = h
+            canvas_w = int(round(h * aspect))
+            if canvas_w < w:
+                canvas_w = w
 
-    args = parser.parse_args()
-    main(
-        args.outside,
-        args.inside,
-        args.output_page1,
-        args.output_page2,
-        args.output_outside_mapping,
-        args.output_inside_mapping,
-        args.template
-    )
+    # Uniformly scale input images to fit canvas, then extend to canvas size
+    scaled_imgs = []
+    for img in input_imgs:
+        img_w, img_h = img.size
+        scale = min(canvas_w / img_w, canvas_h / img_h)
+        new_w = int(round(img_w * scale))
+        new_h = int(round(img_h * scale))
+        scaled_img = img.resize((new_w, new_h), Image.LANCZOS)
+        # Create a new blank canvas and paste the scaled image centered
+        extended_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,0))
+        offset_x = 0
+        offset_y = 0
+        extended_img.paste(scaled_img, (offset_x, offset_y), scaled_img)
+        scaled_imgs.append(extended_img)
+    input_imgs = scaled_imgs
+
+    # Create two intermediate images, one for each input image
+    interm_imgs = [
+        Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255)),
+        Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255))
+    ]
+    for idx, (img, color) in enumerate([
+        (input_imgs[0], (255,0,0,255)),
+        (input_imgs[1], (0,0,255,255))
+    ]):
+        interm_img = Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,0))
+        interm_offset = (0, 0)
+        interm_img.paste(img, interm_offset, img)
+        draw_polygons(
+            interm_img,
+            [p for p in input_polys if p.image_idx == idx],
+            color=color,
+            fill=color[:3] + (int(255*0.2),),
+            width=4,
+            offset=(0,0),
+            fill_alpha=0.2,
+            show_id=True
+        )
+        interm_imgs[idx] = interm_img
+
+    # Output images
+    output_imgs = [
+        Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255)),
+        Image.new('RGBA', (canvas_w, canvas_h), (255,255,255,255))
+    ]
+    input_poly_dict = {p.id: p for p in input_polys}
+    output_poly_dict = {p.id: p for p in output_polys}
+    for poly_id in input_poly_dict:
+        if poly_id in output_poly_dict:
+            src_poly = input_poly_dict[poly_id]
+            dst_poly = output_poly_dict[poly_id]
+            src_img = input_imgs[src_poly.image_idx]
+            dst_img = output_imgs[dst_poly.image_idx]
+            output_imgs[dst_poly.image_idx] = map_polygon_pixels(
+                src_img, src_poly, dst_img, dst_poly, offset
+            )
+
+    # Convert output images to base64
+    def img_to_b64(img):
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+
+    results = {
+        'output_page1': img_to_b64(output_imgs[0]),
+        'output_page2': img_to_b64(output_imgs[1]),
+        'output_outside_mapping': img_to_b64(interm_imgs[0]),
+        'output_inside_mapping': img_to_b64(interm_imgs[1]),
+    }
+    return results
