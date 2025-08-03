@@ -15,17 +15,13 @@ body {
   will-change: filter;
   transition: filter 300ms;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
+
 
 .App-logo {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  margin-top: 0;
 }
 
 @keyframes logo-spin {
@@ -53,11 +49,12 @@ body {
 
 .menu-bar {
   width: 100%;
-  padding: 0.5em 0;
+  padding: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
+  margin-top: 0;
 }
 .menu-left, .menu-right {
   display: flex;
@@ -93,6 +90,7 @@ body {
   cursor: pointer;
   margin: 0.2em 0;
   transition: background 0.2s;
+  box-shadow: none;
 }
 .menu-btn:hover {
   background: #444;
@@ -104,6 +102,14 @@ body {
   cursor: default;
 }
 
+footer {
+  color: #bbb;
+  text-align: center;
+  padding: 0.5em 0 0.5em 0;
+  margin-top: 0em;
+  margin-bottom: 0;
+  font-size: 1em;
+}
 .upload-card {
   background: #181818;
   border-radius: 12px;
@@ -115,8 +121,8 @@ body {
 .upload-card input[type="file"] {
   display: none;
 }
-button,
 .upload-card label {
+  display: inline-block;
   background: #222;
   color: #fff;
   border: none;
@@ -128,11 +134,11 @@ button,
   margin: 0.2em 0;
   transition: background 0.2s;
 }
-button:hover,
 .upload-card label:hover {
   background: #444;
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em #000ac2aa);
 }
+
 @media (max-width: 700px) {
   .upload-card {
     max-width: 95vw;
