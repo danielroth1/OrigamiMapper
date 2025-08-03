@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import './App.css';
 import ImageUpload from './components/ImageUpload';
 import ImagePreview from './components/ImagePreview';
 import TemplateSelect from './components/TemplateSelect';
-import { runMapping } from './OrigamiMapperPyodide';
+import { runMappingJS } from './OrigamiMapperJS';
 
 function App() {
   const [outsideImg, setOutsideImg] = useState('');
@@ -18,13 +18,7 @@ function App() {
       return;
     }
     setLoading(true);
-    const res = await runMapping(outsideImg, insideImg, template);
-    const dict: { [key: string]: string } = {
-      output_page1: res.get('output_page1'),
-      output_page2: res.get('output_page2'),
-      output_outside_mapping: res.get('output_outside_mapping'),
-      output_inside_mapping: res.get('output_inside_mapping'),
-    };
+    const dict = await runMappingJS(outsideImg, insideImg, template);
     setResults(dict);
     setLoading(false);
   };
