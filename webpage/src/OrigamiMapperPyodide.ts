@@ -4,7 +4,9 @@ export async function loadPyodideAndMapper() {
   if (!pyodide) {
     pyodide = await (window as any).loadPyodide();
     await pyodide.loadPackage(['numpy', 'pillow', 'scikit-image']);
-    const code = await fetch('/origami_mapper_pyodide.py').then(r => r.text());
+    // const code = await fetch('./origami-mapper/origami_mapper_pyodide.py').then(r => r.text()); // TODO: Uncomment this line if you have a specific path for templates
+    const code = await fetch('./origami_mapper_pyodide.py').then(r => r.text());
+    console.log("code:", code);
     await pyodide.runPythonAsync(code);
   }
   return pyodide;

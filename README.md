@@ -7,7 +7,7 @@ You will need two images, one for the inside of the box and one for the outside.
 
 To get started, create an image that shows you where your where what part of your image is drawn on the box.
 Afterwards open examples/box_page1_template_interm.jpg and examples/box_page2_template_interm.jpg:
-/usr/local/bin/python3 /Users/daniel/Projects/OrigamiMapper/origami_mapper.py -outside auxiliary/empty.jpg -inside auxiliary/empty.jpg -output_page1 examples/box_page1_template.jpg -output_page2 examples/box_page2_template.jpg -output_inside_mapping examples/box_outside_mapping.jpg -output_outside_mapping examples/box_inside_mapping.jpg -template templates/box.json
+/usr/local/bin/python3 /Users/daniel/Projects/OrigamiMapper/origami_mapper.py -outside auxiliary/empty.jpg -inside auxiliary/empty.jpg -output_page1 examples/box_page1_template.jpg -output_page2 examples/box_page2_template.jpg -output_inside_mapping examples/box_inside_mapping.jpg -output_outside_mapping examples/box_outside_mapping.jpg -template templates/box.json
 
 Example use where there are two images inside exmples/mana_box/ (page1.jpg, page2.jpg) folder:
 
