@@ -1,5 +1,7 @@
-This script allows you to create a print out for origami boxes with your own custom images.
-Here is a video of the box assembly (I am not the creator): https://www.youtube.com/watch?v=E-NGbi4VIIs
+This Webside allows you to create a print out for origami boxes with your own custom images.
+<br>
+Here some random YouTube video of the box assembly:
+https://www.youtube.com/watch?v=E-NGbi4VIIs \
 The base is an A4 paper so the custom image can be printed on with any office printer
 You will need two images, one for the inside of the box and one for the outside. You can also use the same image for inside and outside.
 

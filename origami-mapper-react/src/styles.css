@@ -1,7 +1,0 @@
-body { font-family: sans-serif; margin: 2em; }
-.images { display: flex; flex-wrap: wrap; gap: 2em; }
-.images > div { flex: 1 1 200px; }
-img { max-width: 100%; border: 1px solid #ccc; background: #eee; }
-input[type="file"] { margin-bottom: 1em; }
-select { margin-left: 1em; }
-button { margin: 1em 0.5em; }
