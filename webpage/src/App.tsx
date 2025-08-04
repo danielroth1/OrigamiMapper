@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import './App.css';
 import ImageUpload from './components/ImageUpload';
 import ImagePreview from './components/ImagePreview';
@@ -23,16 +25,23 @@ function App() {
     setLoading(false);
   };
 
-  const handleDownloadAll = () => {
-    ['output_page1', 'output_page2', 'output_outside_mapping', 'output_inside_mapping'].forEach(id => {
+  const handleDownloadAll = async () => {
+    const zip = new JSZip();
+    const imageIds = ['output_page1', 'output_page2', 'output_outside_mapping', 'output_inside_mapping'];
+    const fetchImageAsBlob = async (dataUrl: string) => {
+      // Convert dataURL to Blob
+      const res = await fetch(dataUrl);
+      return await res.blob();
+    };
+    for (const id of imageIds) {
       const url = results[id];
       if (url) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = id + '.png';
-        link.click();
+        const blob = await fetchImageAsBlob(url);
+        zip.file(id + '.png', blob);
       }
-    });
+    }
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    saveAs(zipBlob, 'origami_mapper_results.zip');
   };
 
   return (
@@ -63,7 +72,7 @@ function App() {
                 <button onClick={handleRun} disabled={loading} className="menu-btn">
                   {loading ? 'Processing...' : 'Run Mapping'}
                 </button>
-                <button onClick={handleDownloadAll} disabled={!results.output_page1} className="menu-btn">
+                <button onClick={() => handleDownloadAll()} disabled={!results.output_page1} className="menu-btn">
                   Download All Results
                 </button>
               </div>
