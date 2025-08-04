@@ -50,13 +50,13 @@ function App() {
         <header className="App-header">
           <div className="menu-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2em' }}>
             <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-              <button style={{ minWidth: '100px' }}>The Cube Project</button>
-              <button style={{ minWidth: '100px' }} disabled>Box Builder</button>
+              <button className="menu-btn" style={{ minWidth: '100px' }}>The Cube Project</button>
+              <button className="menu-btn" style={{ minWidth: '100px' }} disabled>Box Builder</button>
             </div>
           <img src="/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
           <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-              <button style={{ minWidth: '100px' }}>Proxy Generator</button>
-              <button style={{ minWidth: '100px' }}>FAQ</button>
+              <button className="menu-btn" style={{ minWidth: '100px' }}>Proxy Generator</button>
+              <button className="menu-btn" style={{ minWidth: '100px' }}>FAQ</button>
             </div>
           </div>
         </header>
