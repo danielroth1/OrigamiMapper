@@ -62,7 +62,7 @@ function App() {
 
   const handleDownloadAll = async () => {
     const zip = new JSZip();
-    const imageIds = ['output_page1', 'output_page2', 'output_outside_mapping', 'output_inside_mapping'];
+    const imageIds = ['output_page1', 'output_page2'];
     const fetchImageAsBlob = async (dataUrl: string) => {
       // Convert dataURL to Blob
       const res = await fetch(dataUrl);
@@ -88,7 +88,7 @@ function App() {
               <button className="menu-btn" style={{ minWidth: '100px' }}>The Cube Project</button>
               <button className="menu-btn" style={{ minWidth: '100px' }} disabled>Box Builder</button>
             </div>
-          <img src="/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
+          <img src="/origami-mapper/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
           <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
               <button className="menu-btn" style={{ minWidth: '100px' }}>Proxy Generator</button>
               <button className="menu-btn" style={{ minWidth: '100px' }}>FAQ</button>
@@ -98,7 +98,7 @@ function App() {
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
-            <img src="/assets/box_outside_mapping.png" width={120} />
+            <img src="/origami-mapper/assets/box_outside_mapping.png" width={120} />
           </div>
           <div style={{ flex: '0 1 400px' }}>
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
@@ -132,7 +132,7 @@ function App() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Inside Reference</div>
-            <img src="/assets/box_inside_mapping.png" width={120} />
+            <img src="/origami-mapper/assets/box_inside_mapping.png" width={120} />
           </div>
         </div>
         <div className="images" style={{ display: 'flex', flexWrap: 'wrap', gap: '1em', justifyContent: 'center' }}>
