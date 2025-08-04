@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import './App.css';
@@ -7,20 +7,55 @@ import ImagePreview from './components/ImagePreview';
 import TemplateSelect from './components/TemplateSelect';
 import { runMappingJS } from './OrigamiMapperJS';
 
+import { cropToA4Ratio, scaleToA4Ratio, tileToA4Ratio } from './components/ImageUpload';
+
 function App() {
-  const [outsideImg, setOutsideImg] = useState('');
-  const [insideImg, setInsideImg] = useState('');
+  const [outsideImgRaw, setOutsideImgRaw] = useState('');
+  const [insideImgRaw, setInsideImgRaw] = useState('');
+  const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
+  const [insideImgTransformed, setInsideImgTransformed] = useState('');
   const [template, setTemplate] = useState('Box');
+  const [transformMode, setTransformMode] = useState<'none' | 'crop' | 'scale' | 'tile'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
 
+  // Transform image according to selected mode
+  const transformImage = (dataUrl: string, mode: 'none' | 'crop' | 'scale' | 'tile', callback: (result: string) => void) => {
+    if (mode === 'none') {
+      callback(dataUrl);
+    } else if (mode === 'crop') {
+      cropToA4Ratio(dataUrl, callback);
+    } else if (mode === 'scale') {
+      scaleToA4Ratio(dataUrl, callback);
+    } else if (mode === 'tile') {
+      tileToA4Ratio(dataUrl, callback);
+    }
+  };
+
+  // Set and transform outside image
+  const setOutsideImg = (dataUrl: string) => {
+    setOutsideImgRaw(dataUrl);
+    transformImage(dataUrl, transformMode, setOutsideImgTransformed);
+  };
+  // Set and transform inside image
+  const setInsideImg = (dataUrl: string) => {
+    setInsideImgRaw(dataUrl);
+    transformImage(dataUrl, transformMode, setInsideImgTransformed);
+  };
+
+  // Re-transform images when mode changes
+  useEffect(() => {
+    if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, setOutsideImgTransformed);
+    if (insideImgRaw) transformImage(insideImgRaw, transformMode, setInsideImgTransformed);
+  }, [transformMode, outsideImgRaw, insideImgRaw]);
+
   const handleRun = async () => {
-    if (!outsideImg || !insideImg || !template) {
+    if (!outsideImgTransformed || !insideImgTransformed || !template) {
       alert('Please upload both images and select a template.');
       return;
     }
     setLoading(true);
-    const dict = await runMappingJS(outsideImg, insideImg, template);
+    const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, template);
     setResults(dict);
     setLoading(false);
   };
@@ -67,7 +102,17 @@ function App() {
           </div>
           <div style={{ flex: '0 1 400px' }}>
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-              <TemplateSelect onTemplate={setTemplate} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1em', width: '100%', justifyContent: 'center' }}>
+                <span style={{ color: '#fff' }}></span>
+                <TemplateSelect onTemplate={setTemplate} />
+                <span style={{ color: '#fff' }}>Transform:</span>
+                <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                  <option value="none">None</option>
+                  <option value="crop">Crop</option>
+                  <option value="scale">Scale</option>
+                  <option value="tile">Tile</option>
+                </select>
+              </div>
               <div style={{ display: 'flex', gap: '1em', justifyContent: 'center' }}>
                 <button onClick={handleRun} disabled={loading} className="menu-btn">
                   {loading ? 'Processing...' : 'Run Mapping'}
@@ -91,8 +136,8 @@ function App() {
           </div>
         </div>
         <div className="images" style={{ display: 'flex', flexWrap: 'wrap', gap: '1em', justifyContent: 'center' }}>
-          <ImagePreview src={outsideImg} label="Outside Input" />
-          <ImagePreview src={insideImg} label="Inside Input" />
+          <ImagePreview src={outsideImgTransformed} label="Outside Input" />
+          <ImagePreview src={insideImgTransformed} label="Inside Input" />
           <ImagePreview src={results.output_page1} label="Output Page 1" />
           <ImagePreview src={results.output_page2} label="Output Page 2" />
           <ImagePreview src={results.output_outside_mapping} label="Outside Mapping" />
