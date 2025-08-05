@@ -150,8 +150,20 @@ function App() {
           <ImagePreview src={insideImgTransformed} label="Inside Input" />
           <ImagePreview src={results.output_page1} label="Output Page 1" />
           <ImagePreview src={results.output_page2} label="Output Page 2" />
-          <ImagePreview src={results.output_outside_mapping} label="Outside Mapping" />
-          <ImagePreview src={results.output_inside_mapping} label="Inside Mapping" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <ImagePreview src={results.output_outside_mapping} label="Outside Mapping" />
+            <select style={{ marginTop: '0.5em', padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+              <option value="default">Option 1</option>
+              <option value="other">Option 2</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <ImagePreview src={results.output_inside_mapping} label="Inside Mapping" />
+            <select style={{ marginTop: '0.5em', padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+              <option value="default">Option 1</option>
+              <option value="other">Option 2</option>
+            </select>
+          </div>
         </div>
       </div>
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
