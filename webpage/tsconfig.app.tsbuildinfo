@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/OrigamiMapperJS.ts","./src/OrigamiMapperPyodide.ts","./src/OrigamiMapperTypes.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/ImagePreview.tsx","./src/components/ImageUpload.tsx","./src/components/TemplateSelect.tsx"],"version":"5.8.3"}
