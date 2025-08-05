@@ -7,7 +7,7 @@ import ImagePreview from './components/ImagePreview';
 import TemplateSelect from './components/TemplateSelect';
 import { runMappingJS } from './OrigamiMapperJS';
 
-import { cropToA4Ratio, scaleToA4Ratio, tileToA4Ratio } from './components/ImageUpload';
+import { ImageTransform } from './components/ImageTransform';
 
 function App() {
   const [outsideImgRaw, setOutsideImgRaw] = useState('');
@@ -15,20 +15,20 @@ function App() {
   const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
   const [insideImgTransformed, setInsideImgTransformed] = useState('');
   const [template, setTemplate] = useState('Box');
-  const [transformMode, setTransformMode] = useState<'none' | 'crop' | 'scale' | 'tile'>('none');
+  const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4'>('scale');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
 
   // Transform image according to selected mode
-  const transformImage = (dataUrl: string, mode: 'none' | 'crop' | 'scale' | 'tile', callback: (result: string) => void) => {
+  const transformImage = (dataUrl: string, mode: 'none' | 'scale' | 'tile' | 'tile4', callback: (result: string) => void) => {
     if (mode === 'none') {
       callback(dataUrl);
-    } else if (mode === 'crop') {
-      cropToA4Ratio(dataUrl, callback);
     } else if (mode === 'scale') {
-      scaleToA4Ratio(dataUrl, callback);
+      ImageTransform.scaleToA4Ratio(dataUrl, callback);
     } else if (mode === 'tile') {
-      tileToA4Ratio(dataUrl, callback);
+      ImageTransform.tileToA4Ratio(dataUrl, callback);
+    } else if (mode === 'tile4') {
+      ImageTransform.tile4Times(dataUrl, callback);
     }
   };
 
@@ -88,7 +88,17 @@ function App() {
               <button className="menu-btn" style={{ minWidth: '100px' }}>The Cube Project</button>
               <button className="menu-btn" style={{ minWidth: '100px' }} disabled>Box Builder</button>
             </div>
-          <img src="/origami-mapper/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <img src="/origami-mapper/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
+            <div style={{ color: '#fff', marginTop: '1em', fontSize: '1.1em', maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+              Build your own Card Deck Box! <br />
+              This tool generates printable templates from your images. <br />
+              Perfect for holding a standard deck of 60 cards. <br />
+              <span style={{ display: 'none' }}>
+                Magic the Gathering, Pokémon Cards, One Piece, Flesh and Blood, Digimon, Poker, and Yu-Gi-Oh!
+              </span>
+            </div>
+          </div>
           <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
               <button className="menu-btn" style={{ minWidth: '100px' }}>Proxy Generator</button>
               <button className="menu-btn" style={{ minWidth: '100px' }}>FAQ</button>
@@ -101,6 +111,13 @@ function App() {
             <img src="/origami-mapper/assets/box_outside_mapping.png" width={120} />
           </div>
           <div style={{ flex: '0 1 400px' }}>
+            <section className="upload-card" style={{ background: '#181818', borderRadius: '12px', padding: '1.5em', paddingTop: '0.1em', margin: '1.5em auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.3em', marginBottom: '1em' }}>Upload Images</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
+                <ImageUpload label="Upload Outside Image" onImage={setOutsideImg} />
+                <ImageUpload label="Upload Inside Image" onImage={setInsideImg} />
+              </div>
+            </section>
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1em', width: '100%', justifyContent: 'center' }}>
                 <span style={{ color: '#fff' }}></span>
@@ -108,9 +125,9 @@ function App() {
                 <span style={{ color: '#fff' }}>Transform:</span>
                 <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
                   <option value="none">None</option>
-                  <option value="crop">Crop</option>
                   <option value="scale">Scale</option>
-                  <option value="tile">Tile</option>
+                  <option value="tile">Tile (Fill A4)</option>
+                  <option value="tile4">Tile 4x (2x2)</option>
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '1em', justifyContent: 'center' }}>
@@ -120,13 +137,6 @@ function App() {
                 <button onClick={() => handleDownloadAll()} disabled={!results.output_page1} className="menu-btn">
                   Download All Results
                 </button>
-              </div>
-            </section>
-            <section className="upload-card" style={{ background: '#181818', borderRadius: '12px', padding: '1.5em', paddingTop: '0.1em', margin: '1.5em auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006' }}>
-              <h2 style={{ color: '#fff', fontSize: '1.3em', marginBottom: '1em' }}>Upload Images</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-                <ImageUpload label="Upload Outside Image" onImage={setOutsideImg} />
-                <ImageUpload label="Upload Inside Image" onImage={setInsideImg} />
               </div>
             </section>
           </div>
