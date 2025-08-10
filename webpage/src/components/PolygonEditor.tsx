@@ -173,6 +173,25 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
     dragControls.addEventListener('drag', (event) => {
       const mesh = event.object as THREE.Mesh;
+      // Clamp so the entire polygon stays within canvas
+      if (mesh.geometry instanceof THREE.ShapeGeometry) {
+        const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (let i = 0; i < positions.length; i += 3) {
+          const x = positions[i] + mesh.position.x;
+          const y = positions[i + 1] + mesh.position.y;
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+        // Calculate allowed movement
+        if (minX < 0) mesh.position.x -= minX;
+        if (maxX > width) mesh.position.x -= (maxX - width);
+        if (minY < 0) mesh.position.y -= minY;
+        if (maxY > height) mesh.position.y -= (maxY - height);
+      }
+
       const outline = fillToOutlineMap.get(mesh);
       if (outline) {
         outline.position.copy(mesh.position);
