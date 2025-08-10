@@ -11,7 +11,7 @@ import boxData from '../../../templates/box/box.json';
 import Header from '../components/Header';
 import '../App.css';
 
-function BoxBuilder() {
+function BoxGenerator() {
   const [outsideImgRaw, setOutsideImgRaw] = useState('');
   const [insideImgRaw, setInsideImgRaw] = useState('');
   const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
@@ -223,4 +223,4 @@ function BoxBuilder() {
   );
 }
 
-export default BoxBuilder;
+export default BoxGenerator;

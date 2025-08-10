@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 const Header: React.FC = () => (
   <header className="App-header">
     <div className="menu-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2em' }}>
-      <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-        <button className="menu-btn" style={{ minWidth: '100px' }}>The Cube Project</button>
+      <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
-          <button className="menu-btn" style={{ minWidth: '100px' }}>Box Builder</button>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>Box Generator</button>
+        </Link>
+        <Link to="/proxy-generator" style={{ textDecoration: 'none' }}>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>Proxy Generator</button>
         </Link>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -21,9 +23,13 @@ const Header: React.FC = () => (
           </span>
         </div>
       </div>
-      <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-        <button className="menu-btn" style={{ minWidth: '100px' }}>Proxy Generator</button>
-        <button className="menu-btn" style={{ minWidth: '100px' }}>FAQ</button>
+      <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
+        <Link to="/template-images" style={{ textDecoration: 'none' }}>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>Template Images</button>
+        </Link>
+        <Link to="/mtg-rules" style={{ textDecoration: 'none' }}>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>MTG Rules</button>
+        </Link>
       </div>
     </div>
   </header>

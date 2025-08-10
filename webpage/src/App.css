@@ -84,13 +84,18 @@ body {
   color: #fff;
   border: none;
   border-radius: 6px;
-  padding: 0.7em 1.2em;
+  padding: 0.7em 0;
   font-size: 1em;
   font-weight: bold;
   cursor: pointer;
   margin: 0.2em 0;
   transition: background 0.2s;
   box-shadow: none;
+  width: 180px;
+  white-space: nowrap;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .menu-btn:hover {
   background: #444;
