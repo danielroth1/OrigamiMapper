@@ -40,6 +40,114 @@ export class ImageTransform {
   }
 
   /**
+   * Tiles the uploaded image 8 times (4x2 grid) to fill the A4 ratio canvas (height/width = 297/210).
+   */
+  static tile8Times(dataUrl: string, callback: (tiledDataUrl: string) => void) {
+    const img = new window.Image();
+    img.onload = () => {
+      const A4_RATIO = 297 / 210;
+      let { width, height } = img;
+      // Try 4x2, 5x2, 5x3, 4x3, 3x3, 3x4, 2x4, 2x5, 2x6, 2x7, 2x8, 2x9, 2x10
+      // Find best grid to fill A4 with 8-10 tiles, shrinking as needed
+      let bestGrid = { gridX: 4, gridY: 2, tiles: 8 };
+      let bestFit = 0;
+      let bestTileW = width;
+      let bestTileH = height;
+      let bestCanvasW = width * 4;
+      let bestCanvasH = height * 2;
+      for (let tiles = 8; tiles <= 10; tiles++) {
+        for (let gridY = 2; gridY <= tiles; gridY++) {
+          let gridX = Math.ceil(tiles / gridY);
+          let tileW = width;
+          let tileH = height;
+          let canvasW = gridX * tileW;
+          let canvasH = gridY * tileH;
+          let ratio = canvasH / canvasW;
+          // Shrink tiles to fit A4 aspect
+          if (ratio > A4_RATIO) {
+            canvasH = Math.round(canvasW * A4_RATIO);
+            tileH = canvasH / gridY;
+            tileW = canvasW / gridX;
+          } else if (ratio < A4_RATIO) {
+            canvasW = Math.round(canvasH / A4_RATIO);
+            tileW = canvasW / gridX;
+            tileH = canvasH / gridY;
+          }
+          // Score fit: how close to A4 and how much area is filled
+          let fit = Math.min(canvasW, canvasH) / Math.max(canvasW, canvasH);
+          // Check if squashing is too much (e.g. shrink ratio < 0.7)
+          let shrinkW = tileW / width;
+          let shrinkH = tileH / height;
+          let minShrink = Math.min(shrinkW, shrinkH);
+          if (minShrink < 0.7) {
+            // Crop image to preserve aspect ratio, cut sides
+            let cropW = width * 0.7;
+            let cropH = height * 0.7;
+            tileW = cropW;
+            tileH = cropH;
+            canvasW = gridX * tileW;
+            canvasH = gridY * tileH;
+            ratio = canvasH / canvasW;
+            if (ratio > A4_RATIO) {
+              canvasH = Math.round(canvasW * A4_RATIO);
+              tileH = canvasH / gridY;
+              tileW = canvasW / gridX;
+            } else if (ratio < A4_RATIO) {
+              canvasW = Math.round(canvasH / A4_RATIO);
+              tileW = canvasW / gridX;
+              tileH = canvasH / gridY;
+            }
+          }
+          if (fit > bestFit) {
+            bestFit = fit;
+            bestGrid = { gridX, gridY, tiles };
+            bestTileW = tileW;
+            bestTileH = tileH;
+            bestCanvasW = canvasW;
+            bestCanvasH = canvasH;
+          }
+        }
+      }
+      const { gridX, gridY } = bestGrid;
+      let tileW = bestTileW;
+      let tileH = bestTileH;
+      let canvasW = bestCanvasW;
+      let canvasH = bestCanvasH;
+      // If cropping, crop the image before tiling
+      let cropX = (width - tileW) / 2;
+      let cropY = (height - tileH) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+        for (let y = 0; y < gridY; y++) {
+          for (let x = 0; x < gridX; x++) {
+            ctx.drawImage(
+              img,
+              cropX,
+              cropY,
+              tileW,
+              tileH,
+              x * tileW,
+              y * tileH,
+              tileW,
+              tileH
+            );
+          }
+        }
+        callback(canvas.toDataURL());
+      } else {
+        callback(dataUrl);
+      }
+    };
+    img.onerror = () => callback(dataUrl);
+    img.src = dataUrl;
+  }
+
+  /**
    * Tiles (repeats) the uploaded image to fill the A4 ratio canvas (height/width = 297/210).
    */
   static tileToA4Ratio(dataUrl: string, callback: (tiledDataUrl: string) => void) {
