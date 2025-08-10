@@ -148,14 +148,33 @@ function App() {
           </div>
         </div>
         <div className="images" style={{ display: 'flex', flexWrap: 'wrap', gap: '1em', justifyContent: 'center' }}>
-          <ImagePreview src={outsideImgTransformed} label="Outside Input" />
-          <ImagePreview src={insideImgTransformed} label="Inside Input" />
-          <ImagePreview src={results.output_page1} label="Output Page 1" />
-          <ImagePreview src={results.output_page2} label="Output Page 2" />
-          <ImagePreview src={results.output_outside_mapping} label="Outside Mapping" />
-          <ImagePreview src={results.output_inside_mapping} label="Inside Mapping" />
+          {/* Outside PolygonEditor: shows outsideImgTransformed and output polygons (id does not contain 'i') */}
+          <PolygonEditor
+            data={{
+              ...boxData,
+              input_polygons: (boxData.input_polygons ?? [])
+                .filter(p => !p.id.includes('i'))
+                .map(p => ({
+                  ...p,
+                  vertices: (p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2)
+                })),
+              backgroundImg: outsideImgTransformed
+            }}
+          />
+          {/* Inside PolygonEditor: shows insideImgTransformed and input polygons (id contains 'i') */}
+          <PolygonEditor
+            data={{
+              ...boxData,
+              input_polygons: (boxData.input_polygons ?? [])
+                .filter(p => p.id.includes('i'))
+                .map(p => ({
+                  ...p,
+                  vertices: (p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2)
+                })),
+              backgroundImg: insideImgTransformed
+            }}
+          />
         </div>
-        <PolygonEditor data={boxData} />
       </div>
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
         <div>

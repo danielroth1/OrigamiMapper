@@ -12,6 +12,10 @@
             "webRoot": "${workspaceFolder}",
             "pathMappings": [
                 {
+                    "url": "http://localhost:5173/origami-mapper/src",
+                    "path": "${workspaceFolder}/webpage/src"
+                },
+                {
                     "url": "http://localhost:5173/src",
                     "path": "${workspaceFolder}/webpage/src"
                 }
