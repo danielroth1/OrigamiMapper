@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
 import { DragControls } from 'three/examples/jsm/controls/DragControls.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
@@ -6,13 +6,17 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
 
+export interface PolygonEditorHandle {
+  getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
+}
+
 interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
   backgroundImg?: string;
   label: string;
 }
 
-const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -108,10 +112,13 @@ const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
     const polygonGroups = polygons.map(polygon => {
       const shape = new THREE.Shape();
       polygon.vertices.forEach((v, i) => {
+        // Flip y-axis so origin is top-left
+        const x = v[0] * width;
+        const y = (1 - v[1]) * height;
         if (i === 0) {
-          shape.moveTo(v[0] * width, v[1] * height);
+          shape.moveTo(x, y);
         } else {
-          shape.lineTo(v[0] * width, v[1] * height);
+          shape.lineTo(x, y);
         }
       });
       shape.closePath();
@@ -192,10 +199,10 @@ const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
         const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
         const updatedVertices: [number, number][] = [];
         for (let i = 0; i < positions.length; i += 3) {
-          updatedVertices.push([
-            (positions[i] + mesh.position.x) / width,
-            (positions[i + 1] + mesh.position.y) / height
-          ]);
+          // Flip y-axis back when updating vertices
+          const x = (positions[i] + mesh.position.x) / width;
+          const y = 1 - ((positions[i + 1] + mesh.position.y) / height);
+          updatedVertices.push([x, y]);
         }
         // Get group prefix
         const draggedGroup = mesh.parent as THREE.Group;
@@ -211,7 +218,8 @@ const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
             if (p.id.startsWith(prefix + '_')) {
               return {
                 ...p,
-                vertices: p.vertices.map(([x, y]) => [x + dx, y + dy])
+                // Flip y-axis for translation
+                vertices: p.vertices.map(([x, y]) => [x + dx, y - dy])
               };
             } else {
               return p;
@@ -235,6 +243,14 @@ const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
     };
   }, [polygons]);
 
+  // Expose getCurrentJson to parent via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentJson: () => ({
+      ...data,
+      input_polygons: polygons
+    })
+  }), [data, polygons]);
+
   const handleExport = () => {
     const output = { ...data, input_polygons: polygons };
     const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
@@ -251,6 +267,6 @@ const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
       <button onClick={handleExport}>Export JSON</button>
     </div>
   );
-};
+});
 
 export default PolygonEditor;

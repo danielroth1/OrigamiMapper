@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import './App.css';
@@ -8,7 +8,7 @@ import TemplateSelect from './components/TemplateSelect';
 import { runMappingJS } from './OrigamiMapperJS';
 
 import { ImageTransform } from './components/ImageTransform';
-import PolygonEditor from './components/PolygonEditor';
+import PolygonEditor, { type PolygonEditorHandle } from './components/PolygonEditor';
 import boxData from '../../templates/box/box.json';
 
 function App() {
@@ -20,6 +20,10 @@ function App() {
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4'>('scale');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+
+  // Refs for PolygonEditors
+  const outsideEditorRef = useRef<PolygonEditorHandle>(null);
+  const insideEditorRef = useRef<PolygonEditorHandle>(null);
 
   // Transform image according to selected mode
   const transformImage = (dataUrl: string, mode: 'none' | 'scale' | 'tile' | 'tile4', callback: (result: string) => void) => {
@@ -39,7 +43,7 @@ function App() {
     setOutsideImgRaw(dataUrl);
     transformImage(dataUrl, transformMode, setOutsideImgTransformed);
   };
-  // Set and transform inside image
+      // const [template, setTemplate] = useState('Box'); // No longer used
   const setInsideImg = (dataUrl: string) => {
     setInsideImgRaw(dataUrl);
     transformImage(dataUrl, transformMode, setInsideImgTransformed);
@@ -52,12 +56,31 @@ function App() {
   }, [transformMode, outsideImgRaw, insideImgRaw]);
 
   const handleRun = async () => {
-    if (!outsideImgTransformed || !insideImgTransformed || !template) {
-      alert('Please upload both images and select a template.');
+    if (!outsideImgTransformed || !insideImgTransformed) {
+      alert('Please upload both images.');
+      return;
+    }
+    if (!outsideEditorRef.current || !insideEditorRef.current) {
+      alert('Polygon editors not ready.');
       return;
     }
     setLoading(true);
-    const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, template);
+    // Get JSONs from both editors
+    const outsideJson = outsideEditorRef.current.getCurrentJson();
+    const insideJson = insideEditorRef.current.getCurrentJson();
+    // Combine them: merge input_polygons and output_polygons, keep other fields from outsideJson
+    const combinedJson = {
+      ...outsideJson,
+      input_polygons: [
+        ...(outsideJson.input_polygons ?? []),
+        ...(insideJson.input_polygons ?? [])
+      ],
+      output_polygons: [
+        ...(outsideJson.output_polygons ?? []),
+        ...(insideJson.output_polygons ?? [])
+      ]
+    };
+  const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson));
     setResults(dict);
     setLoading(false);
   };
@@ -154,6 +177,7 @@ function App() {
           <ImagePreview src={results.output_page2} label="Output Page 2" />
           {/* Outside PolygonEditor: shows outsideImgTransformed and output polygons (id does not contain 'i') */}
           <PolygonEditor
+            ref={outsideEditorRef}
             data={{
               ...boxData,
               offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
@@ -174,6 +198,7 @@ function App() {
           />
           {/* Inside PolygonEditor: shows insideImgTransformed and input polygons (id contains 'i') */}
           <PolygonEditor
+            ref={insideEditorRef}
             data={{
               ...boxData,
               offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
@@ -208,4 +233,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
