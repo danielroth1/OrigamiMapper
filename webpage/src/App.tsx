@@ -15,12 +15,12 @@ function App() {
   const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
   const [insideImgTransformed, setInsideImgTransformed] = useState('');
   const [template, setTemplate] = useState('Box');
-  const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4'>('scale');
+  const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('scale');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
 
   // Transform image according to selected mode
-  const transformImage = (dataUrl: string, mode: 'none' | 'scale' | 'tile' | 'tile4', callback: (result: string) => void) => {
+  const transformImage = (dataUrl: string, mode: 'none' | 'scale' | 'tile' | 'tile4' | 'tile8', callback: (result: string) => void) => {
     if (mode === 'none') {
       callback(dataUrl);
     } else if (mode === 'scale') {
@@ -29,6 +29,8 @@ function App() {
       ImageTransform.tileToA4Ratio(dataUrl, callback);
     } else if (mode === 'tile4') {
       ImageTransform.tile4Times(dataUrl, callback);
+    } else if (mode === 'tile8') {
+      ImageTransform.tile8Times(dataUrl, callback);
     }
   };
 
@@ -63,6 +65,7 @@ function App() {
   const handleDownloadAll = async () => {
     const zip = new JSZip();
     const imageIds = ['output_page1', 'output_page2'];
+    const instructionIds = ['output_outside_mapping', 'output_inside_mapping'];
     const fetchImageAsBlob = async (dataUrl: string) => {
       // Convert dataURL to Blob
       const res = await fetch(dataUrl);
@@ -73,6 +76,14 @@ function App() {
       if (url) {
         const blob = await fetchImageAsBlob(url);
         zip.file(id + '.png', blob);
+      }
+    }
+    // Add mapping images to Instruction subfolder
+    for (const id of instructionIds) {
+      const url = results[id];
+      if (url) {
+        const blob = await fetchImageAsBlob(url);
+        zip.file('Instruction/' + id + '.png', blob);
       }
     }
     const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -128,6 +139,7 @@ function App() {
                   <option value="scale">Scale</option>
                   <option value="tile">Tile (Fill A4)</option>
                   <option value="tile4">Tile 4x (2x2)</option>
+                  <option value="tile8">Tile 8x (4x2)</option>
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '1em', justifyContent: 'center' }}>
