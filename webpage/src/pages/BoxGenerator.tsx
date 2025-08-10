@@ -119,6 +119,11 @@ function BoxGenerator() {
       <div className="App">
         {/* Fixed header for all pages */}
         <Header />
+        <div style={{ color: '#fff', margin: '2em auto 0 auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
+          Build your own Card Deck Box! <br />
+          This tool generates printable templates from your images. <br />
+          Perfect for holding a standard deck of 60 cards.
+        </div>
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
