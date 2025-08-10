@@ -17,6 +17,22 @@ interface PolygonEditorProps {
 }
 
 const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label }, ref) => {
+  // Track Shift key globally
+  const shiftPressedRef = useRef(false);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') shiftPressedRef.current = true;
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') shiftPressedRef.current = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
   const mountRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -25,12 +41,63 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const a4PlaneRef = useRef<THREE.Mesh | null>(null);
   const dragControlsRef = useRef<DragControls | null>(null);
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
+  // Scaling state
+  const [scaling, setScaling] = useState<{ group: THREE.Group | null, startY: number, startScale: number } | null>(null);
 
   const width = 180;
   const height = (297 / 210) * width;
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
+    // Mouse event handlers for scaling
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.shiftKey && e.button === 0) {
+        // Find group under mouse
+        const rect = rendererRef.current!.domElement.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        // Raycast to find group
+        const pointer = new THREE.Vector2(mouseX / width * 2 - 1, -(mouseY / height * 2 - 1));
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer, cameraRef.current!);
+        const intersects = raycaster.intersectObjects(sceneRef.current!.children, true);
+        const group = intersects.find(obj => obj.object.parent && obj.object.parent.type === 'Group')?.object.parent as THREE.Group;
+        if (group) {
+          setScaling({ group, startY: e.clientY, startScale: group.scale.x });
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      setScaling(null);
+    };
+    const handleMouseMove = (e: MouseEvent) => {
+      if (scaling && scaling.group) {
+        const deltaY = e.clientY - scaling.startY;
+        // Scale factor: down = larger, up = smaller
+        let scale = scaling.startScale * (1 + deltaY / 100);
+        scale = Math.max(0.1, Math.min(10, scale));
+        scaling.group.scale.set(scale, scale, 1);
+        // Optionally: update vertices in state for export
+        // Get centroid
+        const id = scaling.group.userData.id as string;
+        const poly = polygons.find(p => p.id === id);
+        if (poly) {
+          const verts = poly.vertices;
+          const cx = verts.reduce((sum, v) => sum + v[0], 0) / verts.length;
+          const cy = verts.reduce((sum, v) => sum + v[1], 0) / verts.length;
+          const newVerts = verts.map(([x, y]) => {
+            const newX = cx + (x - cx) * scale / scaling.startScale;
+            const newY = cy + (y - cy) * scale / scaling.startScale;
+            return [newX, newY] as [number, number];
+          });
+          setPolygons(polygons.map(p => p.id === id ? { ...p, vertices: newVerts as [number, number][] } : p));
+        }
+      }
+    };
+    rendererRef.current?.domElement.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+
     // Clean up any previous canvas/renderer/scene
     if (rendererRef.current && mountRef.current) {
       if (mountRef.current.contains(rendererRef.current.domElement)) {
@@ -78,6 +145,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       if (dragControlsRef.current) {
         dragControlsRef.current.dispose();
       }
+      rendererRef.current?.domElement.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
 
@@ -172,86 +242,200 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     );
     const dragControls = dragControlsRef.current;
 
-    dragControls.addEventListener('drag', (event) => {
-      const mesh = event.object as THREE.Mesh;
-      // Clamp so the entire polygon stays within canvas
-      if (mesh.geometry instanceof THREE.ShapeGeometry) {
-        const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (let i = 0; i < positions.length; i += 3) {
-          const x = positions[i] + mesh.position.x;
-          const y = positions[i + 1] + mesh.position.y;
-          minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y);
-        }
-        // Calculate allowed movement
-        if (minX < 0) mesh.position.x -= minX;
-        if (maxX > width) mesh.position.x -= (maxX - width);
-        if (minY < 0) mesh.position.y -= minY;
-        if (maxY > height) mesh.position.y -= (maxY - height);
-      }
+    // Scaling state for drag
+    let dragScaling = null as null | {
+  group: THREE.Group,
+  startY: number,
+  startScale: number,
+  id: string,
+  verts: [number, number][],
+  currentScale: number,
+  startPosition: THREE.Vector3
+    };
 
-      const outline = fillToOutlineMap.get(mesh);
-      if (outline) {
-        outline.position.copy(mesh.position);
-      }
-      const draggedGroup = mesh.parent as THREE.Group;
-      const draggedId = draggedGroup.userData.id as string;
-      const prefix = draggedId.split('_')[0];
-      polygonGroups.forEach(({ group, fillMesh }) => {
+    dragControls.addEventListener('dragstart', (event) => {
+      if (shiftPressedRef.current) {
+        const mesh = event.object as THREE.Mesh;
+        const group = mesh.parent as THREE.Group;
         const id = group.userData.id as string;
-        if (id.startsWith(prefix + '_')) {
-          if (fillMesh !== mesh) {
-            fillMesh.position.copy(mesh.position);
-            const outlineOther = fillToOutlineMap.get(fillMesh);
-            if (outlineOther) outlineOther.position.copy(mesh.position);
-          }
+        const poly = polygons.find(p => p.id === id);
+        if (poly) {
+          dragScaling = {
+            group,
+            startY: mesh.position.y,
+            startScale: group.scale.x,
+            id,
+            verts: poly.vertices.map(([x, y]) => [x, y]),
+            currentScale: group.scale.x,
+            startPosition: mesh.position.clone()
+          };
         }
-      });
+      }
     });
 
-    dragControls.addEventListener('dragend', (event) => {
-      const mesh = event.object as THREE.Mesh;
-      const outline = fillToOutlineMap.get(mesh);
-      if (outline && mesh.geometry instanceof THREE.ShapeGeometry) {
-        const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-        const updatedVertices: [number, number][] = [];
-        for (let i = 0; i < positions.length; i += 3) {
-          // Flip y-axis back when updating vertices
-          const x = (positions[i] + mesh.position.x) / width;
-          const y = 1 - ((positions[i + 1] + mesh.position.y) / height);
-          updatedVertices.push([x, y]);
+    dragControls.addEventListener('drag', (event) => {
+      if (shiftPressedRef.current && dragScaling) {
+        // Scale mode
+        const mesh = event.object as THREE.Mesh;
+        const deltaY = mesh.position.y - dragScaling.startY;
+        let scale = dragScaling.startScale * (1 + deltaY / 100);
+        scale = Math.max(0.1, Math.min(10, scale));
+        dragScaling.currentScale = scale;
+        // Calculate scaled vertices w.r.t. center
+        const verts = dragScaling.verts;
+        const cx = verts.reduce((sum, v) => sum + v[0], 0) / verts.length;
+        const cy = verts.reduce((sum, v) => sum + v[1], 0) / verts.length;
+        const scaledVerts = verts.map(([x, y]) => {
+          const newX = cx + (x - cx) * scale / dragScaling.startScale;
+          const newY = cy + (y - cy) * scale / dragScaling.startScale;
+          return [newX, newY] as [number, number];
+        });
+        // Update mesh geometry
+        const shape = new THREE.Shape();
+        scaledVerts.forEach((v, i) => {
+          const px = v[0] * width;
+          const py = (1 - v[1]) * height;
+          if (i === 0) shape.moveTo(px, py);
+          else shape.lineTo(px, py);
+        });
+        shape.closePath();
+        const prevPosition = dragScaling.startPosition;
+        mesh.geometry.dispose();
+        mesh.geometry = new THREE.ShapeGeometry(shape);
+        mesh.position.copy(prevPosition); // Restore position after geometry update
+        // Optionally update outline if needed
+        const outline = fillToOutlineMap.get(mesh);
+        if (outline) {
+          const points = shape.getPoints();
+          const positions = points.map(p => [p.x, p.y, 0]).flat();
+          outline.position.copy(prevPosition); // Restore outline position
+          outline.geometry.dispose();
+          outline.geometry = new LineGeometry();
+          (outline.geometry as LineGeometry).setPositions(positions);
         }
-        // Get group prefix
+      } else {
+        // Normal drag
+        const mesh = event.object as THREE.Mesh;
+        // Clamp so the entire polygon stays within canvas
+        if (mesh.geometry instanceof THREE.ShapeGeometry) {
+          const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i] + mesh.position.x;
+            const y = positions[i + 1] + mesh.position.y;
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+          // Calculate allowed movement
+          if (minX < 0) mesh.position.x -= minX;
+          if (maxX > width) mesh.position.x -= (maxX - width);
+          if (minY < 0) mesh.position.y -= minY;
+          if (maxY > height) mesh.position.y -= (maxY - height);
+        }
+
+        const outline = fillToOutlineMap.get(mesh);
+        if (outline) {
+          outline.position.copy(mesh.position);
+        }
         const draggedGroup = mesh.parent as THREE.Group;
         const draggedId = draggedGroup.userData.id as string;
         const prefix = draggedId.split('_')[0];
-        // Count polygons in group
-        const groupPolygons = polygons.filter(p => p.id.startsWith(prefix + '_'));
-        if (groupPolygons.length > 1) {
-          // Calculate translation delta from mesh.position
-          const dx = mesh.position.x / width;
-          const dy = mesh.position.y / height;
-          setPolygons(polygons.map(p => {
-            if (p.id.startsWith(prefix + '_')) {
-              return {
-                ...p,
-                // Flip y-axis for translation
-                vertices: p.vertices.map(([x, y]) => [x + dx, y - dy])
-              };
-            } else {
-              return p;
+        polygonGroups.forEach(({ group, fillMesh }) => {
+          const id = group.userData.id as string;
+          if (id.startsWith(prefix + '_')) {
+            if (fillMesh !== mesh) {
+              fillMesh.position.copy(mesh.position);
+              const outlineOther = fillToOutlineMap.get(fillMesh);
+              if (outlineOther) outlineOther.position.copy(mesh.position);
             }
-          }));
-        } else {
-          // Only one polygon in group, update vertices as before
-          setPolygons(polygons.map(p =>
-            p.id === mesh.parent?.userData.id
-              ? { ...p, vertices: updatedVertices }
-              : p
-          ));
+          }
+        });
+      }
+    });
+
+    dragControls.addEventListener('dragend', (event) => {
+      // If scaling was performed, update state with final vertices
+      if (dragScaling && shiftPressedRef.current) {
+        const scale = dragScaling.currentScale;
+        const verts = dragScaling.verts;
+        const cx = verts.reduce((sum, v) => sum + v[0], 0) / verts.length;
+        const cy = verts.reduce((sum, v) => sum + v[1], 0) / verts.length;
+        const newVerts = verts.map(([x, y]) => {
+          const newX = cx + (x - cx) * scale / dragScaling.startScale;
+          const newY = cy + (y - cy) * scale / dragScaling.startScale;
+          return [newX, newY] as [number, number];
+        });
+        // Update mesh geometry and restore position
+        const mesh = dragScaling.group.children.find(obj => obj.type === 'Mesh') as THREE.Mesh;
+        if (mesh) {
+          const shape = new THREE.Shape();
+          newVerts.forEach((v, i) => {
+            const px = v[0] * width;
+            const py = (1 - v[1]) * height;
+            if (i === 0) shape.moveTo(px, py);
+            else shape.lineTo(px, py);
+          });
+          shape.closePath();
+          mesh.geometry.dispose();
+          mesh.geometry = new THREE.ShapeGeometry(shape);
+          mesh.position.copy(dragScaling.startPosition);
+          // Update outline
+          const outline = dragScaling.group.children.find(obj => obj.type === 'Line2') as Line2;
+          if (outline) {
+            const points = shape.getPoints();
+            const positions = points.map(p => [p.x, p.y, 0]).flat();
+            outline.position.copy(dragScaling.startPosition);
+            outline.geometry.dispose();
+            outline.geometry = new LineGeometry();
+            (outline.geometry as LineGeometry).setPositions(positions);
+          }
+        }
+        setPolygons(polygons.map(p => p.id === dragScaling!.id ? { ...p, vertices: newVerts as [number, number][] } : p));
+      }
+      else
+      {
+        const mesh = event.object as THREE.Mesh;
+        const outline = fillToOutlineMap.get(mesh);
+        if (outline && mesh.geometry instanceof THREE.ShapeGeometry) {
+          const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
+          const updatedVertices: [number, number][] = [];
+          for (let i = 0; i < positions.length; i += 3) {
+            // Flip y-axis back when updating vertices
+            const x = (positions[i] + mesh.position.x) / width;
+            const y = 1 - ((positions[i + 1] + mesh.position.y) / height);
+            updatedVertices.push([x, y]);
+          }
+          // Get group prefix
+          const draggedGroup = mesh.parent as THREE.Group;
+          const draggedId = draggedGroup.userData.id as string;
+          const prefix = draggedId.split('_')[0];
+          // Count polygons in group
+          const groupPolygons = polygons.filter(p => p.id.startsWith(prefix + '_'));
+          if (groupPolygons.length > 1) {
+            // Calculate translation delta from mesh.position
+            const dx = mesh.position.x / width;
+            const dy = mesh.position.y / height;
+            setPolygons(polygons.map(p => {
+              if (p.id.startsWith(prefix + '_')) {
+                return {
+                  ...p,
+                  // Flip y-axis for translation
+                  vertices: p.vertices.map(([x, y]) => [x + dx, y - dy])
+                };
+              } else {
+                return p;
+              }
+            }));
+          } else {
+            // Only one polygon in group, update vertices as before
+            setPolygons(polygons.map(p =>
+              p.id === mesh.parent?.userData.id
+                ? { ...p, vertices: updatedVertices }
+                : p
+            ));
+          }
         }
       }
     });
@@ -313,6 +497,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         <button type="button" onClick={() => fileInputRef.current?.click()} style={{ marginRight: '0.5em' }}>Import</button>
         <button onClick={handleExport}>Export</button>
       </div>
+      {/* <div style={{ fontSize: '0.8em', color: '#888', marginTop: '0.5em' }}>
+        Hold <b>Shift</b> and drag mouse up/down to scale polygon group
+      </div> */}
     </div>
   );
 });
