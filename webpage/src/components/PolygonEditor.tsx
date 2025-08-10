@@ -1,13 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { DragControls } from 'three/examples/jsm/controls/DragControls.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
 
 interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
+  backgroundImg?: string;
+  label: string;
 }
 
-const PolygonEditor = ({ data }: PolygonEditorProps) => {
+const PolygonEditor = ({ data, backgroundImg, label }: PolygonEditorProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -16,13 +21,16 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
   const dragControlsRef = useRef<DragControls | null>(null);
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
 
+  const width = 250;
+  const height = (297 / 210) * width;
+
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
-    const width = 800;
-    const height = (297 / 210) * width;
     // Clean up any previous canvas/renderer/scene
     if (rendererRef.current && mountRef.current) {
-      mountRef.current.removeChild(rendererRef.current.domElement);
+      if (mountRef.current.contains(rendererRef.current.domElement)) {
+        mountRef.current.removeChild(rendererRef.current.domElement);
+      }
       rendererRef.current.dispose();
       rendererRef.current = null;
     }
@@ -36,14 +44,17 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
     cameraRef.current = new THREE.OrthographicCamera(0, width, height, 0, 1, 1000);
     cameraRef.current.position.z = 500;
     rendererRef.current = new THREE.WebGLRenderer({ antialias: true });
+    rendererRef.current.setPixelRatio(window.devicePixelRatio);
     rendererRef.current.setSize(width, height);
+    rendererRef.current.outputColorSpace = THREE.SRGBColorSpace;
+    rendererRef.current.toneMapping = THREE.NoToneMapping;
     if (mountRef.current) {
       mountRef.current.appendChild(rendererRef.current.domElement);
     }
     const a4Geometry = new THREE.PlaneGeometry(width, height);
-    const a4Material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    let a4Material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     a4PlaneRef.current = new THREE.Mesh(a4Geometry, a4Material);
-    a4PlaneRef.current.position.set(width / 2, height / 2, 0);
+    a4PlaneRef.current.position.set(width / 2, height / 2, -1); // z = -1 to ensure it's behind polygons
     sceneRef.current.add(a4PlaneRef.current);
 
     // Animation loop
@@ -55,7 +66,9 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
 
     return () => {
       if (mountRef.current && rendererRef.current) {
-        mountRef.current.removeChild(rendererRef.current.domElement);
+        if (mountRef.current.contains(rendererRef.current.domElement)) {
+          mountRef.current.removeChild(rendererRef.current.domElement);
+        }
       }
       if (dragControlsRef.current) {
         dragControlsRef.current.dispose();
@@ -63,10 +76,24 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
     };
   }, []);
 
+  // Update background image texture/material when backgroundImg changes
+  useEffect(() => {
+    if (!a4PlaneRef.current) return;
+    if (backgroundImg) {
+      const loader = new THREE.TextureLoader();
+      loader.load(backgroundImg, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        (a4PlaneRef.current!.material as THREE.MeshBasicMaterial).map = texture;
+        (a4PlaneRef.current!.material as THREE.MeshBasicMaterial).needsUpdate = true;
+      });
+    } else {
+      (a4PlaneRef.current.material as THREE.MeshBasicMaterial).map = null;
+      (a4PlaneRef.current.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    }
+  }, [backgroundImg]);
+
   // Update polygon meshes/groups and drag controls when polygons change
   useEffect(() => {
-    const width = 800;
-    const height = (297 / 210) * width;
     const scene = sceneRef.current;
     const camera = cameraRef.current;
     const renderer = rendererRef.current;
@@ -76,7 +103,7 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
     scene.children = scene.children.filter(obj => obj === a4PlaneRef.current);
 
     // Create mapping from fillMesh to outline
-    const fillToOutlineMap = new Map<THREE.Mesh, THREE.Line>();
+    const fillToOutlineMap = new Map<THREE.Mesh, Line2>();
 
     const polygonGroups = polygons.map(polygon => {
       const shape = new THREE.Shape();
@@ -92,16 +119,24 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
       const fillGeometry = new THREE.ShapeGeometry(shape);
       const fillMaterial = new THREE.MeshBasicMaterial({
         color: 0x2194ce,
-        opacity: 0.3,
+        opacity: 0.4,
         transparent: true,
         side: THREE.DoubleSide,
       });
       const fillMesh = new THREE.Mesh(fillGeometry, fillMaterial);
 
       const points = shape.getPoints();
-      const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const outlineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, opacity: 1 });
-      const outline = new THREE.Line(outlineGeometry, outlineMaterial);
+      // Convert points to flat array for LineGeometry
+      const positions = points.map(p => [p.x, p.y, 0]).flat();
+      const outlineGeometry = new LineGeometry();
+      outlineGeometry.setPositions(positions);
+      const outlineMaterial = new LineMaterial({
+        color: 0x000000,
+        linewidth: 2, // in world units
+        dashed: false,
+      });
+      outlineMaterial.resolution.set(window.innerWidth, window.innerHeight); // required for LineMaterial
+      const outline = new Line2(outlineGeometry, outlineMaterial);
 
       fillToOutlineMap.set(fillMesh, outline);
 
@@ -210,7 +245,8 @@ const PolygonEditor = ({ data }: PolygonEditorProps) => {
   };
 
   return (
-    <div>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
       <div ref={mountRef}></div>
       <button onClick={handleExport}>Export JSON</button>
     </div>

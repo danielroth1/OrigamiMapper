@@ -148,31 +148,49 @@ function App() {
           </div>
         </div>
         <div className="images" style={{ display: 'flex', flexWrap: 'wrap', gap: '1em', justifyContent: 'center' }}>
+          <ImagePreview src={outsideImgTransformed} label="Outside Input" />
+          <ImagePreview src={insideImgTransformed} label="Inside Input" />
+          <ImagePreview src={results.output_page1} label="Output Page 1" />
+          <ImagePreview src={results.output_page2} label="Output Page 2" />
           {/* Outside PolygonEditor: shows outsideImgTransformed and output polygons (id does not contain 'i') */}
           <PolygonEditor
             data={{
               ...boxData,
+              offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
               input_polygons: (boxData.input_polygons ?? [])
                 .filter(p => !p.id.includes('i'))
                 .map(p => ({
                   ...p,
-                  vertices: (p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2)
+                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
                 })),
-              backgroundImg: outsideImgTransformed
+              output_polygons: (boxData.output_polygons ?? [])
+                .map(p => ({
+                  ...p,
+                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                }))
             }}
+            label='Outside image mapping'
+            backgroundImg={outsideImgTransformed}
           />
           {/* Inside PolygonEditor: shows insideImgTransformed and input polygons (id contains 'i') */}
           <PolygonEditor
             data={{
               ...boxData,
+              offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
               input_polygons: (boxData.input_polygons ?? [])
                 .filter(p => p.id.includes('i'))
                 .map(p => ({
                   ...p,
-                  vertices: (p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2)
+                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
                 })),
-              backgroundImg: insideImgTransformed
+              output_polygons: (boxData.output_polygons ?? [])
+                .map(p => ({
+                  ...p,
+                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                }))
             }}
+            label='Inside image mapping'
+            backgroundImg={insideImgTransformed}
           />
         </div>
       </div>
