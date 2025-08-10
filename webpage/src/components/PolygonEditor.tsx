@@ -18,6 +18,7 @@ interface PolygonEditorProps {
 
 const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -279,11 +280,39 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     link.click();
   };
 
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (json.input_polygons) {
+          setPolygons(json.input_polygons);
+        }
+      } catch (err) {
+        alert('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
       <div ref={mountRef} style={{ maxWidth: '180px' }}></div>
-      <button onClick={handleExport}>Export JSON</button>
+      <div style={{ marginTop: '0.5em' }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          style={{ display: 'none' }}
+          onChange={handleImport}
+        />
+        <button type="button" onClick={() => fileInputRef.current?.click()} style={{ marginRight: '0.5em' }}>Import</button>
+        <button onClick={handleExport}>Export</button>
+      </div>
     </div>
   );
 });
