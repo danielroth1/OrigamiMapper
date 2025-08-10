@@ -8,6 +8,8 @@ import TemplateSelect from './components/TemplateSelect';
 import { runMappingJS } from './OrigamiMapperJS';
 
 import { ImageTransform } from './components/ImageTransform';
+import PolygonEditor from './components/PolygonEditor';
+import boxData from '../../templates/box/box.json';
 
 function App() {
   const [outsideImgRaw, setOutsideImgRaw] = useState('');
@@ -153,6 +155,7 @@ function App() {
           <ImagePreview src={results.output_outside_mapping} label="Outside Mapping" />
           <ImagePreview src={results.output_inside_mapping} label="Inside Mapping" />
         </div>
+        <PolygonEditor data={boxData} />
       </div>
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
         <div>

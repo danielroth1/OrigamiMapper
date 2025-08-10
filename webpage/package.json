@@ -10,10 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/three": "^0.179.0",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "react": "^19.1.1",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "three": "^0.179.1",
+    "three-dragcontrols": "^0.88.2",
+    "three-orbitcontrols": "^2.110.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
