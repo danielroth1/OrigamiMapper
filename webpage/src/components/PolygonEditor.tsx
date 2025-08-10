@@ -25,7 +25,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const dragControlsRef = useRef<DragControls | null>(null);
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
 
-  const width = 250;
+  const width = 180;
   const height = (297 / 210) * width;
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
@@ -282,7 +282,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
-      <div ref={mountRef}></div>
+      <div ref={mountRef} style={{ maxWidth: '180px' }}></div>
       <button onClick={handleExport}>Export JSON</button>
     </div>
   );
