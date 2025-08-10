@@ -1,11 +1,14 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Header: React.FC = () => (
   <header className="App-header">
     <div className="menu-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2em' }}>
       <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
         <button className="menu-btn" style={{ minWidth: '100px' }}>The Cube Project</button>
-        <button className="menu-btn" style={{ minWidth: '100px' }} disabled>Box Builder</button>
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>Box Builder</button>
+        </Link>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <img src="/origami-mapper/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />
