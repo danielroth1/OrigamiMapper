@@ -124,7 +124,10 @@ const ProxyGenerator: React.FC = () => {
             justifyContent: 'center'
           }}>
             <img
+              src={cardData.image ? cardData.image : '/assets/space_skulls.jpg'}
+              alt="Card Art"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { e.currentTarget.src = '/assets/space_skulls.jpg'; }}
             />
           </div>
           {/* Type Line */}
