@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
+import ImageUpload from '../components/ImageUpload';
 
 const currentYear = new Date().getFullYear();
 const initialCardData = {
@@ -24,16 +25,12 @@ const ProxyGenerator: React.FC = () => {
   const [cardStyle, setCardStyle] = useState('Modern');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type, files } = e.target as any;
-    if (type === 'file' && files && files[0]) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setCardData(prev => ({ ...prev, image: ev.target?.result as string }));
-      };
-      reader.readAsDataURL(files[0]);
-    } else {
-      setCardData(prev => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target as any;
+    setCardData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageUpload = (dataUrl: string) => {
+    setCardData(prev => ({ ...prev, image: dataUrl }));
   };
 
   return (
@@ -58,23 +55,7 @@ const ProxyGenerator: React.FC = () => {
               </select>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <label htmlFor="card-image-upload" style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.1em', marginBottom: '0.5em', display: 'block' }}></label>
-              <input
-                id="card-image-upload"
-                type="file"
-                name="image"
-                accept="image/*"
-                onChange={handleChange}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="card-image-upload">
-                <button type="button" className="menu-btn" style={{ margin: '0.5em 0' }}>Choose Image</button>
-              </label>
-              {cardData.image && (
-                <div style={{ margin: '1em 0' }}>
-                  <img src={cardData.image} alt="Card" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', boxShadow: '0 2px 8px #0006' }} />
-                </div>
-              )}
+              <ImageUpload label="Choose Image" onImage={handleImageUpload} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
@@ -134,6 +115,41 @@ const ProxyGenerator: React.FC = () => {
             <input type="text" name="copyright" value={cardData.copyright} onChange={handleChange} style={{ flex: 1 }} />
           </div>
         </form>
+        {/* Card Live Preview */}
+  <div style={{ margin: '2em auto', width: '300px', height: '420px', background: '#EDECE8', border: '2px solid #000', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.5)', overflow: 'hidden', fontFamily: 'Georgia, serif', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    {/* Name Bar */}
+    <div style={{ background: '#D9CFB7', borderBottom: '1px solid #000', padding: '0.4em 0.6em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontWeight: 'bold', fontSize: '1em', color: '#000' }}>{cardData.name}</span>
+      <span style={{ fontFamily: 'monospace', fontSize: '0.9em', color: '#000' }}>{cardData.manaCost}</span>
+    </div>
+    {/* Art Area */}
+    <div style={{
+      width: `${(48.5/63.5)*100}%`,
+      height: `${(39/88.9)*100}%`,
+      background: cardData.image ? `url(${cardData.image}) center/cover` : '#AAA',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      margin: '0 auto'
+    }} />
+    {/* Type Bar */}
+  <div style={{ background: '#D9CFB7', borderBottom: '1px solid #000', padding: '0.3em 0.6em', fontStyle: 'italic', fontSize: '0.85em', color: '#000', textAlign: 'left' }}>{cardData.typeLine}</div>
+    {/* Text Box */}
+  <div style={{ padding: '0.5em 0.6em', fontSize: '0.8em', flex: '1', overflowY: 'auto', whiteSpace: 'pre-line', color: '#000' }}>
+      {cardData.rulesText}
+      {cardData.flavorText && <div style={{ fontStyle: 'italic', marginTop: '0.5em', color: '#444' }}>{cardData.flavorText}</div>}
+    </div>
+    {/* Bottom Info */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7em', padding: '0.3em 0.6em', borderTop: '1px solid #000', color: '#000' }}>
+      <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
+      <span>{cardData.artist}</span>
+    </div>
+    {/* Power/Toughness */}
+    <div style={{ position: 'absolute', bottom: '0.4em', right: '0.4em', border: '1px solid #000', background: '#EDECE8', padding: '0 0.2em', fontWeight: 'bold', fontSize: '0.9em' }}>
+      {cardData.power}/{cardData.toughness}
+    </div>
+    {/* Copyright */}
+    <div style={{ position: 'absolute', bottom: '0.4em', left: '0.6em', fontSize: '0.6em' }}>{cardData.copyright}</div>
+  </div>
       </div>
     </div>
   );
