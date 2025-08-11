@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import Header from '../components/Header';
 import ImageUpload from '../components/ImageUpload';
 import blackFrame from '../cardStyles/black.json';
@@ -6,17 +7,19 @@ import whiteFrame from '../cardStyles/white.json';
 import blueFrame from '../cardStyles/blue.json';
 import redFrame from '../cardStyles/red.json';
 import greenFrame from '../cardStyles/green.json';
+import artifactFrame from '../cardStyles/artifact.json';
+import yellowFrame from '../cardStyles/yellow.json';
 
 const currentYear = new Date().getFullYear();
 const initialCardData = {
-  image: '',
-  name: 'Arcane Phoenix',
+  image: '/assets/colorfullskulls.jpeg',
+  name: 'Electro Rat',
   manaCost: '3 {R} {U}',
-  typeLine: 'Creature — Phoenix Wizard',
+  typeLine: 'Creature — Plague Rat',
   power: 4,
   toughness: 4,
-  rulesText: "Flying, haste. Whenever Arcane Phoenix deals combat damage to a player, draw a card.\n{R}{U}: Return Arcane Phoenix from your graveyard to your hand.",
-  flavorText: "Born from the flames of forgotten spells, it soars above the battlefield, wisdom and fire in its wake.",
+  rulesText: "Whenever this creature attacks, it deals 1 damage to any target. If you control another Electric creature, this gains haste.",
+  flavorText: "A spark of energy and joy, always ready to light up the battlefield with a cheerful charge.",
   collectorNo: '0217',
   rarity: 'M',
   setCode: 'MYT',
@@ -31,6 +34,8 @@ const frameDefs: Record<string, any> = {
   Blue: blueFrame,
   Red: redFrame,
   Green: greenFrame,
+  Yellow: yellowFrame,
+  Artifact: artifactFrame,
 };
 
 const ProxyGenerator: React.FC = () => {
@@ -51,7 +56,7 @@ const ProxyGenerator: React.FC = () => {
   return (
     <div className="App">
       <Header />
-      <div style={{ maxWidth: '700px', margin: '2em auto', background: '#181818', borderRadius: '12px', padding: '2em', color: '#fff', boxShadow: '0 2px 12px #0006' }}>
+  <div style={{ maxWidth: '700px', margin: '2em auto', background: '#181818', borderRadius: '12px', padding: '2em', color: '#fff', boxShadow: '0 2px 12px #0006' }}>
         {/* Card Live Preview */}
         <div
           style={{
@@ -63,7 +68,7 @@ const ProxyGenerator: React.FC = () => {
             borderRadius: '12px',
             boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
             overflow: 'hidden',
-            fontFamily: 'Georgia, serif',
+            fontFamily: 'Trebuchet MS, Verdana, Arial, sans-serif',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column'
@@ -110,13 +115,18 @@ const ProxyGenerator: React.FC = () => {
           <div style={{
             width: `${(48.5/63.5)*100}%`,
             height: `${(39/88.9)*100}%`,
-            background: cardData.image ? `url(${cardData.image}) center/cover` : frame.artFallback,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
             margin: '0 auto',
             position: 'relative',
-            zIndex: 2
-          }} />
+            zIndex: 2,
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <img
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
           {/* Type Line */}
           <div style={{
             background: frame.typeLineBg,
@@ -135,7 +145,7 @@ const ProxyGenerator: React.FC = () => {
             padding: '0.5em 0.6em',
             fontSize: '0.8em',
             flex: '1',
-            overflowY: 'auto',
+            /* overflowY removed to prevent scrolling */
             whiteSpace: 'pre-line',
             color: frame.textBoxText,
             position: 'relative',
@@ -158,18 +168,18 @@ const ProxyGenerator: React.FC = () => {
             zIndex: 2
           }}>
             <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
-            <span>{cardData.artist}</span>
           </div>
           {/* Power/Toughness */}
           <div style={{
             position: 'absolute',
             bottom: '0.4em',
             right: '0.4em',
-            border: `1px solid ${frame.ptBorder}`,
-            background: frame.ptBg,
+            border: `1px solid ${frame.powerToughnessBorder}`,
+            background: frame.powerToughnessBg,
             padding: '0 0.2em',
             fontWeight: 'bold',
             fontSize: '0.9em',
+            color: frame.powerToughnessTextColor || '#000',
             zIndex: 3
           }}>
             {cardData.power}/{cardData.toughness}
@@ -178,7 +188,7 @@ const ProxyGenerator: React.FC = () => {
           <div style={{
             position: 'absolute',
             bottom: '0.4em',
-            left: '0.6em',
+            left: '18.0em',
             fontSize: '0.6em',
             color: frame.copyrightText,
             zIndex: 3
@@ -200,6 +210,8 @@ const ProxyGenerator: React.FC = () => {
                 <option value="White">White</option>
                 <option value="Red">Red</option>
                 <option value="Blue">Blue</option>
+                <option value="Yellow">Yellow</option>
+                <option value="Artifact">Artifact</option>
               </select>
             </div>
             <div style={{ textAlign: 'center' }}>
@@ -213,6 +225,51 @@ const ProxyGenerator: React.FC = () => {
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
             <label>Mana Cost:</label>
             <input type="text" name="manaCost" value={cardData.manaCost} onChange={handleChange} style={{ minWidth: '120px' }} />
+            <select style={{ minWidth: '50px' }}>
+              <option value="">--</option>
+              <option value="W">W</option>
+              <option value="U">U</option>
+              <option value="B">B</option>
+              <option value="R">R</option>
+              <option value="G">G</option>
+              <option value="C">C</option>
+            </select>
+            <select style={{ minWidth: '50px' }}>
+              <option value="">--</option>
+              <option value="W">W</option>
+              <option value="U">U</option>
+              <option value="B">B</option>
+              <option value="R">R</option>
+              <option value="G">G</option>
+              <option value="C">C</option>
+            </select>
+            <select style={{ minWidth: '50px' }}>
+              <option value="">--</option>
+              <option value="W">W</option>
+              <option value="U">U</option>
+              <option value="B">B</option>
+              <option value="R">R</option>
+              <option value="G">G</option>
+              <option value="C">C</option>
+            </select>
+            <select style={{ minWidth: '50px' }}>
+              <option value="">--</option>
+              <option value="W">W</option>
+              <option value="U">U</option>
+              <option value="B">B</option>
+              <option value="R">R</option>
+              <option value="G">G</option>
+              <option value="C">C</option>
+            </select>
+            <select style={{ minWidth: '50px' }}>
+              <option value="">--</option>
+              <option value="W">W</option>
+              <option value="U">U</option>
+              <option value="B">B</option>
+              <option value="R">R</option>
+              <option value="G">G</option>
+              <option value="C">C</option>
+            </select>
           </div>
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
             <label>Type Line:</label>
@@ -253,10 +310,6 @@ const ProxyGenerator: React.FC = () => {
               <option>FR</option>
               <option>JP</option>
             </select>
-          </div>
-          <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
-            <label>Artist:</label>
-            <input type="text" name="artist" value={cardData.artist} onChange={handleChange} style={{ flex: 1 }} />
           </div>
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
             <label>Copyright:</label>

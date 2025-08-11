@@ -1,19 +1,19 @@
-{
-  "cardFrame": "#6699CC",
-  "titleBar": "#336699",
-  "titleBarText": "#fff",
-  "manaCostText": "#fff",
-  "manaCostBg": "#336699",
-  "manaCostRadius": "50%",
-  "manaCostPadding": "0.2em 0.5em",
-  "artFallback": "#A0C8F0",
-  "typeLineBg": "#DDEEFF",
-  "typeLineText": "#000",
-  "textBoxBg": "#DDEEFF",
-  "textBoxText": "#000",
-  "bottomInfoText": "#000",
-  "bottomInfoBg": "#DDEEFF",
-  "ptBorder": "#000",
-  "ptBg": "#F3EEC3",
-  "copyrightText": "#fff"
-}
+  {
+    "color": "Blue",
+  "cardFrame": "#0cd4f7",
+  "titleBar": "#0bbfe0",
+  "titleBarText": "#ffffff",
+  "manaCostText": "#ffffff",
+  "manaCostBg": "#0cd4f7",
+  "manaCostRadius": "10%",
+  "manaCostPadding": "2px",
+  "artFallback": "#e0faff",
+  "typeLineBg": "#0bbfe0",
+  "typeLineText": "#ffffff",
+  "textBoxBg": "#e0faff",
+  "textBoxText": "#0bbfe0",
+  "bottomInfoText": "#ffffff",
+  "bottomInfoBg": "#0cd4f7",
+  "powerToughnessBorder": "#0bbfe0",
+  "powerToughnessBg": "#0cd4f7"
+  }

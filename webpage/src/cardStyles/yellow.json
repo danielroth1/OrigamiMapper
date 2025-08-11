@@ -1,0 +1,20 @@
+{
+  "color": "Yellow",
+  "cardFrame": "#ffe066",
+  "titleBar": "#ffd700",
+  "titleBarText": "#000000",
+  "manaCostText": "#000000",
+  "manaCostBg": "#fff9c4",
+  "manaCostRadius": "10%",
+  "manaCostPadding": "2px",
+  "artFallback": "#fffde7",
+  "typeLineBg": "#ffd700",
+  "typeLineText": "#000000",
+  "textBoxBg": "#fffde7",
+  "textBoxText": "#bfa600",
+  "bottomInfoText": "#bfa600",
+  "bottomInfoBg": "#fff9c4",
+  "powerToughnessBorder": "#bfa600",
+  "powerToughnessBg": "#fff9c4",
+  "powerToughnessTextColor": "#bfa600"
+}
