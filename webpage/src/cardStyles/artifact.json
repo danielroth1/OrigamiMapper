@@ -1,0 +1,19 @@
+{
+  "cardFrame": "#A8A8A8",
+  "titleBar": "#888888",
+  "titleBarText": "#000",
+  "manaCostText": "#000",
+  "manaCostBg": "#CCCCCC",
+  "manaCostRadius": "50%",
+  "manaCostPadding": "0.2em 0.5em",
+  "artFallback": "#CCCCCC",
+  "typeLineBg": "#EEEEEE",
+  "typeLineText": "#000",
+  "textBoxBg": "#EEEEEE",
+  "textBoxText": "#000",
+  "bottomInfoText": "#000",
+  "bottomInfoBg": "#EEEEEE",
+  "ptBorder": "#000",
+  "ptBg": "#F3EEC3",
+  "copyrightText": "#000"
+}

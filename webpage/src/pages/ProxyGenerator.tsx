@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import ImageUpload from '../components/ImageUpload';
+import blackFrame from '../cardStyles/black.json';
+import whiteFrame from '../cardStyles/white.json';
+import blueFrame from '../cardStyles/blue.json';
+import redFrame from '../cardStyles/red.json';
+import greenFrame from '../cardStyles/green.json';
 
 const currentYear = new Date().getFullYear();
 const initialCardData = {
@@ -20,6 +25,14 @@ const initialCardData = {
   copyright: `© ${currentYear} Jonas Roth`,
 };
 
+const frameDefs: Record<string, any> = {
+  Black: blackFrame,
+  White: whiteFrame,
+  Blue: blueFrame,
+  Red: redFrame,
+  Green: greenFrame,
+};
+
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
   const [cardStyle, setCardStyle] = useState('Modern');
@@ -33,10 +46,145 @@ const ProxyGenerator: React.FC = () => {
     setCardData(prev => ({ ...prev, image: dataUrl }));
   };
 
+  const frame = frameDefs[cardStyle] || blackFrame;
+
   return (
     <div className="App">
       <Header />
       <div style={{ maxWidth: '700px', margin: '2em auto', background: '#181818', borderRadius: '12px', padding: '2em', color: '#fff', boxShadow: '0 2px 12px #0006' }}>
+        {/* Card Live Preview */}
+        <div
+          style={{
+            margin: '2em auto',
+            width: '300px',
+            height: '420px',
+            background: frame.cardFrame,
+            border: `2px solid ${frame.cardFrame}`,
+            borderRadius: '12px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+            fontFamily: 'Georgia, serif',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {/* Inner Border */}
+          {frame.innerBorder && (
+            <div style={{
+              position: 'absolute',
+              top: '8px',
+              left: '8px',
+              right: '8px',
+              bottom: '8px',
+              border: `2px solid ${frame.innerBorder}`,
+              borderRadius: '8px',
+              pointerEvents: 'none',
+              zIndex: 1
+            }} />
+          )}
+          {/* Title Bar (Name Bar) */}
+          <div style={{
+            background: frame.titleBar,
+            borderBottom: frame.titleBarBorder ? `1px solid ${frame.titleBarBorder}` : undefined,
+            padding: '0.4em 0.6em',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            color: frame.titleBarText,
+            position: 'relative',
+            zIndex: 2
+          }}>
+            <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: '0.9em',
+              color: frame.manaCostText,
+              background: frame.manaCostBg,
+              borderRadius: frame.manaCostRadius,
+              padding: frame.manaCostPadding,
+              marginLeft: '0.5em'
+            }}>{cardData.manaCost}</span>
+          </div>
+          {/* Art Area */}
+          <div style={{
+            width: `${(48.5/63.5)*100}%`,
+            height: `${(39/88.9)*100}%`,
+            background: cardData.image ? `url(${cardData.image}) center/cover` : frame.artFallback,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            margin: '0 auto',
+            position: 'relative',
+            zIndex: 2
+          }} />
+          {/* Type Line */}
+          <div style={{
+            background: frame.typeLineBg,
+            borderBottom: frame.typeLineBorder ? `1px solid ${frame.typeLineBorder}` : undefined,
+            padding: '0.3em 0.6em',
+            fontStyle: 'italic',
+            fontSize: '0.85em',
+            color: frame.typeLineText,
+            textAlign: 'left',
+            position: 'relative',
+            zIndex: 2
+          }}>{cardData.typeLine}</div>
+          {/* Text Box */}
+          <div style={{
+            background: frame.textBoxBg,
+            padding: '0.5em 0.6em',
+            fontSize: '0.8em',
+            flex: '1',
+            overflowY: 'auto',
+            whiteSpace: 'pre-line',
+            color: frame.textBoxText,
+            position: 'relative',
+            zIndex: 2
+          }}>
+            {cardData.rulesText}
+            {cardData.flavorText && <div style={{ fontStyle: 'italic', marginTop: '0.5em', color: '#444' }}>{cardData.flavorText}</div>}
+          </div>
+          {/* Bottom Info */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.7em',
+            padding: '0.3em 0.6em',
+            borderTop: frame.bottomInfoBorder ? `1px solid ${frame.bottomInfoBorder}` : undefined,
+            color: frame.bottomInfoText,
+            background: frame.bottomInfoBg,
+            position: 'relative',
+            zIndex: 2
+          }}>
+            <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
+            <span>{cardData.artist}</span>
+          </div>
+          {/* Power/Toughness */}
+          <div style={{
+            position: 'absolute',
+            bottom: '0.4em',
+            right: '0.4em',
+            border: `1px solid ${frame.ptBorder}`,
+            background: frame.ptBg,
+            padding: '0 0.2em',
+            fontWeight: 'bold',
+            fontSize: '0.9em',
+            zIndex: 3
+          }}>
+            {cardData.power}/{cardData.toughness}
+          </div>
+          {/* Copyright */}
+          <div style={{
+            position: 'absolute',
+            bottom: '0.4em',
+            left: '0.6em',
+            fontSize: '0.6em',
+            color: frame.copyrightText,
+            zIndex: 3
+          }}>{cardData.copyright}</div>
+        </div>
+        {/* Configuration Form */}
         <form style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
           <div style={{ display: 'flex', gap: '2em', alignItems: 'center', marginBottom: '1em', justifyContent: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
@@ -115,41 +263,6 @@ const ProxyGenerator: React.FC = () => {
             <input type="text" name="copyright" value={cardData.copyright} onChange={handleChange} style={{ flex: 1 }} />
           </div>
         </form>
-        {/* Card Live Preview */}
-  <div style={{ margin: '2em auto', width: '300px', height: '420px', background: '#EDECE8', border: '2px solid #000', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.5)', overflow: 'hidden', fontFamily: 'Georgia, serif', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-    {/* Name Bar */}
-    <div style={{ background: '#D9CFB7', borderBottom: '1px solid #000', padding: '0.4em 0.6em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontWeight: 'bold', fontSize: '1em', color: '#000' }}>{cardData.name}</span>
-      <span style={{ fontFamily: 'monospace', fontSize: '0.9em', color: '#000' }}>{cardData.manaCost}</span>
-    </div>
-    {/* Art Area */}
-    <div style={{
-      width: `${(48.5/63.5)*100}%`,
-      height: `${(39/88.9)*100}%`,
-      background: cardData.image ? `url(${cardData.image}) center/cover` : '#AAA',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      margin: '0 auto'
-    }} />
-    {/* Type Bar */}
-  <div style={{ background: '#D9CFB7', borderBottom: '1px solid #000', padding: '0.3em 0.6em', fontStyle: 'italic', fontSize: '0.85em', color: '#000', textAlign: 'left' }}>{cardData.typeLine}</div>
-    {/* Text Box */}
-  <div style={{ padding: '0.5em 0.6em', fontSize: '0.8em', flex: '1', overflowY: 'auto', whiteSpace: 'pre-line', color: '#000' }}>
-      {cardData.rulesText}
-      {cardData.flavorText && <div style={{ fontStyle: 'italic', marginTop: '0.5em', color: '#444' }}>{cardData.flavorText}</div>}
-    </div>
-    {/* Bottom Info */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7em', padding: '0.3em 0.6em', borderTop: '1px solid #000', color: '#000' }}>
-      <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
-      <span>{cardData.artist}</span>
-    </div>
-    {/* Power/Toughness */}
-    <div style={{ position: 'absolute', bottom: '0.4em', right: '0.4em', border: '1px solid #000', background: '#EDECE8', padding: '0 0.2em', fontWeight: 'bold', fontSize: '0.9em' }}>
-      {cardData.power}/{cardData.toughness}
-    </div>
-    {/* Copyright */}
-    <div style={{ position: 'absolute', bottom: '0.4em', left: '0.6em', fontSize: '0.6em' }}>{cardData.copyright}</div>
-  </div>
       </div>
     </div>
   );
