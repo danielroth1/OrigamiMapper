@@ -41,6 +41,24 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionRect, setSelectionRect] = useState<null | { x: number; y: number; w: number; h: number }>(null);
+  // History for revert functionality
+  const historyRef = useRef<OrigamiMapperTypes.Polygon[][]>([]);
+  const [canRevert, setCanRevert] = useState(false);
+  const MAX_HISTORY = 50;
+  const clonePolygons = (polys: OrigamiMapperTypes.Polygon[]) => polys.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
+  const pushHistory = (snapshot: OrigamiMapperTypes.Polygon[]) => {
+    historyRef.current.push(clonePolygons(snapshot));
+    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+    setCanRevert(historyRef.current.length > 0);
+  };
+  const handleRevert = () => {
+    if (!historyRef.current.length) return;
+    const prev = historyRef.current.pop();
+    if (prev) {
+      setPolygons(clonePolygons(prev));
+    }
+    setCanRevert(historyRef.current.length > 0);
+  };
   const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
   useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
   const groupsRef = useRef<Map<string, THREE.Group>>(new Map());
@@ -68,6 +86,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
+    // Record initial state for revert
+    pushHistory(data.input_polygons);
     // Clean up any previous canvas/renderer/scene (defensive if remounting)
     if (rendererRef.current && mountRef.current) {
       if (mountRef.current.contains(rendererRef.current.domElement)) {
@@ -182,7 +202,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       const y = e.clientY - rect.top;
       const dx = x - state.startX;
       const dy = y - state.startY;
-      
+
       // Allow dynamic mode switching while dragging
       if (state.mode !== 'select') {
         let desiredMode: TransformMode = state.mode;
@@ -216,7 +236,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           state.bboxCenter = center;
           state.initialAngle = Math.atan2(y - center.y, x - center.x);
         }
-      }
+      } 
       if (state.mode === 'select' && selectionRectRef.current) {
         const start = selectionRectRef.current;
         const newRect = { x: start.x, y: start.y, w: x - start.x, h: y - start.y };
@@ -305,8 +325,31 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       state.lastX = x; state.lastY = y;
     };
     const handleMouseUp = () => {
-      if (transformStateRef.current?.mode === 'select') {
-        // selection already applied during drag
+      const state = transformStateRef.current;
+      if (state) {
+        if (state.mode === 'select') {
+          // selection already applied during drag
+        } else if (state.mode === 'move' || state.mode === 'scale' || state.mode === 'rotate') {
+          // Compare originalPolygons to current; if different, push original snapshot
+          const before = state.originalPolygons;
+          const after = polygonsRef.current;
+          let changed = false;
+          if (before.length !== after.length) {
+            changed = true;
+          } else {
+            for (let i = 0; i < before.length && !changed; i++) {
+              const b = before[i];
+              const a = after[i];
+              if (b.id !== a.id || b.vertices.length !== a.vertices.length) { changed = true; break; }
+              for (let j = 0; j < b.vertices.length; j++) {
+                if (b.vertices[j][0] !== a.vertices[j][0] || b.vertices[j][1] !== a.vertices[j][1]) { changed = true; break; }
+              }
+            }
+          }
+          if (changed) {
+            pushHistory(before);
+          }
+        }
       }
       setSelectionRect(null);
       transformStateRef.current = null;
@@ -444,6 +487,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       try {
         const json = JSON.parse(e.target?.result as string);
         if (json.input_polygons) {
+          pushHistory(polygonsRef.current);
           setPolygons(json.input_polygons);
         }
       } catch (err) {
@@ -481,7 +525,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         />
         <button type="button" onClick={() => fileInputRef.current?.click()}>Import</button>
         <button onClick={handleExport}>Export</button>
-        <button type="button" onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); }}>Reset</button>
+        <button type="button" onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); pushHistory(polygonsRef.current); }}>Reset</button>
+        <button type="button" disabled={!canRevert} onClick={handleRevert}>Revert</button>
       </div>
       <div style={{ fontSize: '0.65em', color: '#aaa', marginTop: '0.4em', lineHeight: 1.2, maxWidth: '180px', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
         Drag to move (auto group).
