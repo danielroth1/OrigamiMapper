@@ -165,53 +165,62 @@ function BoxGenerator() {
             <img src="/origami-mapper/assets/box_inside_mapping.png" width={120} />
           </div>
         </div>
-        <div className="images" style={{ display: 'flex', flexWrap: 'wrap', gap: '1em', justifyContent: 'center' }}>
-          <ImagePreview src={outsideImgTransformed} label="Outside Input" />
-          <ImagePreview src={insideImgTransformed} label="Inside Input" />
-          <ImagePreview src={results.output_page1} label="Output Page 1" />
-          <ImagePreview src={results.output_page2} label="Output Page 2" />
-          {/* Outside PolygonEditor: shows outsideImgTransformed and output polygons (id does not contain 'i') */}
-          <PolygonEditor
-            ref={outsideEditorRef}
-            data={{
-              ...boxData,
-              offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-              input_polygons: (boxData.input_polygons ?? [])
-                .filter(p => !p.id.includes('i'))
-                .map(p => ({
-                  ...p,
-                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                })),
-              output_polygons: (boxData.output_polygons ?? [])
-                .map(p => ({
-                  ...p,
-                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                }))
-            }}
-            label='Outside image mapping'
-            backgroundImg={outsideImgTransformed}
-          />
-          {/* Inside PolygonEditor: shows insideImgTransformed and input polygons (id contains 'i') */}
-          <PolygonEditor
-            ref={insideEditorRef}
-            data={{
-              ...boxData,
-              offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-              input_polygons: (boxData.input_polygons ?? [])
-                .filter(p => p.id.includes('i'))
-                .map(p => ({
-                  ...p,
-                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                })),
-              output_polygons: (boxData.output_polygons ?? [])
-                .map(p => ({
-                  ...p,
-                  vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                }))
-            }}
-            label='Inside image mapping'
-            backgroundImg={insideImgTransformed}
-          />
+        <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Editors side by side */}
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+            <PolygonEditor
+              ref={outsideEditorRef}
+              data={{
+                ...boxData,
+                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                input_polygons: (boxData.input_polygons ?? [])
+                  .filter(p => !p.id.includes('i'))
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  })),
+                output_polygons: (boxData.output_polygons ?? [])
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  }))
+              }}
+              label='Outside image mapping'
+              backgroundImg={outsideImgTransformed}
+            />
+            <PolygonEditor
+              ref={insideEditorRef}
+              data={{
+                ...boxData,
+                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                input_polygons: (boxData.input_polygons ?? [])
+                  .filter(p => p.id.includes('i'))
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  })),
+                output_polygons: (boxData.output_polygons ?? [])
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  }))
+              }}
+              label='Inside image mapping'
+              backgroundImg={insideImgTransformed}
+            />
+          </div>
+          {/* Shared info text below both editors */}
+          <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
+            Drag to move (auto group).
+            Shift+Drag scale.
+            Ctrl/Cmd+Drag rotate.
+            Drag empty area to marquee select.
+          </div>
+          {/* Output previews side by side */}
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
+            <ImagePreview src={results.output_page1} label="Output Page 1" />
+            <ImagePreview src={results.output_page2} label="Output Page 2" />
+          </div>
         </div>
       </div>
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>

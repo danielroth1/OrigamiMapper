@@ -78,6 +78,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     bboxCenter: { x: number; y: number }; // pixel coords
     initialAngle?: number; // for rotation
     scaleStartDistance?: number; // optional alternative future use
+  // If true, we haven't exceeded movement threshold yet (treat as click if mouseup without move)
+  pendingClickInsideSelection?: boolean;
   }
   const transformStateRef = useRef<TransformState | null>(null);
 
@@ -193,7 +195,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         lastY: y,
         originalPolygons: polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) })),
         bboxCenter: center,
-        initialAngle
+        initialAngle,
+        pendingClickInsideSelection: mode === 'move' && currentSelectedBBox != null && pointInBBox(x, y, currentSelectedBBox)
       };
     };
     const handleMouseMove = (e: MouseEvent) => {
@@ -204,6 +207,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       const y = e.clientY - rect.top;
       const dx = x - state.startX;
       const dy = y - state.startY;
+      // If user has moved more than a tiny threshold, it's a drag, not a click
+      if (state.pendingClickInsideSelection && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        state.pendingClickInsideSelection = false;
+      }
 
       // Allow dynamic mode switching while dragging
       if (state.mode !== 'select') {
@@ -350,6 +357,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           }
           if (changed) {
             pushHistory(before);
+          }
+          // If it was just a click inside existing selection without movement, unselect (toggle off)
+          if (state.pendingClickInsideSelection) {
+            setSelectedIds(new Set());
           }
         }
       }
@@ -501,9 +512,19 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   };
 
   return (
-    <div style={{ textAlign: 'center', position: 'relative' }}>
+    <div style={{ textAlign: 'center', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
-      <div ref={mountRef} style={{ maxWidth: '180px', position: 'relative' }}>
+      <div
+        ref={mountRef}
+        style={{
+          maxWidth: '180px',
+          position: 'relative',
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
         {selectionRect && (
           <div style={{
             position: 'absolute',
@@ -517,7 +538,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           }} />
         )}
       </div>
-      <div style={{ marginTop: '0.5em', display: 'flex', gap: '0.5em', justifyContent: 'center' }}>
+      <div style={{
+        marginTop: '0.5em',
+        display: 'flex',
+        gap: '0.3em',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
         <input
           ref={fileInputRef}
           type="file"
@@ -525,20 +552,38 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           style={{ display: 'none' }}
           onChange={handleImport}
         />
-        <button type="button" onClick={() => fileInputRef.current?.click()}>Import</button>
-        <button onClick={handleExport}>Export</button>
-        <button type="button" onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); pushHistory(polygonsRef.current); }}>Reset</button>
-        <button type="button" disabled={!canRevert} onClick={handleRevert}>Revert</button>
+        <button
+          type="button"
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          onClick={() => fileInputRef.current?.click()}
+          title="Import JSON"
+        >📂</button>
+        <button
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          onClick={handleExport}
+          title="Export JSON"
+        >💾</button>
+        <button
+          type="button"
+          disabled={!canRevert}
+          style={{
+            fontSize: '1.2em',
+            padding: '0.3em 0.5em',
+            borderRadius: '5px',
+            background: canRevert ? '#eee' : '#ccc',
+            border: 'none',
+            cursor: canRevert ? 'pointer' : 'not-allowed'
+          }}
+          onClick={handleRevert}
+          title="Revert"
+        >↩️</button>
+        <button
+          type="button"
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); pushHistory(polygonsRef.current); }}
+          title="Reset"
+        >🔄</button>
       </div>
-      <div style={{ fontSize: '0.65em', color: '#aaa', marginTop: '0.4em', lineHeight: 1.2, maxWidth: '180px', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
-        Drag to move (auto group).
-        Shift+Drag scale.
-        Ctrl/Cmd+Drag rotate.
-        Drag empty area to marquee select.
-      </div>
-      {/* <div style={{ fontSize: '0.8em', color: '#888', marginTop: '0.5em' }}>
-        Hold <b>Shift</b> and drag mouse up/down to scale polygon group
-      </div> */}
     </div>
   );
 });
