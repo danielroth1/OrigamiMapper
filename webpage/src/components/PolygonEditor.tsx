@@ -173,6 +173,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             const startRect = { x, y, w: 0, h: 0 };
             setSelectionRect(startRect);
             selectionRectRef.current = startRect;
+              // Unselect polygons when clicking empty area
+              setSelectedIds(new Set());
           }
         }
       }
