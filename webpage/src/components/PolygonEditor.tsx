@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
-import { DragControls } from 'three/examples/jsm/controls/DragControls.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
@@ -39,66 +38,37 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const a4PlaneRef = useRef<THREE.Mesh | null>(null);
-  const dragControlsRef = useRef<DragControls | null>(null);
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
-  // Scaling state
-  const [scaling, setScaling] = useState<{ group: THREE.Group | null, startY: number, startScale: number } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionRect, setSelectionRect] = useState<null | { x: number; y: number; w: number; h: number }>(null);
+  const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
+  useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
+  const groupsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const polygonsRef = useRef(polygons);
+  const selectedIdsRef = useRef(selectedIds);
+  useEffect(() => { polygonsRef.current = polygons; }, [polygons]);
+  useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
+
+  type TransformMode = 'idle' | 'select' | 'move' | 'scale' | 'rotate';
+  interface TransformState {
+    mode: TransformMode;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    originalPolygons: OrigamiMapperTypes.Polygon[]; // snapshot of polygons at start for selected
+    bboxCenter: { x: number; y: number }; // pixel coords
+    initialAngle?: number; // for rotation
+    scaleStartDistance?: number; // optional alternative future use
+  }
+  const transformStateRef = useRef<TransformState | null>(null);
 
   const width = 180;
   const height = (297 / 210) * width;
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
-    // Mouse event handlers for scaling
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.shiftKey && e.button === 0) {
-        // Find group under mouse
-        const rect = rendererRef.current!.domElement.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        // Raycast to find group
-        const pointer = new THREE.Vector2(mouseX / width * 2 - 1, -(mouseY / height * 2 - 1));
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(pointer, cameraRef.current!);
-        const intersects = raycaster.intersectObjects(sceneRef.current!.children, true);
-        const group = intersects.find(obj => obj.object.parent && obj.object.parent.type === 'Group')?.object.parent as THREE.Group;
-        if (group) {
-          setScaling({ group, startY: e.clientY, startScale: group.scale.x });
-        }
-      }
-    };
-    const handleMouseUp = () => {
-      setScaling(null);
-    };
-    const handleMouseMove = (e: MouseEvent) => {
-      if (scaling && scaling.group) {
-        const deltaY = e.clientY - scaling.startY;
-        // Scale factor: down = larger, up = smaller
-        let scale = scaling.startScale * (1 + deltaY / 100);
-        scale = Math.max(0.1, Math.min(10, scale));
-        scaling.group.scale.set(scale, scale, 1);
-        // Optionally: update vertices in state for export
-        // Get centroid
-        const id = scaling.group.userData.id as string;
-        const poly = polygons.find(p => p.id === id);
-        if (poly) {
-          const verts = poly.vertices;
-          const cx = verts.reduce((sum, v) => sum + v[0], 0) / verts.length;
-          const cy = verts.reduce((sum, v) => sum + v[1], 0) / verts.length;
-          const newVerts = verts.map(([x, y]) => {
-            const newX = cx + (x - cx) * scale / scaling.startScale;
-            const newY = cy + (y - cy) * scale / scaling.startScale;
-            return [newX, newY] as [number, number];
-          });
-          setPolygons(polygons.map(p => p.id === id ? { ...p, vertices: newVerts as [number, number][] } : p));
-        }
-      }
-    };
-    rendererRef.current?.domElement.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('mousemove', handleMouseMove);
-
-    // Clean up any previous canvas/renderer/scene
+    // Clean up any previous canvas/renderer/scene (defensive if remounting)
     if (rendererRef.current && mountRef.current) {
       if (mountRef.current.contains(rendererRef.current.domElement)) {
         mountRef.current.removeChild(rendererRef.current.domElement);
@@ -110,7 +80,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     cameraRef.current = null;
     a4PlaneRef.current = null;
 
-    // Create new scene/camera/renderer
+    // Create new scene/camera/renderer first so we can safely attach listeners
     sceneRef.current = new THREE.Scene();
     sceneRef.current.background = new THREE.Color(0xf0f0f0);
     cameraRef.current = new THREE.OrthographicCamera(0, width, height, 0, 1, 1000);
@@ -126,8 +96,224 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     const a4Geometry = new THREE.PlaneGeometry(width, height);
     let a4Material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     a4PlaneRef.current = new THREE.Mesh(a4Geometry, a4Material);
-    a4PlaneRef.current.position.set(width / 2, height / 2, -1); // z = -1 to ensure it's behind polygons
+    a4PlaneRef.current.position.set(width / 2, height / 2, -1);
     sceneRef.current.add(a4PlaneRef.current);
+
+    // Helper functions for interaction (use refs for live state)
+    const getPolygonBBox = (poly: OrigamiMapperTypes.Polygon) => {
+      // Treat internal coordinates as origin top-left, y increasing downward
+      const xs = poly.vertices.map(v => v[0] * width);
+      const ys = poly.vertices.map(v => v[1] * height);
+      const minX = Math.min(...xs); const maxX = Math.max(...xs); const minY = Math.min(...ys); const maxY = Math.max(...ys);
+      return { minX, maxX, minY, maxY };
+    };
+    const pointInBBox = (x: number, y: number, b: { minX: number; maxX: number; minY: number; maxY: number }) => x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
+    const getGroupIds = (id: string): string[] => {
+      const prefix = id.split('_')[0];
+      return polygonsRef.current.filter(p => p.id === prefix || p.id.startsWith(prefix + '_') || p.id.startsWith(prefix) && p.id.includes('_')).filter(p => p.id.split('_')[0] === prefix).map(p => p.id);
+    };
+    const getCombinedBBox = (ids: Set<string>) => {
+      if (ids.size === 0) return null;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      polygonsRef.current.forEach(p => {
+        if (ids.has(p.id)) {
+          const b = getPolygonBBox(p);
+          minX = Math.min(minX, b.minX); minY = Math.min(minY, b.minY); maxX = Math.max(maxX, b.maxX); maxY = Math.max(maxY, b.maxY);
+        }
+      });
+      return { minX, minY, maxX, maxY };
+    };
+    const canvasEl = rendererRef.current!.domElement;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const currentSelectedBBox = getCombinedBBox(selectedIdsRef.current);
+      // Decide mode
+      let mode: TransformMode = 'idle';
+      if (e.shiftKey) mode = 'scale';
+      else if (e.ctrlKey || e.metaKey) mode = 'rotate';
+      else {
+        // Prioritize selected bbox
+        if (currentSelectedBBox && pointInBBox(x, y, currentSelectedBBox)) {
+          mode = 'move';
+        } else {
+          // Find any polygon containing point (bbox test)
+          const hitPoly = polygonsRef.current.find(p => pointInBBox(x, y, getPolygonBBox(p)));
+          if (hitPoly) {
+            // Select its group
+            const groupIds = new Set(getGroupIds(hitPoly.id));
+            setSelectedIds(groupIds);
+            mode = 'move';
+          } else {
+            // Start selection rectangle
+            mode = 'select';
+            const startRect = { x, y, w: 0, h: 0 };
+            setSelectionRect(startRect);
+            selectionRectRef.current = startRect;
+          }
+        }
+      }
+      const bbox = getCombinedBBox(selectedIdsRef.current.size ? selectedIdsRef.current : new Set());
+      let center = { x: width / 2, y: height / 2 };
+      if (selectedIdsRef.current.size && bbox) {
+        center = { x: (bbox.minX + bbox.maxX) / 2, y: (bbox.minY + bbox.maxY) / 2 };
+      }
+      // For rotation initial angle
+      const initialAngle = Math.atan2(y - center.y, x - center.x);
+      transformStateRef.current = {
+        mode,
+        startX: x,
+        startY: y,
+        lastX: x,
+        lastY: y,
+        originalPolygons: polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) })),
+        bboxCenter: center,
+        initialAngle
+      };
+    };
+    const handleMouseMove = (e: MouseEvent) => {
+      const state = transformStateRef.current;
+      if (!state) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const dx = x - state.startX;
+      const dy = y - state.startY;
+      
+      // Allow dynamic mode switching while dragging
+      if (state.mode !== 'select') {
+        let desiredMode: TransformMode = state.mode;
+        if (e.shiftKey) desiredMode = 'scale';
+        else if (e.ctrlKey || e.metaKey) desiredMode = 'rotate';
+        else desiredMode = 'move';
+        if (desiredMode !== state.mode) {
+          // Reset reference snapshot when switching modes
+          const selectedSnapshot = polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
+          // Recompute bbox center
+          const getCombinedBBox = (ids: Set<string>) => {
+            if (ids.size === 0) return null;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            polygonsRef.current.forEach(p => {
+              if (selectedIdsRef.current.has(p.id)) {
+                const xs = p.vertices.map(v => v[0] * width);
+                const ys = p.vertices.map(v => (1 - v[1]) * height);
+                const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+                minX = Math.min(minX, minx); maxX = Math.max(maxX, maxx); minY = Math.min(minY, miny); maxY = Math.max(maxY, maxy);
+              }
+            });
+            return { minX, minY, maxX, maxY };
+          };
+          const bbox = getCombinedBBox(selectedIdsRef.current);
+          let center = { x: width / 2, y: height / 2 };
+          if (bbox) center = { x: (bbox.minX + bbox.maxX) / 2, y: (bbox.minY + bbox.maxY) / 2 };
+          state.mode = desiredMode;
+          state.originalPolygons = selectedSnapshot;
+          state.startX = x; state.startY = y; // reset deltas to avoid jump
+          state.lastX = x; state.lastY = y;
+          state.bboxCenter = center;
+          state.initialAngle = Math.atan2(y - center.y, x - center.x);
+        }
+      }
+      if (state.mode === 'select' && selectionRectRef.current) {
+        const start = selectionRectRef.current;
+        const newRect = { x: start.x, y: start.y, w: x - start.x, h: y - start.y };
+        setSelectionRect(newRect); // triggers UI update
+        selectionRectRef.current = newRect; // keep ref in sync for subsequent moves
+        // Normalize rect to compute selection
+        const rx = newRect.w < 0 ? newRect.x + newRect.w : newRect.x;
+        const ry = newRect.h < 0 ? newRect.y + newRect.h : newRect.y;
+        const rw = Math.abs(newRect.w);
+        const rh = Math.abs(newRect.h);
+        const sel = new Set<string>();
+        polygonsRef.current.forEach(p => {
+          const b = getPolygonBBox(p);
+          // Check if bbox intersects selection rectangle
+          const rectMinX = rx, rectMaxX = rx + rw, rectMinY = ry, rectMaxY = ry + rh;
+          const intersects =
+            b.maxX >= rectMinX && b.minX <= rectMaxX &&
+            b.maxY >= rectMinY && b.minY <= rectMaxY;
+          if (intersects) {
+            getGroupIds(p.id).forEach(id => sel.add(id));
+          }
+        });
+        setSelectedIds(sel);
+        return;
+      }
+      if (!selectedIdsRef.current.size) return;
+      if (state.mode === 'move') {
+        const ndx = dx / width;
+        const ndy = dy / height; // screen positive downwards
+        // compute clamped delta so selection stays inside canvas
+        const origMap = new Map(state.originalPolygons.map(p => [p.id, p]))
+        const working = polygonsRef.current.map(p => {
+          if (selectedIdsRef.current.has(p.id)) {
+            const orig = origMap.get(p.id)!;
+            const verts = orig.vertices.map(([vx, vy]) => [vx + ndx, vy + ndy] as [number, number]);
+            return { ...p, vertices: verts };
+          }
+          return p;
+        });
+        setPolygons(working);
+      } else if (state.mode === 'scale') {
+        let scale = 1 + (dy) / 100; // down enlarges
+        scale = Math.max(0.1, Math.min(10, scale));
+        const centerNorm = { x: state.bboxCenter.x / width, y: state.bboxCenter.y / height };
+        const origMap = new Map(state.originalPolygons.map(p => [p.id, p]));
+        const updated = polygonsRef.current.map(p => {
+          if (selectedIdsRef.current.has(p.id)) {
+            const orig = origMap.get(p.id)!;
+            const verts = orig.vertices.map(([vx, vy]) => {
+              const nx = centerNorm.x + (vx - centerNorm.x) * scale;
+              const ny = centerNorm.y + (vy - centerNorm.y) * scale;
+              return [nx, ny] as [number, number];
+            });
+            return { ...p, vertices: verts };
+          }
+          return p;
+        });
+        setPolygons(updated);
+      } else if (state.mode === 'rotate') {
+        // Relative cumulative rotation: rotate current vertices by incremental delta
+        const centerPixel = { x: state.bboxCenter.x, y: state.bboxCenter.y };
+        const prevAngle = Math.atan2(state.lastY - centerPixel.y, state.lastX - centerPixel.x);
+        const currAngle = Math.atan2(y - centerPixel.y, x - centerPixel.x);
+        let deltaAngle = currAngle - prevAngle;
+        if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+        else if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+        const cosA = Math.cos(deltaAngle);
+        const sinA = Math.sin(deltaAngle);
+        const updated = polygonsRef.current.map(p => {
+          if (!selectedIdsRef.current.has(p.id)) return p;
+          const verts = p.vertices.map(([vx, vy]) => {
+            const px = vx * width;
+            const py = vy * height;
+            const ox = px - centerPixel.x;
+            const oy = py - centerPixel.y;
+            const rx = ox * cosA - oy * sinA;
+            const ry = ox * sinA + oy * cosA;
+            const npx = rx + centerPixel.x;
+            const npy = ry + centerPixel.y;
+            return [npx / width, npy / height] as [number, number];
+          });
+          return { ...p, vertices: verts };
+        });
+        setPolygons(updated);
+      }
+      state.lastX = x; state.lastY = y;
+    };
+    const handleMouseUp = () => {
+      if (transformStateRef.current?.mode === 'select') {
+        // selection already applied during drag
+      }
+      setSelectionRect(null);
+      transformStateRef.current = null;
+    };
+    canvasEl.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
     // Animation loop
     const animate = () => {
@@ -142,12 +328,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           mountRef.current.removeChild(rendererRef.current.domElement);
         }
       }
-      if (dragControlsRef.current) {
-        dragControlsRef.current.dispose();
-      }
       rendererRef.current?.domElement.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
 
@@ -176,6 +359,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
     // Remove old polygon groups (keep a4Plane)
     scene.children = scene.children.filter(obj => obj === a4PlaneRef.current);
+    groupsRef.current.clear();
 
     // Create mapping from fillMesh to outline
     const fillToOutlineMap = new Map<THREE.Mesh, Line2>();
@@ -195,9 +379,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       shape.closePath();
 
       const fillGeometry = new THREE.ShapeGeometry(shape);
+      const isSelected = selectedIds.has(polygon.id);
       const fillMaterial = new THREE.MeshBasicMaterial({
-        color: 0x2194ce,
-        opacity: 0.4,
+        color: isSelected ? 0xffaa00 : 0x2194ce,
+        opacity: isSelected ? 0.6 : 0.4,
         transparent: true,
         side: THREE.DoubleSide,
       });
@@ -222,6 +407,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       group.add(fillMesh);
       group.add(outline);
       group.userData = { id: polygon.id };
+      groupsRef.current.set(polygon.id, group);
 
       return { group, fillMesh };
     });
@@ -230,224 +416,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       scene.add(group);
     });
 
-    // Remove previous drag controls
-    if (dragControlsRef.current) {
-      dragControlsRef.current.dispose();
-    }
-
-    dragControlsRef.current = new DragControls(
-      polygonGroups.map(({ fillMesh }) => fillMesh),
-      camera,
-      renderer.domElement
-    );
-    const dragControls = dragControlsRef.current;
-
-    // Scaling state for drag
-    let dragScaling = null as null | {
-      group: THREE.Group,
-      startY: number,
-      startScale: number,
-      id: string,
-      verts: [number, number][][], // array of arrays for each polygon in group
-      currentScale: number,
-      startPosition: THREE.Vector3,
-      prefix: string
-    };
-
-    const scalePolygons = (id: string, fillMesh: THREE.Mesh, cx: number, cy: number, scale: number, polygonGroup: typeof dragScaling) => {
-      if (!polygonGroup) return;
-      const polyIdx = polygons.filter(pp => pp.id.startsWith(polygonGroup.prefix + '_')).findIndex(pp => pp.id === id);
-      const verts = polygonGroup.verts[polyIdx];
-      if (!verts) return;
-      const scaledVerts = verts.map(([x, y]) => {
-        const newX = cx + (x - cx) * scale / polygonGroup.startScale;
-        const newY = cy + (y - cy) * scale / polygonGroup.startScale;
-        return [newX, newY] as [number, number];
-      });
-      // Update mesh geometry
-      const shape = new THREE.Shape();
-      scaledVerts.forEach((v, i) => {
-        const px = v[0] * width;
-        const py = (1 - v[1]) * height;
-        if (i === 0) shape.moveTo(px, py);
-        else shape.lineTo(px, py);
-      });
-      shape.closePath();
-      fillMesh.geometry.dispose();
-      fillMesh.geometry = new THREE.ShapeGeometry(shape);
-      fillMesh.position.copy(polygonGroup.startPosition);
-      // Update outline
-      const outline = fillToOutlineMap.get(fillMesh);
-      if (outline) {
-        const points = shape.getPoints();
-        const positions = points.map(p => [p.x, p.y, 0]).flat();
-        outline.position.copy(polygonGroup.startPosition);
-        outline.geometry.dispose();
-        outline.geometry = new LineGeometry();
-        (outline.geometry as LineGeometry).setPositions(positions);
-      }
-    };
-
-    dragControls.addEventListener('dragstart', (event) => {
-      if (shiftPressedRef.current) {
-        const mesh = event.object as THREE.Mesh;
-        const group = mesh.parent as THREE.Group;
-        const id = group.userData.id as string;
-        const prefix = id.split('_')[0];
-        let groupPolys = polygons.filter(p => p.id.startsWith(prefix + '_'));
-        // If only one polygon matches, treat it as a group of one
-        if (groupPolys.length === 0) {
-          groupPolys = [polygons.find(p => p.id === id)!];
-        }
-        dragScaling = {
-          group,
-          startY: mesh.position.y,
-          startScale: group.scale.x,
-          id,
-          verts: groupPolys.map(p => p.vertices.map(([x, y]) => [x, y]) as [number, number][]),
-          currentScale: group.scale.x,
-          startPosition: mesh.position.clone(),
-          prefix
-        };
-      }
-    });
-
-    dragControls.addEventListener('drag', (event) => {
-      if (shiftPressedRef.current && dragScaling) {
-        // Scale mode
-        const mesh = event.object as THREE.Mesh;
-        const deltaY = mesh.position.y - dragScaling.startY;
-        let scale = dragScaling.startScale * (1 + deltaY / 100);
-        scale = Math.max(0.1, Math.min(10, scale));
-        dragScaling.currentScale = scale;
-        // Calculate centroid of all polygons in group
-        if (!dragScaling) return;
-        const allVerts: [number, number][] = dragScaling.verts.flat();
-        const cx = allVerts.reduce((sum, v) => sum + v[0], 0) / allVerts.length;
-        const cy = allVerts.reduce((sum, v) => sum + v[1], 0) / allVerts.length;
-        // Scale all polygons in group
-        polygonGroups.forEach(({ group, fillMesh }) => {
-          const id = group.userData.id as string;
-          if (id.startsWith(dragScaling.prefix + '_')) {
-            scalePolygons(id, fillMesh, cx, cy, scale, dragScaling);
-          }
-        });
-      } else {
-        // Normal drag
-        const mesh = event.object as THREE.Mesh;
-        // Clamp so the entire polygon stays within canvas
-        if (mesh.geometry instanceof THREE.ShapeGeometry) {
-          const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-          for (let i = 0; i < positions.length; i += 3) {
-            const x = positions[i] + mesh.position.x;
-            const y = positions[i + 1] + mesh.position.y;
-            minX = Math.min(minX, x);
-            maxX = Math.max(maxX, x);
-            minY = Math.min(minY, y);
-            maxY = Math.max(maxY, y);
-          }
-          // Calculate allowed movement
-          if (minX < 0) mesh.position.x -= minX;
-          if (maxX > width) mesh.position.x -= (maxX - width);
-          if (minY < 0) mesh.position.y -= minY;
-          if (maxY > height) mesh.position.y -= (maxY - height);
-        }
-
-        const outline = fillToOutlineMap.get(mesh);
-        if (outline) {
-          outline.position.copy(mesh.position);
-        }
-        const draggedGroup = mesh.parent as THREE.Group;
-        const draggedId = draggedGroup.userData.id as string;
-        const prefix = draggedId.split('_')[0];
-        polygonGroups.forEach(({ group, fillMesh }) => {
-          const id = group.userData.id as string;
-          if (id.startsWith(prefix + '_')) {
-            if (fillMesh !== mesh) {
-              fillMesh.position.copy(mesh.position);
-              const outlineOther = fillToOutlineMap.get(fillMesh);
-              if (outlineOther) outlineOther.position.copy(mesh.position);
-            }
-          }
-        });
-      }
-    });
-
-    dragControls.addEventListener('dragend', (event) => {
-      // If scaling was performed, update state with final vertices
-      if (dragScaling && shiftPressedRef.current) {
-        const scale = dragScaling.currentScale;
-        const allVerts: [number, number][] = dragScaling.verts.flat();
-        const cx = allVerts.reduce((sum, v) => sum + v[0], 0) / allVerts.length;
-        const cy = allVerts.reduce((sum, v) => sum + v[1], 0) / allVerts.length;
-        setPolygons(polygons.map(p => {
-          if (dragScaling && p.id.startsWith(dragScaling.prefix + '_')) {
-            const polyIdx = polygons.filter(pp => pp.id.startsWith(dragScaling.prefix + '_')).findIndex(pp => pp.id === p.id);
-            const verts = dragScaling.verts[polyIdx];
-            if (!verts) return p;
-            const newVerts = verts.map(([x, y]) => {
-              const newX = cx + (x - cx) * scale / dragScaling.startScale;
-              const newY = cy + (y - cy) * scale / dragScaling.startScale;
-              return [newX, newY] as [number, number];
-            });
-            return { ...p, vertices: newVerts as [number, number][] };
-          } else {
-            return p;
-          }
-        }));
-      }
-      else {
-        const mesh = event.object as THREE.Mesh;
-        const outline = fillToOutlineMap.get(mesh);
-        if (outline && mesh.geometry instanceof THREE.ShapeGeometry) {
-          const positions = (mesh.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array;
-          const updatedVertices: [number, number][] = [];
-          for (let i = 0; i < positions.length; i += 3) {
-            // Flip y-axis back when updating vertices
-            const x = (positions[i] + mesh.position.x) / width;
-            const y = 1 - ((positions[i + 1] + mesh.position.y) / height);
-            updatedVertices.push([x, y]);
-          }
-          // Get group prefix
-          const draggedGroup = mesh.parent as THREE.Group;
-          const draggedId = draggedGroup.userData.id as string;
-          const prefix = draggedId.split('_')[0];
-          // Count polygons in group
-          const groupPolygons = polygons.filter(p => p.id.startsWith(prefix + '_'));
-          if (groupPolygons.length > 1) {
-            // Calculate translation delta from mesh.position
-            const dx = mesh.position.x / width;
-            const dy = mesh.position.y / height;
-            setPolygons(polygons.map(p => {
-              if (p.id.startsWith(prefix + '_')) {
-                return {
-                  ...p,
-                  // Flip y-axis for translation
-                  vertices: p.vertices.map(([x, y]) => [x + dx, y - dy])
-                };
-              } else {
-                return p;
-              }
-            }));
-          } else {
-            // Only one polygon in group, update vertices as before
-            setPolygons(polygons.map(p =>
-              p.id === mesh.parent?.userData.id
-                ? { ...p, vertices: updatedVertices }
-                : p
-            ));
-          }
-        }
-      }
-    });
-
-    return () => {
-      if (dragControlsRef.current) {
-        dragControlsRef.current.dispose();
-      }
-    };
-  }, [polygons]);
+    return () => { };
+  }, [polygons, selectedIds]);
 
   // Expose getCurrentJson to parent via ref
   useImperativeHandle(ref, () => ({
@@ -485,10 +455,23 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   };
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div style={{ textAlign: 'center', position: 'relative' }}>
       <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
-      <div ref={mountRef} style={{ maxWidth: '180px' }}></div>
-      <div style={{ marginTop: '0.5em' }}>
+      <div ref={mountRef} style={{ maxWidth: '180px', position: 'relative' }}>
+        {selectionRect && (
+          <div style={{
+            position: 'absolute',
+            left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
+            top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
+            width: Math.abs(selectionRect.w),
+            height: Math.abs(selectionRect.h),
+            border: '1px dashed #ff8800',
+            background: 'rgba(255,136,0,0.1)',
+            pointerEvents: 'none'
+          }} />
+        )}
+      </div>
+      <div style={{ marginTop: '0.5em', display: 'flex', gap: '0.5em', justifyContent: 'center' }}>
         <input
           ref={fileInputRef}
           type="file"
@@ -496,8 +479,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           style={{ display: 'none' }}
           onChange={handleImport}
         />
-        <button type="button" onClick={() => fileInputRef.current?.click()} style={{ marginRight: '0.5em' }}>Import</button>
+        <button type="button" onClick={() => fileInputRef.current?.click()}>Import</button>
         <button onClick={handleExport}>Export</button>
+        <button type="button" onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); }}>Reset</button>
+      </div>
+      <div style={{ fontSize: '0.65em', color: '#aaa', marginTop: '0.4em', lineHeight: 1.2, maxWidth: '180px', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
+        Drag to move (auto group).
+        Shift+Drag scale.
+        Ctrl/Cmd+Drag rotate.
+        Drag empty area to marquee select.
       </div>
       {/* <div style={{ fontSize: '0.8em', color: '#888', marginTop: '0.5em' }}>
         Hold <b>Shift</b> and drag mouse up/down to scale polygon group

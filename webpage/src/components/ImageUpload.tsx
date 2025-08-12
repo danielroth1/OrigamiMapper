@@ -1,4 +1,3 @@
-import { ImageTransform } from './ImageTransform';
 
 interface ImageUploadProps {
   label: string;
