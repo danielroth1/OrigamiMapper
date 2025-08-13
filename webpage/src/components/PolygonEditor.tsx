@@ -4,6 +4,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -554,15 +555,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         />
         <button
           type="button"
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
           onClick={() => fileInputRef.current?.click()}
           title="Import JSON"
-        >📂</button>
+        ><IoFolderOpen style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
           onClick={handleExport}
           title="Export JSON"
-        >💾</button>
+        ><IoDownload style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
           type="button"
           disabled={!canRevert}
@@ -570,19 +571,19 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             fontSize: '1.2em',
             padding: '0.3em 0.5em',
             borderRadius: '5px',
-            background: canRevert ? '#eee' : '#ccc',
+            background: canRevert ? '#000' : '#333',
             border: 'none',
             cursor: canRevert ? 'pointer' : 'not-allowed'
           }}
           onClick={handleRevert}
           title="Revert"
-        >↩️</button>
+        ><IoCaretBackSharp style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
           type="button"
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#eee', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
           onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); pushHistory(polygonsRef.current); }}
           title="Reset"
-        >🔄</button>
+        ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
       </div>
     </div>
   );
