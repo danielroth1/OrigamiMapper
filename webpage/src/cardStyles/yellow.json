@@ -16,5 +16,14 @@
   "bottomInfoBg": "#fff9c4",
   "powerToughnessBorder": "#bfa600",
   "powerToughnessBg": "#fff9c4",
-  "powerToughnessTextColor": "#bfa600"
+  "powerToughnessTextColor": "#bfa600",
+  "flavorTextColor": "#bfa600",
+  "manaIconColors": {
+    "R": "#b20000",
+    "U": "#0bbfe0",
+    "G": "#228B22",
+    "W": "#FFFFFF",
+    "B": "#22211c",
+    "Y": "#ffe066"
+  }
 }

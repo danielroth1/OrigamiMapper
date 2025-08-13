@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater } from 'react-icons/io5';
 
 import Header from '../components/Header';
 import ImageUpload from '../components/ImageUpload';
@@ -12,9 +13,9 @@ import yellowFrame from '../cardStyles/yellow.json';
 
 const currentYear = new Date().getFullYear();
 const initialCardData = {
-  image: '/assets/colorfullskulls.jpeg',
+  image: '',
   name: 'Electro Rat',
-  manaCost: '3 {R} {U}',
+  manaCost: '3',
   typeLine: 'Creature — Plague Rat',
   power: 4,
   toughness: 4,
@@ -41,10 +42,27 @@ const frameDefs: Record<string, any> = {
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
   const [cardStyle, setCardStyle] = useState('Modern');
+  const [manaSelects, setManaSelects] = useState(['', '', '', '']);
+  const manaIcons: Record<string, (color: string) => React.ReactNode> = {
+    R: (color) => <IoFlame style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+    U: (color) => <IoWater style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+    G: (color) => <IoLeafSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+    W: (color) => <IoSunny style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+    B: (color) => <IoSkullSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+    Y: (color) => <IoFlashSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as any;
     setCardData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleManaSelect = (index: number, value: string) => {
+    setManaSelects(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
   };
 
   const handleImageUpload = (dataUrl: string) => {
@@ -103,32 +121,50 @@ const ProxyGenerator: React.FC = () => {
             <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
             <span style={{
               fontFamily: 'monospace',
-              fontSize: '0.9em',
               color: frame.manaCostText,
               background: frame.manaCostBg,
               borderRadius: frame.manaCostRadius,
               padding: frame.manaCostPadding,
               marginLeft: '0.5em'
-            }}>{cardData.manaCost}</span>
+            }}>
+              <span style={{ fontSize: '1.3em', fontWeight: 'bold' }}>{cardData.manaCost}</span>
+              {manaSelects.map((symbol, i) => {
+                if (!symbol) return null;
+                const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
+                return (
+                  <span key={i} style={{ marginLeft: '0.2em' }}>
+                    {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
+                  </span>
+                );
+              })}
+            </span>
           </div>
           {/* Art Area */}
           <div style={{
-            width: `${(48.5/63.5)*100}%`,
-            height: `${(39/88.9)*100}%`,
+            width: '92%', // bigger image area
+            height: '48%', // bigger image area
             margin: '0 auto',
             position: 'relative',
             zIndex: 2,
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            background: frame.artFallback,
+            border: frame.artBorder ? `1px solid ${frame.artBorder}` : undefined
           }}>
-            <img
-              src={cardData.image ? cardData.image : '/assets/space_skulls.jpg'}
-              alt="Card Art"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={e => { e.currentTarget.src = '/assets/space_skulls.jpg'; }}
-            />
+            {cardData.image ? (
+              <img
+                src={cardData.image}
+                alt="Card art preview"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'cover',
+                  boxShadow: '0 2px 8px #0004'
+                }}
+              />
+            ) : null}
           </div>
           {/* Type Line */}
           <div style={{
@@ -155,7 +191,11 @@ const ProxyGenerator: React.FC = () => {
             zIndex: 2
           }}>
             {cardData.rulesText}
-            {cardData.flavorText && <div style={{ fontStyle: 'italic', marginTop: '0.5em', color: '#444' }}>{cardData.flavorText}</div>}
+            {cardData.flavorText && (
+              <div className="card-flavor-text" style={{ fontStyle: 'italic', marginTop: '0.5em', color: frame.flavorTextColor || '#444' }}>
+                {cardData.flavorText}
+              </div>
+            )}
           </div>
           {/* Bottom Info */}
           <div style={{
@@ -228,51 +268,17 @@ const ProxyGenerator: React.FC = () => {
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
             <label>Mana Cost:</label>
             <input type="text" name="manaCost" value={cardData.manaCost} onChange={handleChange} style={{ minWidth: '120px' }} />
-            <select style={{ minWidth: '50px' }}>
-              <option value="">--</option>
-              <option value="W">W</option>
-              <option value="U">U</option>
-              <option value="B">B</option>
-              <option value="R">R</option>
-              <option value="G">G</option>
-              <option value="C">C</option>
-            </select>
-            <select style={{ minWidth: '50px' }}>
-              <option value="">--</option>
-              <option value="W">W</option>
-              <option value="U">U</option>
-              <option value="B">B</option>
-              <option value="R">R</option>
-              <option value="G">G</option>
-              <option value="C">C</option>
-            </select>
-            <select style={{ minWidth: '50px' }}>
-              <option value="">--</option>
-              <option value="W">W</option>
-              <option value="U">U</option>
-              <option value="B">B</option>
-              <option value="R">R</option>
-              <option value="G">G</option>
-              <option value="C">C</option>
-            </select>
-            <select style={{ minWidth: '50px' }}>
-              <option value="">--</option>
-              <option value="W">W</option>
-              <option value="U">U</option>
-              <option value="B">B</option>
-              <option value="R">R</option>
-              <option value="G">G</option>
-              <option value="C">C</option>
-            </select>
-            <select style={{ minWidth: '50px' }}>
-              <option value="">--</option>
-              <option value="W">W</option>
-              <option value="U">U</option>
-              <option value="B">B</option>
-              <option value="R">R</option>
-              <option value="G">G</option>
-              <option value="C">C</option>
-            </select>
+            {[0,1,2,3].map(i => (
+              <select key={i} style={{ minWidth: '50px' }} value={manaSelects[i]} onChange={e => handleManaSelect(i, e.target.value)}>
+                <option value="">--</option>
+                <option value="R">Red</option>
+                <option value="U">Blue</option>
+                <option value="G">Green</option>
+                <option value="W">White</option>
+                <option value="Y">Yellow</option>
+                <option value="B">Black</option>
+              </select>
+            ))}
           </div>
           <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
             <label>Type Line:</label>
