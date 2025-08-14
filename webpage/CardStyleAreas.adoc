@@ -1,0 +1,47 @@
+
+= Card Style JSON Parameter Mapping
+
+This diagram shows which JSON parameters style each area of the card (e.g., `white.json`, `black.json`).
+
+----
+┌─────────────────────────────┐
+│        titleBar             │
+│   (titleBar, titleBarText,  │
+│    titleBarBorder)          │
+├─────────────────────────────┤
+│        manaCost             │
+│ (manaCostBg, manaCostText,  │
+│  manaCostRadius,            │
+│  manaCostPadding,           │
+│  manaIconColors)            │
+├─────────────────────────────┤
+│         art area            │
+│   (artFallback, artBorder)  │
+├─────────────────────────────┤
+│        typeLine             │
+│ (typeLineBg, typeLineText,  │
+│  typeLineBorder)            │
+├─────────────────────────────┤
+│         textBox             │
+│   (textBoxBg, textBoxText,  │
+│    flavorTextColor)         │
+├─────────────────────────────┤
+│       bottomInfo            │
+│ (bottomInfoBg, bottomInfoText│
+│  bottomInfoBorder)          │
+├─────────────────────────────┤
+│ power/toughness | copyright │
+│ (powerToughnessBg,          │
+│  powerToughnessBorder,      │
+│  powerToughnessTextColor,   │
+│  copyrightText)             │
+└─────────────────────────────┘
+----
+
+Other parameters:
+- cardFrame: Main card background
+- innerBorder: Optional inner border
+
+Legend:
+- Each area lists the JSON parameter(s) that control its style.
+- All parameters are theme-specific and can be set in each card style JSON file.
