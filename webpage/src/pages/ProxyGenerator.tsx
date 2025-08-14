@@ -4,6 +4,7 @@ import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater } fr
 import Header from '../components/Header';
 import ImageUpload from '../components/ImageUpload';
 import blackFrame from '../cardStyles/black.json';
+import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
 import blueFrame from '../cardStyles/blue.json';
 import redFrame from '../cardStyles/red.json';
@@ -31,6 +32,7 @@ const initialCardData = {
 
 const frameDefs: Record<string, any> = {
   Black: blackFrame,
+  Black2: black2Frame,
   White: whiteFrame,
   Blue: blueFrame,
   Red: redFrame,
@@ -262,6 +264,7 @@ const ProxyGenerator: React.FC = () => {
                 style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
               >
                 <option value="Black">Black</option>
+                <option value="Black2">Black2</option>
                 <option value="Green">Green</option>
                 <option value="White">White</option>
                 <option value="Red">Red</option>

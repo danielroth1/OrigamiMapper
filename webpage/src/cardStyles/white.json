@@ -10,6 +10,7 @@
     "manaCostRadius": "10%",
     "manaCostPadding": "2px",
     "artFallback": "#e0faff",
+    "artBorder": "#0bbfe0",
     "typeLineBg": "#f7f3e7",
     "typeLineText": "#0bbfe0",
     "typeLineBorder": "#0bbfe0",
@@ -20,14 +21,15 @@
     "bottomInfoBorder": "#0bbfe0",
     "powerToughnessBorder": "#0bbfe0",
     "powerToughnessBg": "#e0faff",
-  "copyrightText": "#0bbfe0",
-  "flavorTextColor": "#0bbfe0",
-  "manaIconColors": {
-    "R": "#b20000",
-    "U": "#0bbfe0",
-    "G": "#228B22",
-    "W": "#f7f3e7",
-    "B": "#22211c",
-    "Y": "#ffe066"
-  }
+    "powerToughnessTextColor": "#0bbfe0",
+    "copyrightText": "#0bbfe0",
+    "flavorTextColor": "#0bbfe0",
+    "manaIconColors": {
+      "R": "#b20000",
+      "U": "#0bbfe0",
+      "G": "#228B22",
+      "W": "#f7f3e7",
+      "B": "#22211c",
+      "Y": "#ffe066"
+    }
   }

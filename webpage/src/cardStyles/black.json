@@ -3,27 +3,32 @@
     "cardFrame": "#22211c",
     "titleBar": "#444",
     "titleBarText": "#ede8d6",
+    "titleBarBorder": "#ede8d6",
     "manaCostText": "#ede8d6",
     "manaCostBg": "#22211c",
     "manaCostRadius": "10%",
     "manaCostPadding": "2px",
     "artFallback": "#444",
+    "artBorder": "#ede8d6",
     "typeLineBg": "#444",
     "typeLineText": "#EEEEEE",
+    "typeLineBorder": "#ede8d6",
     "textBoxBg": "#22211c",
     "textBoxText": "#ede8d6",
     "bottomInfoText": "#EEEEEE",
     "bottomInfoBg": "#22211c",
+    "bottomInfoBorder": "#ede8d6",
     "powerToughnessBorder": "#444",
     "powerToughnessBg": "#22211c",
-  "powerToughnessTextColor": "#ede8d6",
-  "flavorTextColor": "#EEEEEE",
-  "manaIconColors": {
-    "R": "#b20000",
-    "U": "#0bbfe0",
-    "G": "#228B22",
-    "W": "#ede8d6",
-    "B": "#ffffff",
-    "Y": "#ffe066"
-  }
+    "powerToughnessTextColor": "#ede8d6",
+    "copyrightText": "#ede8d6",
+    "flavorTextColor": "#EEEEEE",
+    "manaIconColors": {
+      "R": "#b20000",
+      "U": "#0bbfe0",
+      "G": "#228B22",
+      "W": "#ffea00",
+      "B": "#ffffff",
+      "Y": "#ffe066"
+    }
   }
