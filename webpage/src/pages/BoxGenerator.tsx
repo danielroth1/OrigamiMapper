@@ -17,7 +17,7 @@ function BoxGenerator() {
   const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
   const [insideImgTransformed, setInsideImgTransformed] = useState('');
   const [template, setTemplate] = useState('Box');
-  const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('scale');
+  const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
 

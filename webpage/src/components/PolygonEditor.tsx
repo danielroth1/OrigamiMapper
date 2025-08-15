@@ -39,6 +39,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const a4PlaneRef = useRef<THREE.Mesh | null>(null);
+  // Separate mesh for background image (so we can preserve its aspect ratio without stretching to A4)
+  const bgImageMeshRef = useRef<THREE.Mesh | null>(null);
   const [polygons, setPolygons] = useState<OrigamiMapperTypes.Polygon[]>(data.input_polygons);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionRect, setSelectionRect] = useState<null | { x: number; y: number; w: number; h: number }>(null);
@@ -79,8 +81,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     bboxCenter: { x: number; y: number }; // pixel coords
     initialAngle?: number; // for rotation
     scaleStartDistance?: number; // optional alternative future use
-  // If true, we haven't exceeded movement threshold yet (treat as click if mouseup without move)
-  pendingClickInsideSelection?: boolean;
+    // If true, we haven't exceeded movement threshold yet (treat as click if mouseup without move)
+    pendingClickInsideSelection?: boolean;
   }
   const transformStateRef = useRef<TransformState | null>(null);
 
@@ -176,8 +178,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             const startRect = { x, y, w: 0, h: 0 };
             setSelectionRect(startRect);
             selectionRectRef.current = startRect;
-              // Unselect polygons when clicking empty area
-              setSelectedIds(new Set());
+            // Unselect polygons when clicking empty area
+            setSelectedIds(new Set());
           }
         }
       }
@@ -246,7 +248,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           state.bboxCenter = center;
           state.initialAngle = Math.atan2(y - center.y, x - center.x);
         }
-      } 
+      }
       if (state.mode === 'select' && selectionRectRef.current) {
         const start = selectionRectRef.current;
         const newRect = { x: start.x, y: start.y, w: x - start.x, h: y - start.y };
@@ -393,18 +395,53 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
   // Update background image texture/material when backgroundImg changes
   useEffect(() => {
-    if (!a4PlaneRef.current) return;
-    if (backgroundImg) {
-      const loader = new THREE.TextureLoader();
-      loader.load(backgroundImg, (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        (a4PlaneRef.current!.material as THREE.MeshBasicMaterial).map = texture;
-        (a4PlaneRef.current!.material as THREE.MeshBasicMaterial).needsUpdate = true;
-      });
-    } else {
-      (a4PlaneRef.current.material as THREE.MeshBasicMaterial).map = null;
-      (a4PlaneRef.current.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    const scene = sceneRef.current;
+    if (!scene || !a4PlaneRef.current) return;
+
+    // Remove any previous background image mesh
+    if (bgImageMeshRef.current) {
+      scene.remove(bgImageMeshRef.current);
+      (bgImageMeshRef.current.material as THREE.Material).dispose();
+      (bgImageMeshRef.current.geometry as THREE.BufferGeometry).dispose();
+      bgImageMeshRef.current = null;
     }
+
+    if (!backgroundImg) {
+      // Ensure A4 plane shows plain white (no texture)
+      const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
+      mat.map = null;
+      mat.needsUpdate = true;
+      return;
+    }
+
+    const loader = new THREE.TextureLoader();
+    loader.load(backgroundImg, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      // Determine image display size preserving aspect ratio, WITHOUT scaling up or stretching to A4.
+      const imgW = texture.image.width;
+      const imgH = texture.image.height;
+      if (!imgW || !imgH) return;
+      const planeW = width;
+      const planeH = height;
+      // We treat 1 unit == 1 screen pixel here since renderer size matches plane dims.
+      // We'll show the image at 1:1 pixel size unless it exceeds the A4 plane, in which case we clip (not scale) by masking via scissor? Simpler: scale down only if it would overflow.
+      let displayW = imgW;
+      let displayH = imgH;
+      const scaleDown = Math.min(planeW / displayW, planeH / displayH, 1); // never scale up
+      displayW *= scaleDown;
+      displayH *= scaleDown;
+
+      // Create mesh sized to image aspect inside A4 page (centered)
+      const geom = new THREE.PlaneGeometry(displayW, displayH);
+      const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(planeW / 2, planeH / 2, -0.5); // between polygons (z=0) and A4 plane (z=-1)
+      // Offset to center image if smaller than plane
+      mesh.position.x = (planeW - displayW) / 2 + displayW / 2;
+      mesh.position.y = (planeH - displayH) / 2 + displayH / 2;
+      scene.add(mesh);
+      bgImageMeshRef.current = mesh;
+    });
   }, [backgroundImg]);
 
   // Update polygon meshes/groups and drag controls when polygons change
@@ -414,8 +451,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     const renderer = rendererRef.current;
     if (!scene || !camera || !renderer) return;
 
-    // Remove old polygon groups (keep a4Plane)
-    scene.children = scene.children.filter(obj => obj === a4PlaneRef.current);
+    // Remove old polygon groups (keep a4Plane and background image mesh)
+    scene.children = scene.children.filter(obj => obj === a4PlaneRef.current || obj === bgImageMeshRef.current);
     groupsRef.current.clear();
 
     // Create mapping from fillMesh to outline
