@@ -86,13 +86,21 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   }
   const transformStateRef = useRef<TransformState | null>(null);
 
-  const width = 180;
-  const height = (297 / 210) * width;
+  // Max canvas bounds (original A4 derived size). Actual canvas will fit inside while matching background image aspect ratio.
+  const MAX_CANVAS_WIDTH = 180;
+  const MAX_CANVAS_HEIGHT = (297 / 210) * 180;
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: MAX_CANVAS_WIDTH, h: MAX_CANVAS_HEIGHT });
+  const width = canvasSize.w;
+  const height = canvasSize.h;
+  const initialHistoryPushedRef = useRef(false);
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
-    // Record initial state for revert
-    pushHistory(data.input_polygons);
+    // Record initial state for revert only once
+    if (!initialHistoryPushedRef.current) {
+      pushHistory(data.input_polygons);
+      initialHistoryPushedRef.current = true;
+    }
     // Clean up any previous canvas/renderer/scene (defensive if remounting)
     if (rendererRef.current && mountRef.current) {
       if (mountRef.current.contains(rendererRef.current.domElement)) {
@@ -391,14 +399,35 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, []);
+  }, [width, height]);
 
-  // Update background image texture/material when backgroundImg changes
+  // Update background image + adjust canvas size to fit aspect ratio within max bounds (no upscaling)
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !a4PlaneRef.current) return;
 
-    // Remove any previous background image mesh
+    // Preload to compute target canvas size
+    if (backgroundImg) {
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          let w = img.naturalWidth;
+          let h = img.naturalHeight;
+          const scale = Math.min(
+            MAX_CANVAS_WIDTH / w,
+            MAX_CANVAS_HEIGHT / h,
+            1 // don't upscale
+          );
+            w *= scale; h *= scale;
+          if (Math.abs(w - width) > 0.5 || Math.abs(h - height) > 0.5) {
+            setCanvasSize({ w, h });
+          }
+        }
+      };
+      img.src = backgroundImg;
+    }
+
+    // Remove previous bg image mesh
     if (bgImageMeshRef.current) {
       scene.remove(bgImageMeshRef.current);
       (bgImageMeshRef.current.material as THREE.Material).dispose();
@@ -407,7 +436,6 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     }
 
     if (!backgroundImg) {
-      // Ensure A4 plane shows plain white (no texture)
       const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
       mat.map = null;
       mat.needsUpdate = true;
@@ -417,32 +445,14 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     const loader = new THREE.TextureLoader();
     loader.load(backgroundImg, (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
-      // Determine image display size preserving aspect ratio, WITHOUT scaling up or stretching to A4.
-      const imgW = texture.image.width;
-      const imgH = texture.image.height;
-      if (!imgW || !imgH) return;
-      const planeW = width;
-      const planeH = height;
-      // We treat 1 unit == 1 screen pixel here since renderer size matches plane dims.
-      // We'll show the image at 1:1 pixel size unless it exceeds the A4 plane, in which case we clip (not scale) by masking via scissor? Simpler: scale down only if it would overflow.
-      let displayW = imgW;
-      let displayH = imgH;
-      const scaleDown = Math.min(planeW / displayW, planeH / displayH, 1); // never scale up
-      displayW *= scaleDown;
-      displayH *= scaleDown;
-
-      // Create mesh sized to image aspect inside A4 page (centered)
-      const geom = new THREE.PlaneGeometry(displayW, displayH);
+      const geom = new THREE.PlaneGeometry(width, height);
       const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(planeW / 2, planeH / 2, -0.5); // between polygons (z=0) and A4 plane (z=-1)
-      // Offset to center image if smaller than plane
-      mesh.position.x = (planeW - displayW) / 2 + displayW / 2;
-      mesh.position.y = (planeH - displayH) / 2 + displayH / 2;
+      mesh.position.set(width / 2, height / 2, -0.5);
       scene.add(mesh);
       bgImageMeshRef.current = mesh;
     });
-  }, [backgroundImg]);
+  }, [backgroundImg, width, height]);
 
   // Update polygon meshes/groups and drag controls when polygons change
   useEffect(() => {

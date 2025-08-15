@@ -259,97 +259,54 @@ function mapPolygonPixels(
 
 // Main function to run the mapping
 export async function runMappingJS(outsideImageData: string, insideImageData: string, templateJsonData: string): Promise<{ [key: string]: string }> {
-  // Parse template JSON
   const template = JSON.parse(templateJsonData);
   const { offset, inputPolys, outputPolys } = loadJson(template);
-  
-  // Load the images
-  const loadImage = (dataUrl: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve) => {
+
+  const loadImage = (dataUrl: string): Promise<HTMLImageElement> =>
+    new Promise(resolve => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.src = dataUrl;
     });
-  };
-  
-  const outsideImg = await loadImage(outsideImageData) as HTMLImageElement;
-  const insideImg = await loadImage(insideImageData) as HTMLImageElement;
+
+  const outsideImg = await loadImage(outsideImageData);
+  const insideImg = await loadImage(insideImageData);
   const inputImgs = [outsideImg, insideImg];
-  
-  // Calculate dimensions
-  const w = Math.max(outsideImg.width, insideImg.width);
-  const h = Math.max(outsideImg.height, insideImg.height);
-  
-  // Keep A4 aspect ratio, but ensure width and height are at least that of the input images
-  const [a4W, a4H] = A4_SIZE_PX;
-  const aspect = a4W / a4H;
-  let canvasW = a4W;
-  let canvasH = a4H;
-  
-  if (w > a4W || h > a4H) {
-    const scaleW = w / a4W;
-    const scaleH = h / a4H;
-    if (scaleW > scaleH) {
-      canvasW = w;
-      canvasH = Math.round(w / aspect);
-      if (canvasH < h) canvasH = h;
-    } else {
-      canvasH = h;
-      canvasW = Math.round(h * aspect);
-      if (canvasW < w) canvasW = w;
-    }
-  }
-  
-  // Create canvases for input images
+
+  // Create one canvas per image at its native size (no scaling)
   const inputCanvases = inputImgs.map(img => {
     const canvas = document.createElement('canvas');
-    canvas.width = canvasW;
-    canvas.height = canvasH;
+    canvas.width = img.width;
+    canvas.height = img.height;
     const ctx = canvas.getContext('2d');
-    
-    // Scale image to fit canvas
-    const imgW = img.width;
-    const imgH = img.height;
-    const scale = Math.min(canvasW / imgW, canvasH / imgH);
-    const newW = Math.round(imgW * scale);
-    const newH = Math.round(imgH * scale);
-    
-    // Draw image on canvas
-    if (!ctx) {
-      console.log("Canvas context is null");
-      return null; // return if null context
-    }
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvasW, canvasH);
-    ctx.drawImage(img, 0, 0, newW, newH);
-    
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0); // original pixels only
     return canvas;
-  }).filter((canvas): canvas is HTMLCanvasElement => canvas !== null);
-  
-  // Create intermediate images (showing the polygons)
-  const intermCanvases = [];
+  }).filter((c): c is HTMLCanvasElement => c !== null);
+
+  // Safety: ensure we have both canvases
+  if (inputCanvases.length < 2) {
+    return {};
+  }
+
+  // Intermediate (debug) canvases per image (same native size)
+  const intermCanvases: HTMLCanvasElement[] = [];
   for (let idx = 0; idx < 2; idx++) {
+    const base = inputCanvases[idx];
     const canvas = document.createElement('canvas');
-    canvas.width = canvasW;
-    canvas.height = canvasH;
+    canvas.width = base.width;
+    canvas.height = base.height;
     const ctx = canvas.getContext('2d');
-    
-    // Copy input image to intermediate canvas
-    if (!ctx) {
-      console.log("Canvas context is null");
-      return {}; // return empty result if null context
-    }
-    ctx.drawImage(inputCanvases[idx], 0, 0);
-    
-    // Draw polygons
+    if (!ctx) return {};
+    ctx.drawImage(base, 0, 0);
+
     const color = idx === 0 ? 'rgba(255,0,0,1)' : 'rgba(0,0,255,1)';
     const fillColor = idx === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';
-    
     drawPolygons(
       ctx,
       inputPolys.filter(p => p.imageIdx === idx),
-      canvasW,
-      canvasH,
+      base.width,
+      base.height,
       color,
       fillColor,
       4,
@@ -357,50 +314,41 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
       0.2,
       true
     );
-    
     intermCanvases.push(canvas);
   }
-  
-  // Create output images
-  const outputCanvases = [
-    document.createElement('canvas'),
-    document.createElement('canvas')
-  ];
-  
-  outputCanvases[0].width = outputCanvases[1].width = canvasW;
-  outputCanvases[0].height = outputCanvases[1].height = canvasH;
-  
-  // Fill with white
-  outputCanvases.forEach(canvas => {
-    const ctx = canvas.getContext('2d');
-    if(!ctx) return; // return if null context
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Output canvases per "page" (match their respective source image sizes)
+  const outputCanvases: HTMLCanvasElement[] = [0, 1].map(i => {
+    const src = inputCanvases[i];
+    const c = document.createElement('canvas');
+    c.width = src.width;
+    c.height = src.height;
+    const ctx = c.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
+    return c;
   });
-  
-  // Create dictionaries for quick lookup
+
+  // Dicts
   const inputPolyDict = Object.fromEntries(inputPolys.map(p => [p.id, p]));
   const outputPolyDict = Object.fromEntries(outputPolys.map(p => [p.id, p]));
-  
-  // Map polygons
-  Object.keys(inputPolyDict).forEach(polyId => {
-    if (polyId in outputPolyDict) {
-      const srcPoly = inputPolyDict[polyId];
-      const dstPoly = outputPolyDict[polyId];
-      const srcCanvas = inputCanvases[srcPoly.imageIdx];
-      const dstCanvas = outputCanvases[dstPoly.imageIdx];
-      
-      mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);
-    }
+
+  // Map polygons (each page uses its own native size)
+  Object.keys(inputPolyDict).forEach(id => {
+    if (!(id in outputPolyDict)) return;
+    const srcPoly = inputPolyDict[id];
+    const dstPoly = outputPolyDict[id];
+    const srcCanvas = inputCanvases[srcPoly.imageIdx];
+    const dstCanvas = outputCanvases[dstPoly.imageIdx];
+    mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);
   });
-  
-  // Convert canvases to data URLs
-  const results = {
+
+  return {
     output_page1: outputCanvases[0].toDataURL('image/png'),
     output_page2: outputCanvases[1].toDataURL('image/png'),
     output_outside_mapping: intermCanvases[0].toDataURL('image/png'),
     output_inside_mapping: intermCanvases[1].toDataURL('image/png')
   };
-  
-  return results;
 }
