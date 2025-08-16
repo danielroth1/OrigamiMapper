@@ -8,6 +8,7 @@ import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle } from 'rea
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
+  scalePolygonsToCanvas: () => void; // uniformly scale all polygons to fit canvas (contain)
 }
 
 interface PolygonEditorProps {
@@ -62,6 +63,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     }
     setCanRevert(historyRef.current.length > 0);
   };
+  const handleReset = () => {
+    const polygons = resetPolygons(data.input_polygons, width, height);
+    setPolygons(polygons);
+    setSelectedIds(new Set());
+    pushHistory(polygonsRef.current);
+  };
   const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
   useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
   const groupsRef = useRef<Map<string, THREE.Group>>(new Map());
@@ -95,65 +102,6 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const initialHistoryPushedRef = useRef(false);
   const imageDimsRef = useRef<{ w: number; h: number } | null>(null);
   const lastConvertedKeyRef = useRef<string | null>(null);
-
-  // New scaling algorithm:
-  // 1. Compute pixel-space bbox of all polygons (using original image pixel coords).
-  // 2. Non-uniformly scale bbox to A4 aspect (210:297) by setting width->210, height->297 units.
-  // 3. Uniformly scale those A4 units so bbox fits inside background image and touches at least one side (width or height).
-  // 4. Map vertices accordingly, anchored at top-left (no centering) and normalize to canvas coordinates.
-  const scalePolygonsA4 = (base: OrigamiMapperTypes.Polygon[], imgW: number, imgH: number): OrigamiMapperTypes.Polygon[] => {
-    if (!base.length) return base;
-    // Original image pixel coords for bbox
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    base.forEach(p => {
-      p.vertices.forEach(([vx, vy]) => {
-        const px = vx * imgW;
-        const py = vy * imgH;
-        if (px < minX) minX = px;
-        if (py < minY) minY = py;
-        if (px > maxX) maxX = px;
-        if (py > maxY) maxY = py;
-      });
-    });
-    const bboxW = Math.max(1e-6, maxX - minX);
-    const bboxH = Math.max(1e-6, maxY - minY);
-    // Target A4 logical units
-    const A4W = 210;
-    const A4H = 297;
-    const scaleXToA4 = A4W / bboxW;
-    const scaleYToA4 = A4H / bboxH;
-    // After non-uniform scaling, bbox is A4W x A4H units. Uniform scale to fit image.
-    const uniform = Math.min(imgW / A4W, imgH / A4H);
-    const finalScaleX = scaleXToA4 * uniform;
-    const finalScaleY = scaleYToA4 * uniform;
-    const finalBBoxW = bboxW * finalScaleX; // also A4W * uniform
-    const finalBBoxH = bboxH * finalScaleY; // also A4H * uniform
-    console.log("finalScaleX =", finalScaleX, "finalScaleY =", finalScaleY);
-
-    
-    // Anchor at (0,0) top-left. (Optional centering could be added later.)
-    // Convert to canvas-normalized coordinates. Because background image is stretched to canvas,
-    // we map by proportion of image dimensions: normalizedX = finalPixelX / imgW, normalizedY = finalPixelY / imgH.
-    return base.map(p => ({
-      ...p,
-      vertices: p.vertices.map(([vx, vy]) => {
-        const px = vx * uniform * A4W;
-        const py = vy * uniform * A4H;
-        // const relX = (px - minX) / bboxW; // 0..1 inside original bbox
-        // const relY = (py - minY) / bboxH; // 0..1 inside original bbox
-        // const scaledX = relX * finalBBoxW; // pixel in image space after scaling
-        // const scaledY = relY * finalBBoxH;
-        // Normalize back to canvas coordinate space (proportion of image dims)
-        // const normX = scaledX / imgW;
-        // const normY = scaledY / imgH;
-        // return [normX, normY] as [number, number];
-        const normX = px / imgW;
-        const normY = py / imgH;
-        console.log("vx =", vx, "vy =", vy, "px =", px, "py =", py);
-        return [normX, normY] as [number, number];
-      })
-    }));
-  };
 
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
@@ -477,18 +425,14 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             MAX_CANVAS_HEIGHT / h,
             1 // don't upscale
           );
-            w *= scale; h *= scale;
+          w *= scale; h *= scale;
           if (Math.abs(w - width) > 0.5 || Math.abs(h - height) > 0.5) {
             setCanvasSize({ w, h });
-
             imageDimsRef.current = { w: img.naturalWidth, h: img.naturalHeight };
             const key = backgroundImg + ':' + polygonsRef.current.length;
             // Convert polygon coordinates only once per background image (or after reset/import)
             if (lastConvertedKeyRef.current !== key) {
-              const imgW = img.naturalWidth;
-              const imgH = img.naturalHeight;
-              // setPolygons(data.input_polygons);
-              const converted = scalePolygonsA4(data.input_polygons, imgW, imgH);
+              const converted = resetPolygons(data.input_polygons, w, h);
               setPolygons(converted);
               lastConvertedKeyRef.current = key;
             }
@@ -594,12 +538,95 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     return () => { };
   }, [polygons, selectedIds]);
 
+// New scaling algorithm:
+  // 1. Compute pixel-space bbox of all polygons (using original image pixel coords).
+  // 2. Non-uniformly scale bbox to A4 aspect (210:297) by setting width->210, height->297 units.
+  // 3. Uniformly scale those A4 units so bbox fits inside background image and touches at least one side (width or height).
+  // 4. Map vertices accordingly, anchored at top-left (no centering) and normalize to canvas coordinates.
+  const scalePolygonsA4 = (base: OrigamiMapperTypes.Polygon[], imgW: number, imgH: number): OrigamiMapperTypes.Polygon[] => {
+    if (!base.length) return base;
+    // Original image pixel coords for bbox
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    base.forEach(p => {
+      p.vertices.forEach(([vx, vy]) => {
+        const px = vx * imgW;
+        const py = vy * imgH;
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      });
+    });
+    // Target A4 logical units
+    const A4W = 210;
+    const A4H = 297;
+    // After non-uniform scaling, bbox is A4W x A4H units. Uniform scale to fit image.
+    const uniform = Math.min(imgW / A4W, imgH / A4H);
+    
+    // Anchor at (0,0) top-left. (Optional centering could be added later.)
+    // Convert to canvas-normalized coordinates. Because background image is stretched to canvas,
+    // we map by proportion of image dimensions: normalizedX = finalPixelX / imgW, normalizedY = finalPixelY / imgH.
+    return base.map(p => ({
+      ...p,
+      vertices: p.vertices.map(([vx, vy]) => {
+        const px = vx * uniform * A4W;
+        const py = vy * uniform * A4H;
+        const normX = px / imgW;
+        const normY = py / imgH;
+        return [normX, normY] as [number, number];
+      })
+    }));
+  };
+
+  // Uniformly scale all polygons so their combined bounding box fits inside the canvas
+  // while touching at least one side (contain behavior).
+  const scalePolygonsToCanvas = (base: OrigamiMapperTypes.Polygon[], width: number, height: number): OrigamiMapperTypes.Polygon[] => {
+    if (!base.length) return base;
+    // Compute bounding box in pixel space
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    base.forEach(p => {
+      p.vertices.forEach(([vx, vy]) => {
+        const px = vx * width;
+        const py = vy * height; // y already top-left origin in our normalized system
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      });
+    });
+    const bboxW = Math.max(1e-6, maxX - minX);
+    const bboxH = Math.max(1e-6, maxY - minY);
+    const scale = Math.min(width / bboxW, height / bboxH); // contain: touch at least one side
+    if (Math.abs(scale - 1) < 1e-6) return base; // nothing to do
+    const scaleOriginX = 0;
+    const scaleOriginY = 0;
+    const scaled = base.map(p => ({
+      ...p,
+      vertices: p.vertices.map(([vx, vy]) => {
+        const px = vx * width;
+        const py = vy * height;
+        const sx = (px - scaleOriginX) * scale + scaleOriginX;
+        const sy = (py - scaleOriginY) * scale + scaleOriginY;
+        return [sx / width, sy / height] as [number, number];
+      })
+    }));
+    return scaled;
+  };
+
+  const resetPolygons = (base: OrigamiMapperTypes.Polygon[], width: number, height: number): OrigamiMapperTypes.Polygon[] => {
+    if (!base.length) return base;
+    let converted = scalePolygonsA4(base, width, height);
+    converted = scalePolygonsToCanvas(converted, width, height);
+    return converted;
+  };
+
   // Expose getCurrentJson to parent via ref
   useImperativeHandle(ref, () => ({
     getCurrentJson: () => ({
       ...data,
       input_polygons: polygons
-    })
+    }),
+    scalePolygonsToCanvas: () => scalePolygonsToCanvas(polygonsRef.current, width, height),
   }), [data, polygons]);
 
   const handleExport = () => {
@@ -699,7 +726,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         <button
           type="button"
           style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={() => { setPolygons(data.input_polygons); setSelectedIds(new Set()); pushHistory(polygonsRef.current); }}
+          onClick={handleReset}
           title="Reset"
         ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
       </div>
