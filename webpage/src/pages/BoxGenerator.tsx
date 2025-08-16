@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import CubeViewer from "../components/CubeViewer";
 import ImageUpload from '../components/ImageUpload';
 import ImagePreview from '../components/ImagePreview';
 import TemplateSelect from '../components/TemplateSelect';
@@ -245,6 +246,9 @@ function BoxGenerator() {
               label='Inside image mapping'
               backgroundImg={insideImgTransformed}
             />
+          </div>
+          <div>
+            <CubeViewer />
           </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
