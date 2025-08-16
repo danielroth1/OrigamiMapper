@@ -86,6 +86,43 @@ function BoxGenerator() {
     setLoading(false);
   };
 
+  // Auto-load demo images if present (public/assets/examples/input.jpg & output.jpg)
+  useEffect(() => {
+  // Debug gate: only run when in dev mode or explicit VITE_DEBUG flag
+  const isDebug = (import.meta as any).env?.DEV || (import.meta as any).env?.VITE_DEBUG === 'true';
+  if (!isDebug) return; // skip in production unless flag set
+    // Only attempt if neither image is already set (avoid overriding user uploads)
+    if (outsideImgRaw || insideImgRaw) return;
+    const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
+    const outsideUrl = base + 'assets/examples/outside.jpg';
+    const insideUrl = base + 'assets/examples/inside.jpg';
+
+    const fetchAsDataUrlIfExists = async (url: string): Promise<string | null> => {
+      try {
+        const res = await fetch(url, { method: 'GET', cache: 'no-cache' });
+        if (!res.ok || res.status >= 400) return null;
+        const blob = await res.blob();
+        if (blob.size === 0) return null;
+        return await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+        });
+      } catch (_) {
+        return null;
+      }
+    };
+
+    (async () => {
+      const [inputDataUrl, outputDataUrl] = await Promise.all([
+        fetchAsDataUrlIfExists(outsideUrl),
+        fetchAsDataUrlIfExists(insideUrl)
+      ]);
+      if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
+      if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
+    })();
+  }, [outsideImgRaw, insideImgRaw]);
+
   const handleDownloadAll = async () => {
     const zip = new JSZip();
     const imageIds = ['output_page1', 'output_page2'];
