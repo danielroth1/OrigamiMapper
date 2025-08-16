@@ -345,9 +345,29 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);
   });
 
+  // Helper: scale a canvas to A4 (stretch independently in X/Y to exactly fill A4, no translation)
+  const [A4_W, A4_H] = A4_SIZE_PX; // already defined at top (200 DPI)
+  function toA4(canvas: HTMLCanvasElement): HTMLCanvasElement {
+    if (canvas.width === A4_W && canvas.height === A4_H) return canvas;
+    const a4 = document.createElement('canvas');
+    a4.width = A4_W;
+    a4.height = A4_H;
+    const ctx = a4.getContext('2d');
+    if (!ctx) return canvas; // fallback: original
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, A4_W, A4_H);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    // Non-uniform stretch: map full source to full A4, top-left aligned (no translation)
+    ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, A4_W, A4_H);
+    return a4;
+  }
+
+  const outputCanvasesA4 = outputCanvases.map(c => toA4(c));
+
   return {
-    output_page1: outputCanvases[0].toDataURL('image/png'),
-    output_page2: outputCanvases[1].toDataURL('image/png'),
+    output_page1: outputCanvasesA4[0].toDataURL('image/png'),
+    output_page2: outputCanvasesA4[1].toDataURL('image/png'),
     output_outside_mapping: intermCanvases[0].toDataURL('image/png'),
     output_inside_mapping: intermCanvases[1].toDataURL('image/png')
   };
