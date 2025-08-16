@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import CubeViewer from "../components/CubeViewer";
+import CubeViewer, { type FaceTextures } from "../components/CubeViewer";
+import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
 import ImageUpload from '../components/ImageUpload';
 import ImagePreview from '../components/ImagePreview';
 import TemplateSelect from '../components/TemplateSelect';
@@ -21,6 +22,66 @@ function BoxGenerator() {
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+  const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
+  const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
+
+  // Build face textures from polygons + background images
+  const buildFaceTextures = (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): FaceTextures => {
+    if (!imgDataUrl) return {};
+    const img = new Image();
+    img.src = imgDataUrl; // synchronous set; ensure loaded before drawing via onload guard below
+    const faceGroups: Record<string, OrigamiMapperTypes.Polygon[]> = {};
+  polygons.forEach((p: OrigamiMapperTypes.Polygon) => {
+      const faceLetter = p.id[0];
+      if (!'RLUVH'.includes(faceLetter)) return; // skip unrelated
+      // Combine numbered sub-polygons (1,2,3) per face
+      (faceGroups[faceLetter] = faceGroups[faceLetter] || []).push(p);
+    });
+    const out: FaceTextures = {};
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return {};
+    // Helper to rasterize polygons of one face into tight bbox and return dataURL
+    const renderFace = (polys: OrigamiMapperTypes.Polygon[]) => {
+      // Determine bbox in image pixels
+      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+      polys.forEach(p => p.vertices.forEach(([x,y]: [number,number]) => { const px = x*img.width; const py = y*img.height; if (px<minX) minX=px; if (py<minY) minY=py; if (px>maxX) maxX=px; if (py>maxY) maxY=py; }));
+      if (minX===Infinity) return null;
+      const w = Math.max(2, Math.ceil(maxX-minX));
+      const h = Math.max(2, Math.ceil(maxY-minY));
+      canvas.width = w; canvas.height = h;
+      ctx.clearRect(0,0,w,h);
+      // Draw each polygon as clipped region from source image
+      polys.forEach(p => {
+        ctx.save();
+        ctx.beginPath();
+        p.vertices.forEach(([x,y]: [number,number], i: number)=>{ const px = x*img.width - minX; const py = y*img.height - minY; if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); });
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, -minX, -minY); // shift so bbox aligns
+        ctx.restore();
+      });
+      return canvas.toDataURL('image/png');
+    };
+    // Ensure image loaded; if not, we'll return empty and user can retry
+    if (!img.complete) {
+      img.onload = () => { /* user can press button again after load */ };
+      return {};
+    }
+    Object.entries(faceGroups).forEach(([letter, polys]) => {
+      const tex = renderFace(polys);
+      if (tex) out[letter as keyof FaceTextures] = tex;
+    });
+    return out;
+  };
+
+  const handleBuildCubeTextures = () => {
+    if (!outsideEditorRef.current || !insideEditorRef.current) return;
+    const outsideJson = outsideEditorRef.current.getCurrentJson();
+    const insideJson = insideEditorRef.current.getCurrentJson();
+    setOutsideFaces(buildFaceTextures(outsideJson.input_polygons, outsideImgTransformed));
+    setInsideFaces(buildFaceTextures(insideJson.input_polygons, insideImgTransformed));
+  };
 
   // Refs for PolygonEditors
   const outsideEditorRef = useRef<PolygonEditorHandle>(null);
@@ -192,6 +253,9 @@ function BoxGenerator() {
                 <button onClick={handleRun} disabled={loading} className="menu-btn">
                   {loading ? 'Processing...' : 'Run Mapping'}
                 </button>
+                <button onClick={handleBuildCubeTextures} disabled={!outsideImgTransformed || !insideImgTransformed} className="menu-btn">
+                  Map To 3D Box
+                </button>
                 <button onClick={() => handleDownloadAll()} disabled={!results.output_page1} className="menu-btn">
                   Download All Results
                 </button>
@@ -247,8 +311,8 @@ function BoxGenerator() {
               backgroundImg={insideImgTransformed}
             />
           </div>
-          <div>
-            <CubeViewer />
+          <div style={{ width: 320, height: 260 }}>
+            <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} />
           </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
