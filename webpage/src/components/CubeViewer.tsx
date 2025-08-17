@@ -16,12 +16,14 @@ interface CubeViewerProps {
   initialZoom?: number; // 1 = default; >1 = zoomed in (closer)
 }
 
-// Map our logical face letters to material slot order after removing top face
-// Slots (groups) after removing top: 0:+X (R), 1:-X (L), 2:-Y (U bottom), 3:+Z (V front), 4:-Z (H back)
-const SLOT_ORDER: FaceKey[] = ['R','L','U','V','H'];
+// Map our logical face letters to material slot order after removing top face.
+// There are different mappings for outside vs inside so Hi/Vi can be placed independently.
+// Slots (groups) after removing top: 0:+X (R), 1:-X (L), 2:-Y (U bottom), 3:+Z (front), 4:-Z (back)
+const OUTSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','V','H']; // outside: place H on front, V on back
+const INSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','H','V'];  // inside: original ordering (V front, H back)
 
-function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseColor: number): THREE.Material[] {
-  return SLOT_ORDER.map(key => {
+function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseColor: number, slotOrder: FaceKey[] = OUTSIDE_SLOT_ORDER): THREE.Material[] {
+  return slotOrder.map(key => {
     const dataUrl = faces?.[key];
     if (dataUrl) {
       const tex = new THREE.Texture();
@@ -61,8 +63,8 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
     return g;
   }, [width, height]);
 
-  const outsideMats = useMemo(()=>buildMaterials(outsideFaces, THREE.FrontSide, 0xcccccc), [outsideFaces]);
-  const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, 0x222222), [insideFaces]);
+  const outsideMats = useMemo(()=>buildMaterials(outsideFaces, THREE.FrontSide, 0xcccccc, OUTSIDE_SLOT_ORDER), [outsideFaces]);
+  const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, 0x222222, INSIDE_SLOT_ORDER), [insideFaces]);
 
   return (
     <group>
