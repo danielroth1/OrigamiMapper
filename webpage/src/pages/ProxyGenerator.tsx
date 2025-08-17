@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
@@ -7,7 +6,7 @@ import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
 import CardConfigForm from '../components/proxyGenerator/CardConfigForm';
-import ImageUpload from '../components/boxGenerator/ImageUpload';
+import ImageUploadProxy from '../components/proxyGenerator/ImageUploadProxy';
 import blackFrame from '../cardStyles/black.json';
 import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
@@ -48,29 +47,41 @@ const frameDefs: Record<string, any> = {
 
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
-  const [cardStyle, setCardStyle] = useState('PTG Style');
+  // Card color (frame) and template layout (style)
+  const [cardColor, setCardColor] = useState('Black');
+  const [templateType, setTemplateType] = useState('PTG Style');
   const [manaSelects, setManaSelects] = useState(['', '', '', '']);
-  const [savedCards, setSavedCards] = useState<Array<{data: typeof initialCardData, style: string, mana: string[]}>>([]);
+  // savedCards entries now include color and template for switchable layouts
+  const [savedCards, setSavedCards] = useState<Array<{data: typeof initialCardData, color: string, template: string, mana: string[]}>>([]);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
   // Autosave: update selected card in savedCards whenever cardData, cardStyle, or manaSelects change
   React.useEffect(() => {
     if (currentCardIdx !== null && currentCardIdx >= 0 && currentCardIdx < savedCards.length) {
       setSavedCards(prev => prev.map((card, idx) =>
         idx === currentCardIdx
-          ? { data: cardData, style: cardStyle, mana: [...manaSelects] }
+          ? { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] }
           : card
       ));
     }
-  }, [cardData, cardStyle, manaSelects, currentCardIdx]);
+  }, [cardData, cardColor, templateType, manaSelects, currentCardIdx]);
 
-  const handleLoadCard = (card: {data: typeof initialCardData, style: string, mana: string[]}, idx: number) => {
+  const handleLoadCard = (card: {data: typeof initialCardData, color: string, template: string, mana: string[]}, idx: number) => {
     if (currentCardIdx === idx) {
-      // Deselect if clicking the selected card
       setCurrentCardIdx(null);
+      // reset defaults
+      setCardData(initialCardData);
+      setCardColor('Black');
+      setTemplateType('PTG Style');
       return;
     }
-    setCardData(card.data);
-    setCardStyle(card.style);
+    // If switching to Poké Mana, set cardData.name to Title value
+    if (card.template === 'Poké Mana') {
+      setCardData({ ...card.data, name: card.data.name });
+    } else {
+      setCardData(card.data);
+    }
+    setCardColor(card.color);
+    setTemplateType(card.template);
     setManaSelects(card.mana);
     setCurrentCardIdx(idx);
   };
@@ -84,12 +95,14 @@ const ProxyGenerator: React.FC = () => {
         const nextIdx = Math.min(currentCardIdx, newCards.length - 1);
         const nextCard = newCards[nextIdx];
         setCardData(nextCard.data);
-        setCardStyle(nextCard.style);
+        setCardColor(nextCard.color);
+        setTemplateType(nextCard.template);
         setManaSelects(nextCard.mana);
         setCurrentCardIdx(nextIdx);
       } else {
         setCardData(initialCardData);
-  setCardStyle('PTG Style');
+        setCardColor('Black');
+        setTemplateType('PTG Style');
         setManaSelects(['', '', '', '']);
         setCurrentCardIdx(null);
       }
@@ -122,7 +135,7 @@ const ProxyGenerator: React.FC = () => {
     setCardData(prev => ({ ...prev, image: dataUrl }));
   };
 
-  const frame = useMemo(() => frameDefs[cardStyle] || blackFrame, [cardStyle]);
+  const frame = useMemo(() => frameDefs[cardColor] || blackFrame, [cardColor]);
   const cardRef = useRef<HTMLDivElement>(null);
 const handleExportAllPDF = async () => {
   if (savedCards.length === 0) return;
@@ -164,7 +177,7 @@ const handleExportAllPDF = async () => {
     tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
     document.body.appendChild(tempDiv);
 
-    const frame = frameDefs[savedCards[i].style] || blackFrame;
+  const frame = frameDefs[savedCards[i].color] || blackFrame;
     const { createRoot } = await import('react-dom/client');
     const root = createRoot(tempDiv);
     root.render(
@@ -173,6 +186,7 @@ const handleExportAllPDF = async () => {
         frame={frame}
         manaSelects={savedCards[i].mana}
         manaIcons={manaIcons}
+        template={savedCards[i].template}
       />
     );
 
@@ -262,6 +276,7 @@ const handleExportAllPDF = async () => {
             frame={frame}
             manaSelects={manaSelects}
             manaIcons={manaIcons}
+            template={templateType}
           />
           <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
             <button
@@ -283,7 +298,7 @@ const handleExportAllPDF = async () => {
             <button
               type="button"
               onClick={() => {
-                setSavedCards(prev => [...prev, { data: cardData, style: cardStyle, mana: [...manaSelects] }]);
+                setSavedCards(prev => [...prev, { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] }]);
                 setCurrentCardIdx(savedCards.length); // select the new card
               }}
               style={{
@@ -316,14 +331,16 @@ const handleExportAllPDF = async () => {
               Remove Card
             </button>
           </div>
-          <ImageUpload label="Upload Card Image" onImage={handleImageUpload} />
+          <ImageUploadProxy label="Upload Card Image: " onImage={handleImageUpload} />
           <CardConfigForm
             cardData={cardData}
-            cardStyle={cardStyle}
+            cardStyle={cardColor}
+            templateType={templateType}
             manaSelects={manaSelects}
             onChange={handleChange}
             onManaSelect={handleManaSelect}
-            setCardStyle={setCardStyle}
+            setCardStyle={setCardColor}
+            setTemplateType={setTemplateType}
           />
         </div>
       </div>

@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface SavedCardsSidebarProps {
-  savedCards: Array<{ data: any; style: string; mana: string[] }>;
-  onLoadCard: (card: { data: any; style: string; mana: string[] }, idx: number) => void;
+  savedCards: Array<{ data: any; color: string; template: string; mana: string[] }>;
+  onLoadCard: (card: { data: any; color: string; template: string; mana: string[] }, idx: number) => void;
   onExportAllPDF: () => void;
   currentCardIdx: number | null;
 }
@@ -17,8 +17,8 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
           // Map card style to color
           // Map card style to color
           const styleColorMap: Record<string, string> = {
-            Black: '#222',
-            Black2: '#444',
+            Black: '#c786c5ff',
+            Black2: '#914f8dff',
             White: '#eee',
             Blue: '#2196f3',
             Red: '#e53935',
@@ -26,7 +26,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
             Yellow: '#fbc02d',
             Artifact: '#b0bec5',
           };
-          const fontColor = styleColorMap[card.style] || '#fff';
+          const fontColor = styleColorMap[card.color] || '#fff';
           // Card style (template type) is stored in card.data.cardStyleType or similar; fallback to 'PTG Style' if missing
           const cardStyleType = card.data.cardTemplateType || card.data.cardStyleType || 'PTG Style';
           return (
