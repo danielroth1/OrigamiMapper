@@ -74,9 +74,14 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
 
 export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=1 }: CubeViewerProps) {
   return (
-    <Canvas camera={{ position: [1.2, 1.8, 2.0] }}>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[3, 4, 5]} intensity={0.9} />
+    <Canvas
+      camera={{ position: [1.0, 1.0, 1.2] }}
+      // enable antialias via GL props; configure encoding/toneMapping in onCreated with casts
+      gl={{ antialias: true }}
+    >
+      {/* neutral, not-overpowering lights so textures read correctly */}
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[3, 4, 5]} intensity={1.5} />
       <TexturedOpenBox outsideFaces={outsideFaces} insideFaces={insideFaces} width={width} height={height} />
       <OrbitControls enablePan={false} />
       <Stats />
