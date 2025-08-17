@@ -9,9 +9,10 @@ import TemplateSelect from '../components/TemplateSelect';
 import { runMappingJS } from '../OrigamiMapperJS';
 import { ImageTransform } from '../components/ImageTransform';
 import PolygonEditor, { type PolygonEditorHandle } from '../components/PolygonEditor';
-import boxData from '../../../templates/box/box.json';
+import boxData from '../../public/templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
+
 
 function BoxGenerator() {
   const [outsideImgRaw, setOutsideImgRaw] = useState('');
@@ -44,8 +45,15 @@ function BoxGenerator() {
     // Helper to rasterize polygons of one face into tight bbox and return dataURL
     const renderFace = (polys: OrigamiMapperTypes.Polygon[]) => {
       if (!polys.length) return null;
-      // Group rotation metadata (applied to polygons elsewhere). We want to output texture aligned (rotation undone)
-      const groupRot = polys[0]?.rotation || 0;
+      // Combine 2D rotation metadata plus any rotation_3d present (average if differing)
+      let sumRot=0, countRot=0;
+      polys.forEach(p=>{ if (typeof p.rotation === 'number') { sumRot += p.rotation; countRot++; } });
+      const baseRot = countRot ? (sumRot / countRot) : 0;
+      let sumRot3=0, countRot3=0;
+      polys.forEach(p=>{ console.log(p); });
+      polys.forEach(p=>{ if (typeof p.rotation_3d === 'number') { sumRot3 += p.rotation_3d; countRot3++; } });
+      const rot3d = countRot3 ? (sumRot3 / countRot3) : 0;
+      const groupRot = baseRot + rot3d;
       const invRot = -groupRot; // rotate canvas by inverse to align content
       // Compute centroid (pivot)
       let cx=0, cy=0, count=0;
