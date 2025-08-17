@@ -343,15 +343,31 @@ function BoxGenerator() {
               backgroundImg={insideImgTransformed}
             />
           </div>
-          <div style={{ width: 320, height: 260 }}>
-            <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} />
-          </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
             Drag to move (auto group).
             Shift+Drag scale.
             Ctrl/Cmd+Drag rotate.
             Drag empty area to marquee select.
+          </div>
+          <div style={{ width: 320, height: 260 }}>
+            {/* framed boundary for the canvas */}
+            <div style={{
+              width: '100%',
+              height: '100%',
+              padding: 8,
+              borderRadius: 10,
+              background: '#0f0f10',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden' }}>
+                <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} />
+              </div>
+            </div>
           </div>
           {/* Output previews side by side */}
           <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
