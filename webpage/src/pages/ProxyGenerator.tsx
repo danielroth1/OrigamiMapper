@@ -48,40 +48,53 @@ const frameDefs: Record<string, any> = {
 
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
-  const [cardStyle, setCardStyle] = useState('Modern');
+  const [cardStyle, setCardStyle] = useState('PTG Style');
   const [manaSelects, setManaSelects] = useState(['', '', '', '']);
   const [savedCards, setSavedCards] = useState<Array<{data: typeof initialCardData, style: string, mana: string[]}>>([]);
-  const handleSaveCard = () => {
-    setSavedCards(prev => [...prev, { data: cardData, style: cardStyle, mana: [...manaSelects] }]);
-  };
+  const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
+  // Autosave: update selected card in savedCards whenever cardData, cardStyle, or manaSelects change
+  React.useEffect(() => {
+    if (currentCardIdx !== null && currentCardIdx >= 0 && currentCardIdx < savedCards.length) {
+      setSavedCards(prev => prev.map((card, idx) =>
+        idx === currentCardIdx
+          ? { data: cardData, style: cardStyle, mana: [...manaSelects] }
+          : card
+      ));
+    }
+  }, [cardData, cardStyle, manaSelects, currentCardIdx]);
 
-  const handleLoadCard = (card: {data: typeof initialCardData, style: string, mana: string[]}) => {
+  const handleLoadCard = (card: {data: typeof initialCardData, style: string, mana: string[]}, idx: number) => {
+    if (currentCardIdx === idx) {
+      // Deselect if clicking the selected card
+      setCurrentCardIdx(null);
+      return;
+    }
     setCardData(card.data);
     setCardStyle(card.style);
     setManaSelects(card.mana);
+    setCurrentCardIdx(idx);
   };
 
   const handleRemoveCard = () => {
-    setSavedCards(prev => prev.filter(card => {
-      // Remove card if all fields match
-      return !(
-        card.data.name === cardData.name &&
-        card.data.manaCost === cardData.manaCost &&
-        card.data.typeLine === cardData.typeLine &&
-        card.data.power === cardData.power &&
-        card.data.toughness === cardData.toughness &&
-        card.data.rulesText === cardData.rulesText &&
-        card.data.flavorText === cardData.flavorText &&
-        card.data.collectorNo === cardData.collectorNo &&
-        card.data.rarity === cardData.rarity &&
-        card.data.setCode === cardData.setCode &&
-        card.data.language === cardData.language &&
-        card.data.artist === cardData.artist &&
-        card.data.copyright === cardData.copyright &&
-        card.style === cardStyle &&
-        JSON.stringify(card.mana) === JSON.stringify(manaSelects)
-      );
-    }));
+    setSavedCards(prev => {
+      if (currentCardIdx === null || currentCardIdx < 0 || currentCardIdx >= prev.length) return prev;
+      const newCards = prev.filter((_, idx) => idx !== currentCardIdx);
+      // After removal, switch to next card if any remain
+      if (newCards.length > 0) {
+        const nextIdx = Math.min(currentCardIdx, newCards.length - 1);
+        const nextCard = newCards[nextIdx];
+        setCardData(nextCard.data);
+        setCardStyle(nextCard.style);
+        setManaSelects(nextCard.mana);
+        setCurrentCardIdx(nextIdx);
+      } else {
+        setCardData(initialCardData);
+  setCardStyle('PTG Style');
+        setManaSelects(['', '', '', '']);
+        setCurrentCardIdx(null);
+      }
+      return newCards;
+    });
   };
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
     R: (color) => <IoFlame style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
@@ -238,8 +251,9 @@ const handleExportAllPDF = async () => {
       <div style={{ display: 'flex', maxWidth: '900px', margin: '2em auto', background: '#181818', borderRadius: '12px', padding: '2em', color: '#fff', boxShadow: '0 2px 12px #0006', gap: 0 }}>
         <SavedCardsSidebar
           savedCards={savedCards}
-          onLoadCard={handleLoadCard}
+          onLoadCard={(card, idx) => handleLoadCard(card, idx)}
           onExportAllPDF={handleExportAllPDF}
+          currentCardIdx={currentCardIdx}
         />
         <div style={{ flex: 1 }}>
           <CardPreview
@@ -268,7 +282,10 @@ const handleExportAllPDF = async () => {
             </button>
             <button
               type="button"
-              onClick={handleSaveCard}
+              onClick={() => {
+                setSavedCards(prev => [...prev, { data: cardData, style: cardStyle, mana: [...manaSelects] }]);
+                setCurrentCardIdx(savedCards.length); // select the new card
+              }}
               style={{
                 padding: '0.6em 1.2em',
                 background: '#222',
@@ -280,7 +297,7 @@ const handleExportAllPDF = async () => {
                 boxShadow: '0 2px 6px #0003'
               }}
             >
-              Save Card
+              Add Card
             </button>
             <button
               type="button"

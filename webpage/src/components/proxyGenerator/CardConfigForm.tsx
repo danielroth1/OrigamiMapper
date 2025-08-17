@@ -29,16 +29,16 @@ const CardConfigForm: React.FC<CardConfigFormProps> = ({ cardData, cardStyle, ma
           <option value="Yellow">Yellow</option>
           <option value="Artifact">Artifact</option>
         </select>
-        <label htmlFor="card-style-select" style={{ marginLeft: '2em' }}>Card Style:</label>
+        <label htmlFor="card-template-select" style={{ marginLeft: '2em' }}>Card Style:</label>
         <select
-          id="card-style-select"
-          name="cardStyleType"
-          defaultValue="Modern"
+          id="card-template-select"
+          name="cardTemplateType"
+          defaultValue="PTG Style"
           style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
         >
-          <option value="Modern">Modern</option>
-          <option value="Classic">Classic</option>
-          <option value="Minimal">Minimal</option>
+          <option value="PTG Style">PTG Style</option>
+          <option value="MTG Style">MTG Style</option>
+          <option value="Poké Mana">Poké Mana</option>
         </select>
       </div>
       <div style={{ textAlign: 'center' }}>
