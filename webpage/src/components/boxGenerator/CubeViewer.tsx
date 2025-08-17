@@ -67,11 +67,11 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
   const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, 0x222222, INSIDE_SLOT_ORDER), [insideFaces]);
 
   return (
-    <group>
+    <>
       <mesh geometry={geometry} material={outsideMats} />
       <mesh geometry={geometry} material={insideMats} />
       <Edges geometry={geometry} threshold={15} />
-    </group>
+    </>
   );
 }
 
@@ -88,9 +88,9 @@ export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=
       // enable antialias via GL props; configure encoding/toneMapping in onCreated with casts
       gl={{ antialias: true }}
     >
-      {/* neutral, not-overpowering lights so textures read correctly */}
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[3, 4, 5]} intensity={1.5} />
+  {/* neutral, not-overpowering lights so textures read correctly */}
+  <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
+  <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
       <TexturedOpenBox outsideFaces={outsideFaces} insideFaces={insideFaces} width={width} height={height} />
       <OrbitControls enablePan={false} />
       <Stats />
