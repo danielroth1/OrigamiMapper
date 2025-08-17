@@ -182,7 +182,8 @@ const MTGRules: React.FC = () => (
           <li><strong>Hand:</strong> Cards you hold.</li>
         </ul>
         <hr />
-        <p><strong>Note:</strong> This booklet is a summary. For official rules, refer to the <a href="https://magic.wizards.com/en/rules" target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9' }}>MTG Comprehensive Rules</a>.</p>
+        <p><strong>Note:</strong> This booklet is a summary. For official rules, refer to the <a href="https://media.wizards.com/images/magic/resources/rules/EN_MTGM14_PrintedRulebook_LR.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9' }}>MTG Comprehensive Rules</a>.</p>
+                  <div>Tolarian Community College</div><a href="https://www.youtube.com/watch?v=wif9ppH5JpI" target="_blank" rel="noopener noreferrer">MTG Learn How to Play</a>
       </div>
     </div>
   );
