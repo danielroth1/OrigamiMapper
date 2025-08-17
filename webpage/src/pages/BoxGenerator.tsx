@@ -52,7 +52,6 @@ function BoxGenerator() {
       polys.forEach(p=>{ if (typeof p.rotation === 'number') { sumRot += p.rotation; countRot++; } });
       const baseRot = countRot ? (sumRot / countRot) : 0;
       let sumRot3=0, countRot3=0;
-      polys.forEach(p=>{ console.log(p); });
       polys.forEach(p=>{ if (typeof p.rotation_3d === 'number') { sumRot3 += p.rotation_3d; countRot3++; } });
       const rot3d = countRot3 ? (sumRot3 / countRot3) : 0;
       const groupRot = baseRot + rot3d;
@@ -109,12 +108,12 @@ function BoxGenerator() {
     return out;
   };
 
-  const handleBuildCubeTextures = () => {
-    if (!outsideEditorRef.current || !insideEditorRef.current) return;
-    const outsideJson = outsideEditorRef.current.getCurrentJson();
-    const insideJson = insideEditorRef.current.getCurrentJson();
-    setOutsideFaces(buildFaceTextures(outsideJson.input_polygons, outsideImgTransformed));
-    setInsideFaces(buildFaceTextures(insideJson.input_polygons, insideImgTransformed));
+  const handleBuildCubeTextures = (outsidePolys?: OrigamiMapperTypes.Polygon[], insidePolys?: OrigamiMapperTypes.Polygon[]) => {
+    // Use provided polygon lists when available (from editor onChange), otherwise query refs
+    const outPolys = outsidePolys ?? outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+    const inPolys = insidePolys ?? insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+    setOutsideFaces(buildFaceTextures(outPolys, outsideImgTransformed));
+    setInsideFaces(buildFaceTextures(inPolys, insideImgTransformed));
   };
 
   // Refs for PolygonEditors
@@ -136,6 +135,16 @@ function BoxGenerator() {
     }
   };
 
+  // Debounced auto-build when polygon editors or images change. PolygonEditor will call onChange with new JSON.
+  const buildDebounceRef = useRef<number | null>(null);
+  const scheduleBuild = (outsidePolys?: OrigamiMapperTypes.Polygon[], insidePolys?: OrigamiMapperTypes.Polygon[]) => {
+    if (buildDebounceRef.current) window.clearTimeout(buildDebounceRef.current);
+    buildDebounceRef.current = window.setTimeout(() => {
+      handleBuildCubeTextures(outsidePolys, insidePolys);
+      buildDebounceRef.current = null;
+    }, 120);
+  };
+
   // Set and transform outside image
   const setOutsideImg = (dataUrl: string) => {
     setOutsideImgRaw(dataUrl);
@@ -151,6 +160,11 @@ function BoxGenerator() {
     if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, setOutsideImgTransformed);
     if (insideImgRaw) transformImage(insideImgRaw, transformMode, setInsideImgTransformed);
   }, [transformMode, outsideImgRaw, insideImgRaw]);
+
+  // Rebuild cube textures when transformed images change (debounced)
+  useEffect(() => {
+    scheduleBuild();
+  }, [outsideImgTransformed, insideImgTransformed]);
 
   const handleRun = async () => {
     if (!outsideImgTransformed || !insideImgTransformed) {
@@ -287,9 +301,7 @@ function BoxGenerator() {
                 <button onClick={handleRun} disabled={loading} className="menu-btn">
                   {loading ? 'Processing...' : 'Run Mapping'}
                 </button>
-                <button onClick={handleBuildCubeTextures} disabled={!outsideImgTransformed || !insideImgTransformed} className="menu-btn">
-                  Map To 3D Box
-                </button>
+                {/* Map To 3D Box button removed: CubeViewer updates automatically when editors or images change */}
                 <button onClick={() => handleDownloadAll()} disabled={!results.output_page1} className="menu-btn">
                   Download All Results
                 </button>
@@ -306,6 +318,7 @@ function BoxGenerator() {
           <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
             <PolygonEditor
               ref={outsideEditorRef}
+              onChange={json => scheduleBuild(json.input_polygons, undefined)}
               data={{
                 ...boxData,
                 offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
@@ -326,6 +339,7 @@ function BoxGenerator() {
             />
             <PolygonEditor
               ref={insideEditorRef}
+              onChange={json => scheduleBuild(undefined, json.input_polygons)}
               data={{
                 ...boxData,
                 offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),

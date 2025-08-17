@@ -15,9 +15,11 @@ interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
   backgroundImg?: string;
   label: string;
+  // optional callback invoked when polygons or background image change
+  onChange?: (json: OrigamiMapperTypes.TemplateJson) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange }, ref) => {
   // Track Shift key globally
   const shiftPressedRef = useRef(false);
   useEffect(() => {
@@ -62,12 +64,18 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       setPolygons(clonePolygons(prev));
     }
     setCanRevert(historyRef.current.length > 0);
+    if (typeof onChange === 'function' && prev) {
+      try { onChange({ ...data, input_polygons: clonePolygons(prev) }); } catch { }
+    }
   };
   const handleReset = () => {
     const polygons = resetPolygons(data.input_polygons, width, height);
     setPolygons(polygons);
     setSelectedIds(new Set());
     pushHistory(polygonsRef.current);
+    if (typeof onChange === 'function') {
+      try { onChange({ ...data, input_polygons: polygons }); } catch { }
+    }
   };
   const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
   useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
@@ -76,6 +84,18 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const selectedIdsRef = useRef(selectedIds);
   useEffect(() => { polygonsRef.current = polygons; }, [polygons]);
   useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
+
+  // Notify parent when a new background image is provided (image-level change).
+  // Polygon changes are reported only after the user finishes an interaction (mouse up)
+  useEffect(() => {
+    if (typeof onChange === 'function' && backgroundImg) {
+      try {
+        onChange({ ...data, input_polygons: polygonsRef.current });
+      } catch (e) {
+        // ignore parent errors
+      }
+    }
+  }, [backgroundImg]);
 
   type TransformMode = 'idle' | 'select' | 'move' | 'scale' | 'rotate';
   interface TransformState {
@@ -362,6 +382,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     };
     const handleMouseUp = () => {
       const state = transformStateRef.current;
+      let finalPolygons = polygonsRef.current;
+      let changed = false;
       if (state) {
         if (state.mode === 'select') {
           // selection already applied during drag
@@ -369,7 +391,6 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           // Compare originalPolygons to current; if different, push original snapshot
           const before = state.originalPolygons;
           const after = polygonsRef.current;
-          let changed = false;
           if (before.length !== after.length) {
             changed = true;
           } else {
@@ -388,9 +409,11 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           // Persist rotation metadata if rotate occurred
           if (state.mode === 'rotate' && state.rotationAccum && Math.abs(state.rotationAccum) > 1e-6) {
             const rotDelta = state.rotationAccum;
-            setPolygons(polygonsRef.current.map(p => selectedIdsRef.current.has(p.id)
+            const updated = polygonsRef.current.map(p => selectedIdsRef.current.has(p.id)
               ? { ...p, rotation: ((state.originalRotations?.get(p.id) || 0) + rotDelta) }
-              : p));
+              : p);
+            finalPolygons = updated;
+            setPolygons(updated);
           }
           // If it was just a click inside existing selection without movement, unselect (toggle off)
           if (state.pendingClickInsideSelection) {
@@ -400,6 +423,11 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       }
       setSelectionRect(null);
       transformStateRef.current = null;
+
+      // Notify parent once after user finishes interaction
+      if (typeof onChange === 'function' && changed) {
+        try { onChange({ ...data, input_polygons: finalPolygons }); } catch { }
+      }
     };
     canvasEl.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
@@ -670,6 +698,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         if (json.input_polygons) {
           pushHistory(polygonsRef.current);
           setPolygons(json.input_polygons);
+          if (typeof onChange === 'function') {
+            try { onChange({ ...data, input_polygons: json.input_polygons }); } catch { }
+          }
         }
       } catch (err) {
         alert('Invalid JSON file.');
