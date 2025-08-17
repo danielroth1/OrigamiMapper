@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
 interface CardPreviewProps {
   cardData: any;
@@ -7,9 +7,9 @@ interface CardPreviewProps {
   manaIcons: Record<string, (color: string) => React.ReactNode>;
 }
 
-
-const CardPreview: React.FC<CardPreviewProps> = ({ cardData, frame, manaSelects, manaIcons }) => (
+const CardPreview = forwardRef<HTMLDivElement, CardPreviewProps>(({ cardData, frame, manaSelects, manaIcons }, ref) => (
   <div
+    ref={ref}
     style={{
       margin: '2em auto',
       width: '300px',
@@ -174,6 +174,6 @@ const CardPreview: React.FC<CardPreviewProps> = ({ cardData, frame, manaSelects,
       zIndex: 3
     }}>{cardData.copyright}</div>
   </div>
-);
+));
 
 export default CardPreview;

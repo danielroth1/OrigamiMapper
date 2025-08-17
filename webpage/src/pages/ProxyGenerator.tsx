@@ -142,7 +142,7 @@ const ProxyGenerator: React.FC = () => {
         <div style='position:absolute;bottom:0.4em;right:0.4em;border:1px solid ${frame.powerToughnessBorder};background:${frame.powerToughnessBg};padding:0 0.2em;font-weight:bold;font-size:0.9em;color:${frame.powerToughnessTextColor || '#000'};'>${savedCards[i].data.power}/${savedCards[i].data.toughness}</div>
         <div style='position:absolute;bottom:0.4em;left:18.0em;font-size:0.6em;color:${frame.copyrightText};'>${savedCards[i].data.copyright}</div>
       </div>`;
-      const canvas = await html2canvas(tempDiv, { backgroundColor: null });
+  const canvas = await html2canvas(tempDiv, { backgroundColor: null, scale: 3 });
       const imgData = canvas.toDataURL('image/png');
       if (i > 0) pdf.addPage('a4', 'portrait');
       // Center card on A4 page
@@ -156,7 +156,7 @@ const ProxyGenerator: React.FC = () => {
 
   const handleExport = async () => {
     if (cardRef.current) {
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: null });
+  const canvas = await html2canvas(cardRef.current, { backgroundColor: null, scale: 3 });
       const link = document.createElement('a');
       link.download = `${cardData.name.replace(/\s+/g, '_')}_card.png`;
       link.href = canvas.toDataURL('image/png');
@@ -175,6 +175,7 @@ const ProxyGenerator: React.FC = () => {
         />
         <div style={{ flex: 1 }}>
           <CardPreview
+            ref={cardRef}
             cardData={cardData}
             frame={frame}
             manaSelects={manaSelects}
