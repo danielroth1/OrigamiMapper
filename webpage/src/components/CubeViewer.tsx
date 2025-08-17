@@ -34,9 +34,9 @@ function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseC
   });
 }
 
-function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=0.8 }: { outsideFaces?: FaceTextures; insideFaces?: FaceTextures; width?: number; height?: number }) {
+function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { outsideFaces?: FaceTextures; insideFaces?: FaceTextures; width?: number; height?: number }) {
   const geometry = useMemo(() => {
-    const depth = (2/3)*width;
+    const depth = 0.82828282828*width;
     const g = new THREE.BoxGeometry(width, height, depth);
     // remove top face (index 2) similar to OpenBox above
     const removedGroupIndex = 2;
