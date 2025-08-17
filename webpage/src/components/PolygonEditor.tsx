@@ -49,7 +49,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const historyRef = useRef<OrigamiMapperTypes.Polygon[][]>([]);
   const [canRevert, setCanRevert] = useState(false);
   const MAX_HISTORY = 50;
-  const clonePolygons = (polys: OrigamiMapperTypes.Polygon[]) => polys.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
+  const clonePolygons = (polys: OrigamiMapperTypes.Polygon[]) => polys.map(p => ({ ...p, rotation: p.rotation, vertices: p.vertices.map(v => [...v] as [number, number]) }));
   const pushHistory = (snapshot: OrigamiMapperTypes.Polygon[]) => {
     historyRef.current.push(clonePolygons(snapshot));
     if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
@@ -90,6 +90,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     scaleStartDistance?: number; // optional alternative future use
     // If true, we haven't exceeded movement threshold yet (treat as click if mouseup without move)
     pendingClickInsideSelection?: boolean;
+    rotationAccum?: number; // total accumulated delta during a rotate drag
+    originalRotations?: Map<string, number>; // starting rotation per polygon id
   }
   const transformStateRef = useRef<TransformState | null>(null);
 
@@ -216,7 +218,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         originalPolygons: polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) })),
         bboxCenter: center,
         initialAngle,
-        pendingClickInsideSelection: mode === 'move' && currentSelectedBBox != null && pointInBBox(x, y, currentSelectedBBox)
+        pendingClickInsideSelection: mode === 'move' && currentSelectedBBox != null && pointInBBox(x, y, currentSelectedBBox),
+        rotationAccum: 0,
+        originalRotations: new Map(polygonsRef.current.map(p => [p.id, p.rotation || 0]))
       };
     };
     const handleMouseMove = (e: MouseEvent) => {
@@ -263,7 +267,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           state.startX = x; state.startY = y; // reset deltas to avoid jump
           state.lastX = x; state.lastY = y;
           state.bboxCenter = center;
-          state.initialAngle = Math.atan2(y - center.y, x - center.x);
+          state.initialAngle = Math.atan2(y - center.y, x - center.y);
+          state.rotationAccum = 0;
+          state.originalRotations = new Map(polygonsRef.current.map(p => [p.id, p.rotation || 0]));
         }
       }
       if (state.mode === 'select' && selectionRectRef.current) {
@@ -334,6 +340,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         else if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
         const cosA = Math.cos(deltaAngle);
         const sinA = Math.sin(deltaAngle);
+        state.rotationAccum = (state.rotationAccum || 0) + deltaAngle;
         const updated = polygonsRef.current.map(p => {
           if (!selectedIdsRef.current.has(p.id)) return p;
           const verts = p.vertices.map(([vx, vy]) => {
@@ -377,6 +384,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           }
           if (changed) {
             pushHistory(before);
+          }
+          // Persist rotation metadata if rotate occurred
+          if (state.mode === 'rotate' && state.rotationAccum && Math.abs(state.rotationAccum) > 1e-6) {
+            const rotDelta = state.rotationAccum;
+            setPolygons(polygonsRef.current.map(p => selectedIdsRef.current.has(p.id)
+              ? { ...p, rotation: ((state.originalRotations?.get(p.id) || 0) + rotDelta) }
+              : p));
           }
           // If it was just a click inside existing selection without movement, unselect (toggle off)
           if (state.pendingClickInsideSelection) {
@@ -617,6 +631,14 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     if (!base.length) return base;
     let converted = scalePolygonsA4(base, width, height);
     converted = scalePolygonsToCanvas(converted, width, height);
+    // If this editor is for outside polygons, mark initial rotation metadata as 90deg (pi/2) without changing vertices
+    const isOutside = label.toLowerCase().includes('outside');
+    converted = converted.map(p => {
+      if (isOutside && !p.id.includes('i')) {
+        return { ...p, rotation: Math.PI / 2 };
+      }
+      return { ...p, rotation: p.rotation || 0 };
+    });
     return converted;
   };
 

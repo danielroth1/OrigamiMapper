@@ -43,24 +43,48 @@ function BoxGenerator() {
     if (!ctx) return {};
     // Helper to rasterize polygons of one face into tight bbox and return dataURL
     const renderFace = (polys: OrigamiMapperTypes.Polygon[]) => {
-      // Determine bbox in image pixels
-      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-      polys.forEach(p => p.vertices.forEach(([x,y]: [number,number]) => { const px = x*img.width; const py = y*img.height; if (px<minX) minX=px; if (py<minY) minY=py; if (px>maxX) maxX=px; if (py>maxY) maxY=py; }));
-      if (minX===Infinity) return null;
-      const w = Math.max(2, Math.ceil(maxX-minX));
-      const h = Math.max(2, Math.ceil(maxY-minY));
-      canvas.width = w; canvas.height = h;
-      ctx.clearRect(0,0,w,h);
-      // Draw each polygon as clipped region from source image
+      if (!polys.length) return null;
+      // Group rotation metadata (applied to polygons elsewhere). We want to output texture aligned (rotation undone)
+      const groupRot = polys[0]?.rotation || 0;
+      const invRot = -groupRot; // rotate canvas by inverse to align content
+      // Compute centroid (pivot)
+      let cx=0, cy=0, count=0;
+      polys.forEach(p=>p.vertices.forEach(([x,y])=>{ cx += x*img.width; cy += y*img.height; count++; }));
+      if (count>0) { cx/=count; cy/=count; }
+      // Compute bounding box in rotated (inverse) space
+      const cosI = Math.cos(invRot); const sinI = Math.sin(invRot);
+      let rminX=Infinity,rminY=Infinity,rmaxX=-Infinity,rmaxY=-Infinity;
+      polys.forEach(p=>p.vertices.forEach(([x,y])=>{
+        const px = x*img.width; const py = y*img.height;
+        const ox = px - cx; const oy = py - cy;
+        const rx = ox*cosI - oy*sinI + cx;
+        const ry = ox*sinI + oy*cosI + cy;
+        if (rx<rminX) rminX=rx; if (ry<rminY) rminY=ry; if (rx>rmaxX) rmaxX=rx; if (ry>rmaxY) rmaxY=ry;
+      }));
+      if (rminX===Infinity) return null;
+      const rw = Math.max(2, Math.ceil(rmaxX - rminX));
+      const rh = Math.max(2, Math.ceil(rmaxY - rminY));
+      canvas.width = rw; canvas.height = rh;
+      ctx.save();
+      // Transform so that rotated bounding box top-left becomes (0,0) and rotation undone
+      ctx.translate(-rminX, -rminY);
+      ctx.translate(cx, cy);
+      ctx.rotate(invRot);
+      ctx.translate(-cx, -cy);
+      // Draw each polygon path, clip, draw image
       polys.forEach(p => {
         ctx.save();
         ctx.beginPath();
-        p.vertices.forEach(([x,y]: [number,number], i: number)=>{ const px = x*img.width - minX; const py = y*img.height - minY; if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); });
+        p.vertices.forEach(([x,y],i)=>{
+          const px = x*img.width; const py = y*img.height;
+          if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        });
         ctx.closePath();
         ctx.clip();
-        ctx.drawImage(img, -minX, -minY); // shift so bbox aligns
+        ctx.drawImage(img, 0, 0);
         ctx.restore();
       });
+      ctx.restore();
       return canvas.toDataURL('image/png');
     };
     // Ensure image loaded; if not, we'll return empty and user can retry

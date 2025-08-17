@@ -72,7 +72,7 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
   );
 }
 
-export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=0.8 }: CubeViewerProps) {
+export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=1 }: CubeViewerProps) {
   return (
     <Canvas camera={{ position: [1.2, 1.8, 2.0] }}>
       <ambientLight intensity={0.6} />
