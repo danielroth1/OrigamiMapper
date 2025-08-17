@@ -13,6 +13,7 @@ interface CubeViewerProps {
   insideFaces?: FaceTextures;
   width?: number;
   height?: number;
+  initialZoom?: number; // 1 = default; >1 = zoomed in (closer)
 }
 
 // Map our logical face letters to material slot order after removing top face
@@ -72,10 +73,16 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
   );
 }
 
-export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=1 }: CubeViewerProps) {
+export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=1, initialZoom=1 }: CubeViewerProps) {
+  // base camera position (isometric-ish). We move camera closer by multiplying by 1/initialZoom.
+  // initialZoom: 1 = default, 2 = twice as close, 0.5 = farther away
+  const clampZoom = Math.max(0.2, initialZoom);
+  const basePos = new THREE.Vector3(0.85, 0.85, 0.95);
+  const camPos = basePos.clone().divideScalar(clampZoom);
+
   return (
     <Canvas
-      camera={{ position: [1.0, 1.0, 1.2] }}
+      camera={{ position: [camPos.x, camPos.y, camPos.z] }}
       // enable antialias via GL props; configure encoding/toneMapping in onCreated with casts
       gl={{ antialias: true }}
     >

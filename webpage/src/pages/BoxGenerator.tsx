@@ -25,6 +25,8 @@ function BoxGenerator() {
   const [loading, setLoading] = useState(false);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
+  // Change this constant in code to control the initial zoom programmatically
+  const DEFAULT_VIEWER_ZOOM = 1.0;
 
   // Build face textures from polygons + background images
   const buildFaceTextures = (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): FaceTextures => {
@@ -364,8 +366,10 @@ function BoxGenerator() {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden' }}>
-                <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} />
+              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1 }}>
+                  <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} initialZoom={DEFAULT_VIEWER_ZOOM} />
+                </div>
               </div>
             </div>
           </div>
