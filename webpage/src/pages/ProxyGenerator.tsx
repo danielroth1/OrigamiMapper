@@ -1,12 +1,13 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { PDFDocument } from 'pdf-lib';
 import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater } from 'react-icons/io5';
 import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
 import CardConfigForm from '../components/proxyGenerator/CardConfigForm';
+import ImageUpload from '../components/boxGenerator/ImageUpload';
 import blackFrame from '../cardStyles/black.json';
 import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
@@ -110,49 +111,116 @@ const ProxyGenerator: React.FC = () => {
 
   const frame = useMemo(() => frameDefs[cardStyle] || blackFrame, [cardStyle]);
   const cardRef = useRef<HTMLDivElement>(null);
-  const handleExportAllPDF = async () => {
-    if (savedCards.length === 0) return;
-    // A4 size in mm
-    const a4Width = 210;
-    const a4Height = 297;
-    // Card size in px
-    const cardPxWidth = 300;
-    const cardPxHeight = 420;
-    // Card size in mm (assuming 96 dpi)
-    const pxToMm = 25.4 / 96;
-    const cardMmWidth = cardPxWidth * pxToMm;
-    const cardMmHeight = cardPxHeight * pxToMm;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-    for (let i = 0; i < savedCards.length; i++) {
-      // Create a temporary card preview for each saved card
-      const tempDiv = document.createElement('div');
-      tempDiv.style.width = '300px';
-      tempDiv.style.height = '420px';
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      document.body.appendChild(tempDiv);
-      // Render the card preview
-      const frame = frameDefs[savedCards[i].style] || blackFrame;
-      tempDiv.innerHTML = `<div style="width:300px;height:420px;background:${frame.cardFrame};border:2px solid ${frame.cardFrame};border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.5);overflow:hidden;font-family:Trebuchet MS,Verdana,Arial,sans-serif;position:relative;display:flex;flex-direction:column;">
-        <div style='background:${frame.titleBar};padding:0.4em 0.6em;color:${frame.titleBarText};font-weight:bold;font-size:1em;'>${savedCards[i].data.name}</div>
-        <div style='height:48%;background:${frame.artFallback};display:flex;align-items:center;justify-content:center;'>${savedCards[i].data.image ? `<img src='${savedCards[i].data.image}' style='max-width:100%;max-height:100%;object-fit:cover;'/>` : ''}</div>
-        <div style='background:${frame.typeLineBg};padding:0.3em 0.6em;font-style:italic;font-size:0.85em;color:${frame.typeLineText};'>${savedCards[i].data.typeLine}</div>
-        <div style='background:${frame.textBoxBg};padding:0.5em 0.6em;font-size:0.8em;color:${frame.textBoxText};white-space:pre-line;'>${savedCards[i].data.rulesText}${savedCards[i].data.flavorText ? `<div style='font-style:italic;margin-top:0.5em;color:${frame.flavorTextColor || '#444'};'>${savedCards[i].data.flavorText}</div>` : ''}</div>
-        <div style='font-size:0.7em;padding:0.3em 0.6em;color:${frame.bottomInfoText};background:${frame.bottomInfoBg};'>${savedCards[i].data.collectorNo} • ${savedCards[i].data.rarity} • ${savedCards[i].data.setCode} • ${savedCards[i].data.language}</div>
-        <div style='position:absolute;bottom:0.4em;right:0.4em;border:1px solid ${frame.powerToughnessBorder};background:${frame.powerToughnessBg};padding:0 0.2em;font-weight:bold;font-size:0.9em;color:${frame.powerToughnessTextColor || '#000'};'>${savedCards[i].data.power}/${savedCards[i].data.toughness}</div>
-        <div style='position:absolute;bottom:0.4em;left:18.0em;font-size:0.6em;color:${frame.copyrightText};'>${savedCards[i].data.copyright}</div>
-      </div>`;
-  const canvas = await html2canvas(tempDiv, { backgroundColor: null, scale: 3 });
-      const imgData = canvas.toDataURL('image/png');
-      if (i > 0) pdf.addPage('a4', 'portrait');
-      // Center card on A4 page
-      const x = (a4Width - cardMmWidth) / 2;
-      const y = (a4Height - cardMmHeight) / 2;
-      pdf.addImage(imgData, 'PNG', x, y, cardMmWidth, cardMmHeight);
-      document.body.removeChild(tempDiv);
+const handleExportAllPDF = async () => {
+  if (savedCards.length === 0) return;
+
+  // Umrechnung: mm → pt (1 pt = 1/72 inch, 1 inch = 25.4 mm)
+  const mmToPt = (mm: number) => (mm * 72) / 25.4;
+
+  // Offizielle MTG-Kartenmaße
+  const cardMmWidth = 63.5;
+  const cardMmHeight = 88.9;
+
+  // DIN A4-Maße
+  const DIN_A4_WIDTH_MM = 210;
+  const DIN_A4_HEIGHT_MM = 297;
+
+  // 3x3-Raster
+  const cardsPerRow = 3;
+  const cardsPerCol = 3;
+
+  // No gap between cards
+  const cardGapMm = 0;
+  // Grid size (no outer margin)
+  const gridWidthMm = cardsPerRow * cardMmWidth + (cardsPerRow - 1) * cardGapMm;
+  const gridHeightMm = cardsPerCol * cardMmHeight + (cardsPerCol - 1) * cardGapMm;
+
+  // Center grid on DIN A4
+  const offsetXmm = Math.max(0, (DIN_A4_WIDTH_MM - gridWidthMm) / 2);
+  const offsetYmm = Math.max(0, (DIN_A4_HEIGHT_MM - gridHeightMm) / 2);
+
+  // Schritt 1: PNGs generieren
+  const pngs = [];
+  for (let i = 0; i < savedCards.length; i++) {
+    const tempDiv = document.createElement('div');
+    // Größe in Pixeln für 300 DPI (63.5mm × 300DPI × (1/25.4) ≈ 754px)
+    tempDiv.style.width = '754px';
+    tempDiv.style.height = '1045px';
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
+    document.body.appendChild(tempDiv);
+
+    const frame = frameDefs[savedCards[i].style] || blackFrame;
+    const { createRoot } = await import('react-dom/client');
+    const root = createRoot(tempDiv);
+    root.render(
+      <CardPreview
+        cardData={savedCards[i].data}
+        frame={frame}
+        manaSelects={savedCards[i].mana}
+        manaIcons={manaIcons}
+      />
+    );
+
+    // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // html2canvas mit korrekter Größe und ohne Skalierung
+    const canvas = await html2canvas(tempDiv, {
+      backgroundColor: null,
+      scale: 1, // Keine Skalierung, da die Div-Größe bereits korrekt ist
+      logging: false,
+      useCORS: true,
+    });
+
+    pngs.push(canvas.toDataURL('image/png'));
+
+    // Aufräumen
+    root.unmount();
+    document.body.removeChild(tempDiv);
+  }
+
+  // Schritt 2: PDF aus PNGs erstellen
+  const pdfDoc = await PDFDocument.create();
+
+  // Karten in 3x3-Raster auf DIN-A4-Seiten verteilen
+  for (let i = 0; i < pngs.length; i += cardsPerRow * cardsPerCol) {
+    const page = pdfDoc.addPage([mmToPt(DIN_A4_WIDTH_MM), mmToPt(DIN_A4_HEIGHT_MM)]);
+    const cardsOnPage = pngs.slice(i, i + cardsPerRow * cardsPerCol);
+
+    for (let j = 0; j < cardsOnPage.length; j++) {
+      const row = Math.floor(j / cardsPerRow);
+      const col = j % cardsPerRow;
+
+  // Position in mm berechnen
+  const xMm = offsetXmm + col * cardMmWidth;
+  const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
+
+      // PNG in PDF einbetten
+      const pngImage = await pdfDoc.embedPng(cardsOnPage[j]);
+
+      // Bild mit korrekter Größe zeichnen
+      page.drawImage(pngImage, {
+        x: mmToPt(xMm),
+        y: mmToPt(yMm),
+        width: mmToPt(cardMmWidth),
+        height: mmToPt(cardMmHeight),
+      });
     }
-    pdf.save('cards.pdf');
-  };
+  }
+
+  // PDF speichern
+  const pdfBytes = await pdfDoc.save();
+  // Convert Uint8Array to ArrayBuffer for Blob compatibility
+  const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength);
+  const blob = new Blob([arrayBuffer instanceof ArrayBuffer ? arrayBuffer : new ArrayBuffer(0)], { type: 'application/pdf' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'mtg_cards.pdf';
+  link.click();
+};
+
 
   const handleExport = async () => {
     if (cardRef.current) {
@@ -219,7 +287,7 @@ const ProxyGenerator: React.FC = () => {
               onClick={handleRemoveCard}
               style={{
                 padding: '0.6em 1.2em',
-                background: 'rgba(118, 0, 0, 1)',
+                background: 'rgba(73, 0, 0, 1)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
@@ -231,13 +299,13 @@ const ProxyGenerator: React.FC = () => {
               Remove Card
             </button>
           </div>
+          <ImageUpload label="Upload Card Image" onImage={handleImageUpload} />
           <CardConfigForm
             cardData={cardData}
             cardStyle={cardStyle}
             manaSelects={manaSelects}
             onChange={handleChange}
             onManaSelect={handleManaSelect}
-            onImageUpload={handleImageUpload}
             setCardStyle={setCardStyle}
           />
         </div>

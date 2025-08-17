@@ -6,17 +6,16 @@ interface CardConfigFormProps {
   manaSelects: string[];
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onManaSelect: (index: number, value: string) => void;
-  onImageUpload: (dataUrl: string) => void;
   setCardStyle: (style: string) => void;
 }
 
-const CardConfigForm: React.FC<CardConfigFormProps> = ({ cardData, cardStyle, manaSelects, onChange, onManaSelect, onImageUpload, setCardStyle }) => (
+const CardConfigForm: React.FC<CardConfigFormProps> = ({ cardData, cardStyle, manaSelects, onChange, onManaSelect, setCardStyle }) => (
   <form style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
     <div style={{ display: 'flex', gap: '2em', alignItems: 'center', marginBottom: '1em', justifyContent: 'center' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
-        <label htmlFor="card-style-select">Card Style:</label>
+        <label htmlFor="card-color-select">Card Color:</label>
         <select
-          id="card-style-select"
+          id="card-color-select"
           value={cardStyle}
           onChange={e => setCardStyle(e.target.value)}
           style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
@@ -29,6 +28,17 @@ const CardConfigForm: React.FC<CardConfigFormProps> = ({ cardData, cardStyle, ma
           <option value="Blue">Blue</option>
           <option value="Yellow">Yellow</option>
           <option value="Artifact">Artifact</option>
+        </select>
+        <label htmlFor="card-style-select" style={{ marginLeft: '2em' }}>Card Style:</label>
+        <select
+          id="card-style-select"
+          name="cardStyleType"
+          defaultValue="Modern"
+          style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
+        >
+          <option value="Modern">Modern</option>
+          <option value="Classic">Classic</option>
+          <option value="Minimal">Minimal</option>
         </select>
       </div>
       <div style={{ textAlign: 'center' }}>
