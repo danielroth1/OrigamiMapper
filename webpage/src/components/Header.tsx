@@ -22,7 +22,7 @@ const Header: React.FC = () => (
           <button className="menu-btn" style={{ minWidth: '100px' }}>Template Images</button>
         </Link>
         <Link to="/mtg-rules" style={{ textDecoration: 'none' }}>
-          <button className="menu-btn" style={{ minWidth: '100px' }}>MTG Rules</button>
+          <button className="menu-btn" style={{ minWidth: '100px' }}>MTG Booklet</button>
         </Link>
       </div>
     </div>
