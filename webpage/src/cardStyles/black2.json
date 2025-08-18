@@ -5,7 +5,7 @@
     "titleBarText": "#ede8d6",
     "titleBarBorder": "#ede8d6",
     "manaCostText": "#ede8d6",
-    "manaCostBg": "#22211c",
+    "manaCostBg": "#444",
     "manaCostRadius": "10%",
     "manaCostPadding": "2px",
     "artFallback": "#444",

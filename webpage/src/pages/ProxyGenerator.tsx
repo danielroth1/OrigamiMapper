@@ -10,8 +10,10 @@ import ImageUploadProxy from '../components/proxyGenerator/ImageUploadProxy';
 import blackFrame from '../cardStyles/black.json';
 import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
+import white2Frame from '../cardStyles/white2.json';
 import blueFrame from '../cardStyles/blue.json';
 import redFrame from '../cardStyles/red.json';
+import red2Frame from '../cardStyles/red2.json';
 import greenFrame from '../cardStyles/green.json';
 import artifactFrame from '../cardStyles/artifact.json';
 import yellowFrame from '../cardStyles/yellow.json';
@@ -38,8 +40,10 @@ const frameDefs: Record<string, any> = {
   Black: blackFrame,
   Black2: black2Frame,
   White: whiteFrame,
+  White2: white2Frame,
   Blue: blueFrame,
   Red: redFrame,
+  Red2: red2Frame,
   Green: greenFrame,
   Yellow: yellowFrame,
   Artifact: artifactFrame,
