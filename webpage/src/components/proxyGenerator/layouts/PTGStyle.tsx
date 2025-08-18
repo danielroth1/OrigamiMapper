@@ -63,20 +63,22 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
         padding: frame.manaCostPadding,
         marginLeft: '0.5em'
       }}>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '1.0em',
-          height: '1.0em',
-          borderRadius: '50%',
-          background: frame.manaCostBg,
-          border: `2px solid ${frame.manaCostText}`,
-          fontSize: '1.0em',
-          fontWeight: 'bold',
-          color: frame.manaCostText,
-          marginRight: '0.2em'
-        }}>{cardData.manaCost}</span>
+        {cardData.manaCost && (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '1.0em',
+            height: '1.0em',
+            borderRadius: '50%',
+            background: frame.manaCostBg,
+            border: `2px solid ${frame.manaCostText}`,
+            fontSize: '1.0em',
+            fontWeight: 'bold',
+            color: frame.manaCostText,
+            marginRight: '0.2em'
+          }}>{cardData.manaCost}</span>
+        )}
         {manaSelects.map((symbol, i) => {
           if (!symbol) return null;
           const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';

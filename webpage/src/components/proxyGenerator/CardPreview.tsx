@@ -15,7 +15,7 @@ const CardPreview = forwardRef<HTMLDivElement, CardPreviewProps>((props, ref) =>
   switch (template) {
     case 'PTG Style':
       return <PTGStyle ref={ref} {...props} />;
-    case 'Poké Mana':
+    case 'Mana/Token':
       return <PokeMana ref={ref} {...props} />;
     default:
       return <PTGStyle ref={ref} {...props} />;

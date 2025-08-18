@@ -17,7 +17,7 @@ const CardConfigForm: React.FC<CardConfigFormProps> = (props) => {
   switch (props.templateType) {
     case 'PTG Style':
       return <PTGConfigForm {...props} />;
-    case 'Poké Mana':
+    case 'Mana/Token':
       return <PokeManaConfigForm {...props} />;
     default:
       return <PTGConfigForm {...props} />;

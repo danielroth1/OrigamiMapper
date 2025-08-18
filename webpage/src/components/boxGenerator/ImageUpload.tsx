@@ -16,7 +16,9 @@ export default function ImageUpload({ label, onImage }: ImageUploadProps) {
       'image/gif',
       'image/webp',
       'image/bmp',
-      'image/svg+xml'
+      'image/svg+xml',
+      'image/x-icon',
+      'image/vnd.microsoft.icon'
     ];
     if (!allowedTypes.includes(file.type)) {
       alert('Please upload a valid image file (PNG, JPEG, GIF, WEBP, BMP, SVG).');

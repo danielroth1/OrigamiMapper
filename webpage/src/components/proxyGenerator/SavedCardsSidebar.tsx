@@ -27,8 +27,8 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
             Artifact: '#b0bec5',
           };
           const fontColor = styleColorMap[card.color] || '#fff';
-          // Card style (template type) is stored in card.data.cardStyleType or similar; fallback to 'PTG Style' if missing
-          const cardStyleType = card.data.cardTemplateType || card.data.cardStyleType || 'PTG Style';
+          // Card style (template type) is stored in the 'template' property, not color or card.data
+          const cardStyleType = card.template || 'PTG Style';
           return (
             <li key={idx} style={{ marginBottom: '0.5em' }}>
               <button
@@ -50,7 +50,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
                 }}
                 onClick={() => onLoadCard(card, idx)}
               >
-                <span>{card.data.name}</span>
+                <span>{card.data.name && card.data.name.length > 13 ? card.data.name.slice(0, 13) + '…' : card.data.name}</span>
                 <span style={{ color: fontColor, fontSize: '0.75em', marginLeft: '0.5em' }}>{cardStyleType}</span>
               </button>
             </li>

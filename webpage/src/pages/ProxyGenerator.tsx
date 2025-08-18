@@ -75,7 +75,7 @@ const ProxyGenerator: React.FC = () => {
       return;
     }
     // If switching to Poké Mana, set cardData.name to Title value
-    if (card.template === 'Poké Mana') {
+    if (card.template === 'Mana/Token') {
       setCardData({ ...card.data, name: card.data.name });
     } else {
       setCardData(card.data);

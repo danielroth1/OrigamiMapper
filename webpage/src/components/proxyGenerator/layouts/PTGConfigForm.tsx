@@ -12,7 +12,6 @@ interface PTGConfigFormProps {
 }
 
 const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
-  // ...just render the default config form for now...
   return (
     <form style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
       <div style={{ display: 'flex', gap: '2em', alignItems: 'center', marginBottom: '1em', justifyContent: 'center' }}>
@@ -41,7 +40,7 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
             style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
           >
             <option value="PTG Style">PTG Style</option>
-            <option value="Poké Mana">Poké Mana</option>
+            <option value="Mana/Token">Mana/Token/Energy</option>
           </select>
         </div>
         <div style={{ textAlign: 'center' }}>
