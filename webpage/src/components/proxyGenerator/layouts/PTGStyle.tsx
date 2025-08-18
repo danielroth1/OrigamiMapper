@@ -20,7 +20,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       width: '300px',
       height: '420px',
       background: frame.cardFrame,
-      border: `2px solid ${frame.cardFrame}`,
+  border: `2px solid ${frame.outerBorder || frame.cardFrame}`,
       borderRadius: '12px',
       boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
       overflow: 'hidden',

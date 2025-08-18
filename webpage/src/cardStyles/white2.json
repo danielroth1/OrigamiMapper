@@ -1,6 +1,7 @@
 {
   "color": "White2",
   "cardFrame": "#FFFFFF",
+  "outerBorder": "#000000",
   "innerBorder": "#000000",
   "titleBar": "#FFFFFF",
   "titleBarText": "#000000",
