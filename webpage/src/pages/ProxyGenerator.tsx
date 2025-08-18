@@ -181,7 +181,7 @@ const handleExportAllPDF = async () => {
     tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
     document.body.appendChild(tempDiv);
 
-  const frame = frameDefs[savedCards[i].color] || blackFrame;
+    const frame = frameDefs[savedCards[i].color] || blackFrame;
     const { createRoot } = await import('react-dom/client');
     const root = createRoot(tempDiv);
     root.render(
@@ -206,32 +206,20 @@ const handleExportAllPDF = async () => {
     });
 
     pngs.push(canvas.toDataURL('image/png'));
-
-    // Aufräumen
     root.unmount();
     document.body.removeChild(tempDiv);
   }
-
-  // Schritt 2: PDF aus PNGs erstellen
+  // Step 2: Create PDF
   const pdfDoc = await PDFDocument.create();
-
-  // Karten in 3x3-Raster auf DIN-A4-Seiten verteilen
   for (let i = 0; i < pngs.length; i += cardsPerRow * cardsPerCol) {
     const page = pdfDoc.addPage([mmToPt(DIN_A4_WIDTH_MM), mmToPt(DIN_A4_HEIGHT_MM)]);
     const cardsOnPage = pngs.slice(i, i + cardsPerRow * cardsPerCol);
-
     for (let j = 0; j < cardsOnPage.length; j++) {
       const row = Math.floor(j / cardsPerRow);
       const col = j % cardsPerRow;
-
-  // Position in mm berechnen
-  const xMm = offsetXmm + col * cardMmWidth;
-  const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
-
-      // PNG in PDF einbetten
+      const xMm = offsetXmm + col * cardMmWidth;
+      const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
       const pngImage = await pdfDoc.embedPng(cardsOnPage[j]);
-
-      // Bild mit korrekter Größe zeichnen
       page.drawImage(pngImage, {
         x: mmToPt(xMm),
         y: mmToPt(yMm),
@@ -240,12 +228,11 @@ const handleExportAllPDF = async () => {
       });
     }
   }
-
-  // PDF speichern
   const pdfBytes = await pdfDoc.save();
-  // Convert Uint8Array to ArrayBuffer for Blob compatibility
-  const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength);
-  const blob = new Blob([arrayBuffer instanceof ArrayBuffer ? arrayBuffer : new ArrayBuffer(0)], { type: 'application/pdf' });
+  const arrayBuffer = pdfBytes instanceof Uint8Array
+    ? pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength)
+    : pdfBytes;
+  const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = 'mtg_cards.pdf';
@@ -253,15 +240,7 @@ const handleExportAllPDF = async () => {
 };
 
 
-  const handleExport = async () => {
-    if (cardRef.current) {
-  const canvas = await html2canvas(cardRef.current, { backgroundColor: null, scale: 3 });
-      const link = document.createElement('a');
-      link.download = `${cardData.name.replace(/\s+/g, '_')}_card.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
-  };
+
 
   return (
     <div className="App">
@@ -285,7 +264,6 @@ const handleExportAllPDF = async () => {
           <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
             <button
               type="button"
-              onClick={handleExport}
               style={{
                 padding: '0.6em 1.2em',
                 background: '#222',
