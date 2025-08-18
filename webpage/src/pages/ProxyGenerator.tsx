@@ -52,7 +52,7 @@ const frameDefs: Record<string, any> = {
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
   // Card color (frame) and template layout (style)
-  const [cardColor, setCardColor] = useState('Black');
+  const [cardColor, setCardColor] = useState('White2');
   const [templateType, setTemplateType] = useState('PTG Style');
   const [manaSelects, setManaSelects] = useState(['', '', '', '']);
   // savedCards entries now include color and template for switchable layouts
