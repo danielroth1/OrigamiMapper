@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import { jsPDF } from 'jspdf';
 import CubeViewer, { type FaceTextures } from "../components/boxGenerator/CubeViewer";
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
 import ImageUpload from '../components/boxGenerator/ImageUpload';
@@ -22,6 +21,7 @@ function BoxGenerator() {
   const [, setTemplate] = useState('Box');
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
+  const [scalePercent, setScalePercent] = useState(0); // percent, can be negative
   const [loading, setLoading] = useState(false);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
@@ -34,7 +34,7 @@ function BoxGenerator() {
     const img = new Image();
     img.src = imgDataUrl; // synchronous set; ensure loaded before drawing via onload guard below
     const faceGroups: Record<string, OrigamiMapperTypes.Polygon[]> = {};
-  polygons.forEach((p: OrigamiMapperTypes.Polygon) => {
+    polygons.forEach((p: OrigamiMapperTypes.Polygon) => {
       const faceLetter = p.id[0];
       if (!'RLUVH'.includes(faceLetter)) return; // skip unrelated
       // Combine numbered sub-polygons (1,2,3) per face
@@ -48,29 +48,29 @@ function BoxGenerator() {
     const renderFace = (polys: OrigamiMapperTypes.Polygon[]) => {
       if (!polys.length) return null;
       // Combine 2D rotation metadata plus any rotation_3d present (average if differing)
-      let sumRot=0, countRot=0;
-      polys.forEach(p=>{ if (typeof p.rotation === 'number') { sumRot += p.rotation; countRot++; } });
+      let sumRot = 0, countRot = 0;
+      polys.forEach(p => { if (typeof p.rotation === 'number') { sumRot += p.rotation; countRot++; } });
       const baseRot = countRot ? (sumRot / countRot) : 0;
-      let sumRot3=0, countRot3=0;
-      polys.forEach(p=>{ if (typeof p.rotation_3d === 'number') { sumRot3 += p.rotation_3d; countRot3++; } });
+      let sumRot3 = 0, countRot3 = 0;
+      polys.forEach(p => { if (typeof p.rotation_3d === 'number') { sumRot3 += p.rotation_3d; countRot3++; } });
       const rot3d = countRot3 ? (sumRot3 / countRot3) : 0;
       const groupRot = baseRot + rot3d;
       const invRot = -groupRot; // rotate canvas by inverse to align content
       // Compute centroid (pivot)
-      let cx=0, cy=0, count=0;
-      polys.forEach(p=>p.vertices.forEach(([x,y])=>{ cx += x*img.width; cy += y*img.height; count++; }));
-      if (count>0) { cx/=count; cy/=count; }
+      let cx = 0, cy = 0, count = 0;
+      polys.forEach(p => p.vertices.forEach(([x, y]) => { cx += x * img.width; cy += y * img.height; count++; }));
+      if (count > 0) { cx /= count; cy /= count; }
       // Compute bounding box in rotated (inverse) space
       const cosI = Math.cos(invRot); const sinI = Math.sin(invRot);
-      let rminX=Infinity,rminY=Infinity,rmaxX=-Infinity,rmaxY=-Infinity;
-      polys.forEach(p=>p.vertices.forEach(([x,y])=>{
-        const px = x*img.width; const py = y*img.height;
+      let rminX = Infinity, rminY = Infinity, rmaxX = -Infinity, rmaxY = -Infinity;
+      polys.forEach(p => p.vertices.forEach(([x, y]) => {
+        const px = x * img.width; const py = y * img.height;
         const ox = px - cx; const oy = py - cy;
-        const rx = ox*cosI - oy*sinI + cx;
-        const ry = ox*sinI + oy*cosI + cy;
-        if (rx<rminX) rminX=rx; if (ry<rminY) rminY=ry; if (rx>rmaxX) rmaxX=rx; if (ry>rmaxY) rmaxY=ry;
+        const rx = ox * cosI - oy * sinI + cx;
+        const ry = ox * sinI + oy * cosI + cy;
+        if (rx < rminX) rminX = rx; if (ry < rminY) rminY = ry; if (rx > rmaxX) rmaxX = rx; if (ry > rmaxY) rmaxY = ry;
       }));
-      if (rminX===Infinity) return null;
+      if (rminX === Infinity) return null;
       const rw = Math.max(2, Math.ceil(rmaxX - rminX));
       const rh = Math.max(2, Math.ceil(rmaxY - rminY));
       canvas.width = rw; canvas.height = rh;
@@ -84,9 +84,9 @@ function BoxGenerator() {
       polys.forEach(p => {
         ctx.save();
         ctx.beginPath();
-        p.vertices.forEach(([x,y],i)=>{
-          const px = x*img.width; const py = y*img.height;
-          if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        p.vertices.forEach(([x, y], i) => {
+          const px = x * img.width; const py = y * img.height;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         });
         ctx.closePath();
         ctx.clip();
@@ -169,11 +169,11 @@ function BoxGenerator() {
   const handleRun = async () => {
     if (!outsideImgTransformed || !insideImgTransformed) {
       alert('Please upload both images.');
-      return;
+      return null;
     }
     if (!outsideEditorRef.current || !insideEditorRef.current) {
       alert('Polygon editors not ready.');
-      return;
+      return null;
     }
     setLoading(true);
     // Get JSONs from both editors
@@ -194,13 +194,14 @@ function BoxGenerator() {
     const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson));
     setResults(dict);
     setLoading(false);
+    return dict;
   };
 
   // Auto-load demo images if present (public/assets/examples/input.jpg & output.jpg)
   useEffect(() => {
-  // Debug gate: only run when in dev mode or explicit VITE_DEBUG flag
-  const isDebug = (import.meta as any).env?.DEV || (import.meta as any).env?.VITE_DEBUG === 'true';
-  if (!isDebug) return; // skip in production unless flag set
+    // Debug gate: only run when in dev mode or explicit VITE_DEBUG flag
+    const isDebug = (import.meta as any).env?.DEV || (import.meta as any).env?.VITE_DEBUG === 'true';
+    if (!isDebug) return; // skip in production unless flag set
     // Only attempt if neither image is already set (avoid overriding user uploads)
     if (outsideImgRaw || insideImgRaw) return;
     const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
@@ -215,8 +216,8 @@ function BoxGenerator() {
         if (blob.size === 0) return null;
         return await new Promise<string>((resolve) => {
           const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
         });
       } catch (_) {
         return null;
@@ -233,32 +234,62 @@ function BoxGenerator() {
     })();
   }, [outsideImgRaw, insideImgRaw]);
 
-  const handleDownloadAll = async () => {
-    const zip = new JSZip();
-    const imageIds = ['output_page1', 'output_page2'];
-    const instructionIds = ['output_outside_mapping', 'output_inside_mapping'];
-    const fetchImageAsBlob = async (dataUrl: string) => {
-      // Convert dataURL to Blob
-      const res = await fetch(dataUrl);
-      return await res.blob();
-    };
-    for (const id of imageIds) {
-      const url = results[id];
-      if (url) {
-        const blob = await fetchImageAsBlob(url);
-        zip.file(id + '.png', blob);
+  const ensureDataUrl = async (url: string): Promise<string> => {
+    if (!url) throw new Error('No URL');
+    if (url.startsWith('data:')) return url;
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleDownloadPdf = async (resultsOverride?: { [key: string]: string }) => {
+    try {
+      const pageIds = ['output_page1', 'output_page2'];
+      const source = resultsOverride ?? results;
+      const hasAny = pageIds.some(id => !!source[id]);
+      if (!hasAny) return;
+      // A4 dimensions in mm
+      const PAGE_W = 210;
+      const PAGE_H = 297;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      for (let i = 0; i < pageIds.length; i++) {
+        const id = pageIds[i];
+        const url = source[id];
+        if (!url) {
+          if (i < pageIds.length - 1) doc.addPage();
+          continue;
+        }
+        const dataUrl = await ensureDataUrl(url);
+        // marginPercent applies to each side (percentage of page width/height)
+        const frac = (scalePercent || 0) / 100;
+        const innerW = PAGE_W * (1 - 2 * frac);
+        const innerH = PAGE_H * (1 - 2 * frac);
+        const x = (PAGE_W - innerW) / 2;
+        const y = (PAGE_H - innerH) / 2;
+        // Place image stretched to inner box. If innerW/innerH exceed page, image will be cropped.
+        doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+        if (i < pageIds.length - 1) doc.addPage();
       }
+      doc.save('origami_mapper_results.pdf');
+    } catch (err) {
+      console.error(err);
+      const msg = (err as any)?.message ? (err as any).message : String(err);
+      alert('Failed to generate PDF: ' + msg);
     }
-    // Add mapping images to Instruction subfolder
-    for (const id of instructionIds) {
-      const url = results[id];
-      if (url) {
-        const blob = await fetchImageAsBlob(url);
-        zip.file('Instruction/' + id + '.png', blob);
-      }
-    }
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    saveAs(zipBlob, 'origami_mapper_results.zip');
+  };
+
+  // Run mapping first, then generate PDF
+  const handleRunThenDownload = async () => {
+    if (loading) return;
+    // ensure mapping runs (this function will set loading state itself)
+    const dict = await handleRun();
+    if (dict) await handleDownloadPdf(dict);
   };
 
   return (
@@ -302,9 +333,20 @@ function BoxGenerator() {
                   {loading ? 'Processing...' : 'Run Mapping'}
                 </button>
                 {/* Map To 3D Box button removed: CubeViewer updates automatically when editors or images change */}
-                <button onClick={() => handleDownloadAll()} disabled={!results.output_page1} className="menu-btn">
-                  Download All Results
+                <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed} className="menu-btn">
+                  Download
                 </button>
+              </div>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                <div style={{ color: '#fff', fontSize: '0.9em' }}>Scale: {scalePercent}%</div>
+                <input
+                  type="range"
+                  min={-20}
+                  max={30}
+                  value={scalePercent}
+                  onChange={e => setScalePercent(Number(e.target.value))}
+                  style={{ width: '85%' }}
+                />
               </div>
             </section>
           </div>
