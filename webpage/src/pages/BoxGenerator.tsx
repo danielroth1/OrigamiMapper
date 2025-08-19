@@ -24,6 +24,8 @@ function BoxGenerator() {
   const [outputDpi, setOutputDpi] = useState<number>(300);
   const [scalePercent, setScalePercent] = useState(0); // percent, can be negative
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
   // Change this constant in code to control the initial zoom programmatically
@@ -171,7 +173,7 @@ function BoxGenerator() {
     scheduleBuild();
   }, [outsideImgTransformed, insideImgTransformed]);
 
-  const handleRun = async () => {
+  const handleRun = async (showProgress = false) => {
     if (!outsideImgTransformed || !insideImgTransformed) {
       alert('Please upload both images.');
       return null;
@@ -181,6 +183,13 @@ function BoxGenerator() {
       return null;
     }
     setLoading(true);
+    if (showProgress) {
+      // show the shared progress bar while mapping runs
+      setPdfLoading(true);
+      setPdfProgress(5);
+      // yield so progress UI shows before heavy mapping work
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
     // Get JSONs from both editors
     const outsideJson = outsideEditorRef.current.getCurrentJson();
     const insideJson = insideEditorRef.current.getCurrentJson();
@@ -196,9 +205,37 @@ function BoxGenerator() {
         ...(insideJson.output_polygons ?? [])
       ]
     };
-    const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson), outputDpi);
-    setResults(dict);
-    setLoading(false);
+    // indicate mapping has started
+    if (showProgress) setPdfProgress(20);
+    let dict;
+    let mappingSucceeded = false;
+    try {
+      dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson), outputDpi);
+      // mapping done
+      if (showProgress) {
+        // mapping progress stays within 0..50 so PDF generation can continue from 50..100
+        setPdfProgress(40);
+        // give UI a moment
+        await new Promise(resolve => setTimeout(resolve, 30));
+      }
+      setResults(dict);
+      if (showProgress) {
+        // near-complete for mapping, leave at 50 for PDF stage
+        setPdfProgress(50);
+        // small delay so users can see near-final progress
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      mappingSucceeded = true;
+    } finally {
+      setLoading(false);
+      // If mapping was started for the purpose of a combined run+download and it succeeded,
+      // keep the shared PDF progress UI active so the subsequent PDF generation continues
+      // the same progress bar. Only clear the progress UI on failure.
+      if (showProgress && !mappingSucceeded) {
+        setPdfLoading(false);
+        setPdfProgress(0);
+      }
+    }
     return dict;
   };
 
@@ -258,6 +295,9 @@ function BoxGenerator() {
       const source = resultsOverride ?? results;
       const hasAny = pageIds.some(id => !!source[id]);
       if (!hasAny) return;
+      setPdfLoading(true);
+      // let React render loading state before doing heavy synchronous work
+      await new Promise(resolve => setTimeout(resolve, 0));
       // A4 dimensions in mm
       const PAGE_W = 210;
       const PAGE_H = 297;
@@ -266,6 +306,10 @@ function BoxGenerator() {
       for (let i = 0; i < pageIds.length; i++) {
         const id = pageIds[i];
         const url = source[id];
+        // update progress to indicate work started for this page - continue from mapping's 50%
+        setPdfProgress(50 + Math.round((i / pageIds.length) * 40));
+        // yield so progress UI can update before potentially heavy work
+        await new Promise(resolve => setTimeout(resolve, 20));
         if (!url) {
           if (i < pageIds.length - 1) doc.addPage();
           continue;
@@ -279,13 +323,29 @@ function BoxGenerator() {
         const y = (PAGE_H - innerH) / 2;
         // Place image stretched to inner box. If innerW/innerH exceed page, image will be cropped.
         doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+        // update progress after placing this page image
+        setPdfProgress(50 + Math.round(((i + 1) / pageIds.length) * 40));
+        // yield so progress UI can update before next iteration
+        await new Promise(resolve => setTimeout(resolve, 20));
         if (i < pageIds.length - 1) doc.addPage();
       }
+      // finalizing
+      setPdfProgress(95);
+      // give the UI a moment to render finalizing state before triggering save
+      await new Promise(resolve => setTimeout(resolve, 50));
       doc.save('origami_mapper_results.pdf');
+      setPdfProgress(100);
+      // small delay so users can see 100% before it disappears
+      setTimeout(() => {
+        setPdfLoading(false);
+        setPdfProgress(0);
+      }, 600);
     } catch (err) {
       console.error(err);
       const msg = (err as any)?.message ? (err as any).message : String(err);
       alert('Failed to generate PDF: ' + msg);
+      setPdfLoading(false);
+      setPdfProgress(0);
     }
   };
 
@@ -293,7 +353,7 @@ function BoxGenerator() {
   const handleRunThenDownload = async () => {
     if (loading) return;
     // ensure mapping runs (this function will set loading state itself)
-    const dict = await handleRun();
+    const dict = await handleRun(true);
     if (dict) await handleDownloadPdf(dict);
   };
 
@@ -345,13 +405,23 @@ function BoxGenerator() {
                 </div>
                 {/* buttons moved below grid */}
               </div>
-              <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center' }}>
-                <button onClick={handleRun} disabled={loading} className="menu-btn">
-                  {loading ? 'Processing...' : 'Run Mapping'}
-                </button>
-                <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed} className="menu-btn">
-                  Download
-                </button>
+              <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '1em' }}>
+                  <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
+                    {loading ? 'Processing...' : 'Run Mapping'}
+                  </button>
+                  <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed || pdfLoading || loading} className="menu-btn">
+                    {pdfLoading ? 'Preparing PDF...' : 'Download'}
+                  </button>
+                </div>
+                {/* simple progress bar shown while PDF is being generated */}
+                {(pdfLoading || pdfProgress > 0) && (
+                  <div style={{ width: '90%', maxWidth: 360, marginTop: 8 }}>
+                    <div style={{ height: 10, background: '#2b2b2b', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ width: `${pdfProgress}%`, height: '100%', background: '#4caf50', transition: 'width 200ms ease' }} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
                 <div style={{ color: '#fff', fontSize: '0.9em' }}>Scale: {scalePercent}%</div>
