@@ -28,11 +28,11 @@ function BoxGenerator() {
   // Change this constant in code to control the initial zoom programmatically
   const DEFAULT_VIEWER_ZOOM = 1.0;
 
-  // Build face textures from polygons + background images
-  const buildFaceTextures = (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): FaceTextures => {
+  // Build face textures from polygons + background images (async: waits for image load)
+  const buildFaceTextures = async (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): Promise<FaceTextures> => {
     if (!imgDataUrl) return {};
     const img = new Image();
-    img.src = imgDataUrl; // synchronous set; ensure loaded before drawing via onload guard below
+    img.src = imgDataUrl; // synchronous set
     const faceGroups: Record<string, OrigamiMapperTypes.Polygon[]> = {};
     polygons.forEach((p: OrigamiMapperTypes.Polygon) => {
       const faceLetter = p.id[0];
@@ -96,10 +96,12 @@ function BoxGenerator() {
       ctx.restore();
       return canvas.toDataURL('image/png');
     };
-    // Ensure image loaded; if not, we'll return empty and user can retry
+    // Wait for image to load if necessary
     if (!img.complete) {
-      img.onload = () => { /* user can press button again after load */ };
-      return {};
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // resolve on error too to avoid hanging; will just produce empty textures
+      });
     }
     Object.entries(faceGroups).forEach(([letter, polys]) => {
       const tex = renderFace(polys);
@@ -112,8 +114,10 @@ function BoxGenerator() {
     // Use provided polygon lists when available (from editor onChange), otherwise query refs
     const outPolys = outsidePolys ?? outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
     const inPolys = insidePolys ?? insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-    setOutsideFaces(buildFaceTextures(outPolys, outsideImgTransformed));
-    setInsideFaces(buildFaceTextures(inPolys, insideImgTransformed));
+    // Build asynchronously and set states when textures are ready. This ensures textures update
+    // even if the image wasn't loaded when the build was scheduled.
+    buildFaceTextures(outPolys, outsideImgTransformed).then(tex => setOutsideFaces(tex));
+    buildFaceTextures(inPolys, insideImgTransformed).then(tex => setInsideFaces(tex));
   };
 
   // Refs for PolygonEditors
