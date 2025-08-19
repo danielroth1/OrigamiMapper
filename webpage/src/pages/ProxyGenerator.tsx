@@ -56,7 +56,7 @@ const ProxyGenerator: React.FC = () => {
   const [templateType, setTemplateType] = useState('PTG Style');
   const [manaSelects, setManaSelects] = useState(['', '', '', '']);
   // savedCards entries now include color and template for switchable layouts
-  const [savedCards, setSavedCards] = useState<Array<{data: typeof initialCardData, color: string, template: string, mana: string[]}>>([]);
+  const [savedCards, setSavedCards] = useState<Array<{ data: typeof initialCardData, color: string, template: string, mana: string[] }>>([]);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
   // Autosave: update selected card in savedCards whenever cardData, cardStyle, or manaSelects change
   React.useEffect(() => {
@@ -69,7 +69,7 @@ const ProxyGenerator: React.FC = () => {
     }
   }, [cardData, cardColor, templateType, manaSelects, currentCardIdx]);
 
-  const handleLoadCard = (card: {data: typeof initialCardData, color: string, template: string, mana: string[]}, idx: number) => {
+  const handleLoadCard = (card: { data: typeof initialCardData, color: string, template: string, mana: string[] }, idx: number) => {
     if (currentCardIdx === idx) {
       setCurrentCardIdx(null);
       // reset defaults
@@ -207,152 +207,152 @@ const ProxyGenerator: React.FC = () => {
     root.unmount();
     document.body.removeChild(tempDiv);
   };
-const handleExportAllPDF = async () => {
-  if (savedCards.length === 0) return;
+  const handleExportAllPDF = async () => {
+    if (savedCards.length === 0) return;
 
-  // Umrechnung: mm → pt (1 pt = 1/72 inch, 1 inch = 25.4 mm)
-  const mmToPt = (mm: number) => (mm * 72) / 25.4;
+    // Umrechnung: mm → pt (1 pt = 1/72 inch, 1 inch = 25.4 mm)
+    const mmToPt = (mm: number) => (mm * 72) / 25.4;
 
-  // Offizielle MTG-Kartenmaße
-  const cardMmWidth = 63.5;
-  const cardMmHeight = 88.9;
+    // Offizielle MTG-Kartenmaße
+    const cardMmWidth = 63.5;
+    const cardMmHeight = 88.9;
 
-  // DIN A4-Maße
-  const DIN_A4_WIDTH_MM = 210;
-  const DIN_A4_HEIGHT_MM = 297;
+    // DIN A4-Maße
+    const DIN_A4_WIDTH_MM = 210;
+    const DIN_A4_HEIGHT_MM = 297;
 
-  // 3x3-Raster
-  const cardsPerRow = 3;
-  const cardsPerCol = 3;
+    // 3x3-Raster
+    const cardsPerRow = 3;
+    const cardsPerCol = 3;
 
-  // Small gap between cards to avoid overlapping borders when rendering to PDF
-  const cardGapMm = 0.0; // mm
-  // Grid size (no outer margin)
-  const gridWidthMm = cardsPerRow * cardMmWidth + (cardsPerRow - 1) * cardGapMm;
-  const gridHeightMm = cardsPerCol * cardMmHeight + (cardsPerCol - 1) * cardGapMm;
+    // Small gap between cards to avoid overlapping borders when rendering to PDF
+    const cardGapMm = 0.0; // mm
+    // Grid size (no outer margin)
+    const gridWidthMm = cardsPerRow * cardMmWidth + (cardsPerRow - 1) * cardGapMm;
+    const gridHeightMm = cardsPerCol * cardMmHeight + (cardsPerCol - 1) * cardGapMm;
 
-  // Center grid on DIN A4
-  const offsetXmm = Math.max(0, (DIN_A4_WIDTH_MM - gridWidthMm) / 2);
-  const offsetYmm = Math.max(0, (DIN_A4_HEIGHT_MM - gridHeightMm) / 2);
+    // Center grid on DIN A4
+    const offsetXmm = Math.max(0, (DIN_A4_WIDTH_MM - gridWidthMm) / 2);
+    const offsetYmm = Math.max(0, (DIN_A4_HEIGHT_MM - gridHeightMm) / 2);
 
-  // Schritt 1: PNGs generieren
-  const pngs = [];
-  for (let i = 0; i < savedCards.length; i++) {
-    const tempDiv = document.createElement('div');
-  // Target rendering DPI for the generated PNGs (higher = crisper print)
-    const targetDPI = 300;
-    const scale = targetDPI / 96; // html2canvas scale factor relative to CSS px
-    // Render the CardPreview at its native design CSS size so internal px-based layout scales correctly
-    // PTGStyle uses width: 300px and height: 420px as its base design
-    const designCssWidth = 300;
-    const designCssHeight = 420;
-    tempDiv.style.width = `${designCssWidth}px`;
-    tempDiv.style.height = `${designCssHeight}px`;
-    // Ensure no extra margins/padding from child components and force full size
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.padding = '0';
-    tempDiv.style.margin = '0';
-    tempDiv.style.boxSizing = 'border-box';
-    tempDiv.style.overflow = 'hidden';
-    tempDiv.style.display = 'block';
-    tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
-    // Reset all child element margins/padding to avoid unexpected top/bottom gaps
-    // Use an id so we can override inline styles with !important when rendering for export
-    tempDiv.id = 'export-temp';
-    const resetStyle = document.createElement('style');
-    resetStyle.textContent = `
+    // Schritt 1: PNGs generieren
+    const pngs = [];
+    for (let i = 0; i < savedCards.length; i++) {
+      const tempDiv = document.createElement('div');
+      // Target rendering DPI for the generated PNGs (higher = crisper print)
+      const targetDPI = 300;
+      const scale = targetDPI / 96; // html2canvas scale factor relative to CSS px
+      // Render the CardPreview at its native design CSS size so internal px-based layout scales correctly
+      // PTGStyle uses width: 300px and height: 420px as its base design
+      const designCssWidth = 300;
+      const designCssHeight = 420;
+      tempDiv.style.width = `${designCssWidth}px`;
+      tempDiv.style.height = `${designCssHeight}px`;
+      // Ensure no extra margins/padding from child components and force full size
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.padding = '0';
+      tempDiv.style.margin = '0';
+      tempDiv.style.boxSizing = 'border-box';
+      tempDiv.style.overflow = 'hidden';
+      tempDiv.style.display = 'block';
+      tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
+      // Reset all child element margins/padding to avoid unexpected top/bottom gaps
+      // Use an id so we can override inline styles with !important when rendering for export
+      tempDiv.id = 'export-temp';
+      const resetStyle = document.createElement('style');
+      resetStyle.textContent = `
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
       /* Remove top margin on the CardPreview root but don't override its inline width/height */
       #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
       /* Ensure art area images fit inside their container without overflow */
       #export-temp img { max-width: 100% !important; max-height: 100% !important; object-fit: contain !important; display: block !important; }
     `;
-    tempDiv.appendChild(resetStyle);
-    document.body.appendChild(tempDiv);
+      tempDiv.appendChild(resetStyle);
+      document.body.appendChild(tempDiv);
 
-    const frame = frameDefs[savedCards[i].color] || blackFrame;
-    const { createRoot } = await import('react-dom/client');
-    const root = createRoot(tempDiv);
-    root.render(
-      <CardPreview
-        cardData={savedCards[i].data}
-        frame={frame}
-        manaSelects={savedCards[i].mana}
-        manaIcons={manaIcons}
-        template={savedCards[i].template}
-      />
-    );
+      const frame = frameDefs[savedCards[i].color] || blackFrame;
+      const { createRoot } = await import('react-dom/client');
+      const root = createRoot(tempDiv);
+      root.render(
+        <CardPreview
+          cardData={savedCards[i].data}
+          frame={frame}
+          manaSelects={savedCards[i].mana}
+          manaIcons={manaIcons}
+          template={savedCards[i].template}
+        />
+      );
 
-    // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
-    await new Promise(resolve => setTimeout(resolve, 120));
+      // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
+      await new Promise(resolve => setTimeout(resolve, 120));
 
-    // Render the actual card element (first child) and measure it to avoid clipping
-    const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
-    const rect = element.getBoundingClientRect();
-    // html2canvas: render at a higher pixel density (scale) so the PNG has enough resolution
-    const canvas = await html2canvas(element, {
-      backgroundColor: null,
-      scale, // scale up from CSS px to target DPI
-      logging: false,
-      useCORS: true,
-      allowTaint: false,
-      width: Math.ceil(rect.width),
-      height: Math.ceil(rect.height),
-      windowWidth: Math.ceil(rect.width),
-      windowHeight: Math.ceil(rect.height),
-    });
-
-    pngs.push(canvas.toDataURL('image/png'));
-    root.unmount();
-    document.body.removeChild(tempDiv);
-  }
-  // Step 2: Create PDF
-  const pdfDoc = await PDFDocument.create();
-  for (let i = 0; i < pngs.length; i += cardsPerRow * cardsPerCol) {
-    const page = pdfDoc.addPage([mmToPt(DIN_A4_WIDTH_MM), mmToPt(DIN_A4_HEIGHT_MM)]);
-    const cardsOnPage = pngs.slice(i, i + cardsPerRow * cardsPerCol);
-    for (let j = 0; j < cardsOnPage.length; j++) {
-      const row = Math.floor(j / cardsPerRow);
-      const col = j % cardsPerRow;
-      const xMm = offsetXmm + col * cardMmWidth;
-      const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
-      const pngImage = await pdfDoc.embedPng(cardsOnPage[j]);
-  // PNGs were rendered to the card element size, so draw them to fill the card area exactly
-  const cardXPt = mmToPt(xMm);
-  const cardYPt = mmToPt(yMm);
-  const drawWidthPt = mmToPt(cardMmWidth);
-  const drawHeightPt = mmToPt(cardMmHeight);
-  const offsetXPt = 0;
-  const offsetYPt = 0;
-
-      // Draw opaque background for the card to avoid overlap with adjacent cards
-      page.drawRectangle({
-        x: cardXPt,
-        y: cardYPt,
-        width: mmToPt(cardMmWidth),
-        height: mmToPt(cardMmHeight),
-        color: rgb(1, 1, 1),
+      // Render the actual card element (first child) and measure it to avoid clipping
+      const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
+      const rect = element.getBoundingClientRect();
+      // html2canvas: render at a higher pixel density (scale) so the PNG has enough resolution
+      const canvas = await html2canvas(element, {
+        backgroundColor: null,
+        scale, // scale up from CSS px to target DPI
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+        width: Math.ceil(rect.width),
+        height: Math.ceil(rect.height),
+        windowWidth: Math.ceil(rect.width),
+        windowHeight: Math.ceil(rect.height),
       });
 
-      page.drawImage(pngImage, {
-        x: cardXPt + offsetXPt,
-        y: cardYPt + offsetYPt,
-        width: drawWidthPt,
-        height: drawHeightPt,
-      });
+      pngs.push(canvas.toDataURL('image/png'));
+      root.unmount();
+      document.body.removeChild(tempDiv);
     }
-  }
-  const pdfBytes = await pdfDoc.save();
-  const arrayBuffer = pdfBytes instanceof Uint8Array
-    ? pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength)
-    : pdfBytes;
-  const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'mtg_cards.pdf';
-  link.click();
-};
+    // Step 2: Create PDF
+    const pdfDoc = await PDFDocument.create();
+    for (let i = 0; i < pngs.length; i += cardsPerRow * cardsPerCol) {
+      const page = pdfDoc.addPage([mmToPt(DIN_A4_WIDTH_MM), mmToPt(DIN_A4_HEIGHT_MM)]);
+      const cardsOnPage = pngs.slice(i, i + cardsPerRow * cardsPerCol);
+      for (let j = 0; j < cardsOnPage.length; j++) {
+        const row = Math.floor(j / cardsPerRow);
+        const col = j % cardsPerRow;
+        const xMm = offsetXmm + col * cardMmWidth;
+        const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
+        const pngImage = await pdfDoc.embedPng(cardsOnPage[j]);
+        // PNGs were rendered to the card element size, so draw them to fill the card area exactly
+        const cardXPt = mmToPt(xMm);
+        const cardYPt = mmToPt(yMm);
+        const drawWidthPt = mmToPt(cardMmWidth);
+        const drawHeightPt = mmToPt(cardMmHeight);
+        const offsetXPt = 0;
+        const offsetYPt = 0;
+
+        // Draw opaque background for the card to avoid overlap with adjacent cards
+        page.drawRectangle({
+          x: cardXPt,
+          y: cardYPt,
+          width: mmToPt(cardMmWidth),
+          height: mmToPt(cardMmHeight),
+          color: rgb(1, 1, 1),
+        });
+
+        page.drawImage(pngImage, {
+          x: cardXPt + offsetXPt,
+          y: cardYPt + offsetYPt,
+          width: drawWidthPt,
+          height: drawHeightPt,
+        });
+      }
+    }
+    const pdfBytes = await pdfDoc.save();
+    const arrayBuffer = pdfBytes instanceof Uint8Array
+      ? pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength)
+      : pdfBytes;
+    const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'mtg_cards.pdf';
+    link.click();
+  };
 
 
 

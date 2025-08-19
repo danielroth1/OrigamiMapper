@@ -6,7 +6,7 @@ export namespace OrigamiMapperTypes {
     input_image?: number;
     output_image?: number;
     rotation?: number;
-  rotation_3d?: number; // optional additional rotation to apply during 3D/texture export (radians)
+    rotation_3d?: number; // optional additional rotation to apply during 3D/texture export (radians)
   };
 
   export type TemplateJson = {

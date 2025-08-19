@@ -36,12 +36,12 @@ type TemplateJson = {
 
 function loadJson(data: TemplateJson) {
   const offset = data.offset;
-  const inputPolys = data.input_polygons.map(p => 
+  const inputPolys = data.input_polygons.map(p =>
     new Polygon2D(p.id, p.vertices, p.input_image || 0));
-  
-  const outputPolys = data.output_polygons.map(p => 
+
+  const outputPolys = data.output_polygons.map(p =>
     new Polygon2D(p.id, p.vertices, p.output_image || 0, p.rotation || 0));
-  
+
   return { offset, inputPolys, outputPolys };
 }
 
@@ -61,16 +61,16 @@ function drawPolygons(
 ) {
   ctx.lineWidth = lineWidth;
   ctx.strokeStyle = color;
-  
+
   polygons.forEach(poly => {
     const absPoints = poly.absolute(width, height);
     const offsetPoints = absPoints.map(([x, y]) => [x + offset[0], y + offset[1]]);
-    
+
     // Fill polygon with specified alpha if requested
     if (fill) {
       const fillColor = fill || color.replace('1)', `${fillAlpha})`);
       ctx.fillStyle = fillColor;
-      
+
       ctx.beginPath();
       offsetPoints.forEach(([x, y], i) => {
         if (i === 0) ctx.moveTo(x, y);
@@ -79,7 +79,7 @@ function drawPolygons(
       ctx.closePath();
       ctx.fill();
     }
-    
+
     // Draw outline
     ctx.beginPath();
     offsetPoints.forEach(([x, y], i) => {
@@ -88,14 +88,14 @@ function drawPolygons(
     });
     ctx.closePath();
     ctx.stroke();
-    
+
     // Render the ID at the centroid
     if (showId) {
       const xs = offsetPoints.map(p => p[0]);
       const ys = offsetPoints.map(p => p[1]);
       const centroidX = xs.reduce((a, b) => a + b) / xs.length;
       const centroidY = ys.reduce((a, b) => a + b) / ys.length;
-      
+
       ctx.font = '24px Arial';
       ctx.fillStyle = color;
       ctx.textAlign = 'center';
@@ -121,10 +121,10 @@ class PolygonUtils {
     });
   }
 
-  static triangulatePolygon(vertices: [number, number][]): [ [number, number] , [number, number], [number, number] ][] {
+  static triangulatePolygon(vertices: [number, number][]): [[number, number], [number, number], [number, number]][] {
     if (vertices.length < 3) return [];
-    if (vertices.length === 3) return [vertices as [ [number, number], [number, number], [number, number] ]];
-    const triangles: [ [number, number], [number, number], [number, number] ][] = [];
+    if (vertices.length === 3) return [vertices as [[number, number], [number, number], [number, number]]];
+    const triangles: [[number, number], [number, number], [number, number]][] = [];
     for (let i = 1; i < vertices.length - 1; i++) {
       triangles.push([vertices[0], vertices[i], vertices[i + 1]]);
     }
@@ -155,106 +155,106 @@ class PolygonUtils {
 
 // Map pixels from source polygon to destination polygon
 interface CanvasLike {
-    width: number;
-    height: number;
-    getContext(contextId: '2d'): CanvasRenderingContext2D | null;
-    toDataURL(type?: string, quality?: any): string;
+  width: number;
+  height: number;
+  getContext(contextId: '2d'): CanvasRenderingContext2D | null;
+  toDataURL(type?: string, quality?: any): string;
 }
 
 interface PolygonLike {
-    id: string;
-    vertices: [number, number][];
-    imageIdx: number;
-    rotation: number;
-    absolute(width: number, height: number): [number, number][];
+  id: string;
+  vertices: [number, number][];
+  imageIdx: number;
+  rotation: number;
+  absolute(width: number, height: number): [number, number][];
 }
 
 function mapPolygonPixels(
-    srcCanvas: CanvasLike,
-    srcPoly: PolygonLike,
-    dstCanvas: CanvasLike,
-    dstPoly: PolygonLike,
-    offset: [number, number] = [0, 0]
+  srcCanvas: CanvasLike,
+  srcPoly: PolygonLike,
+  dstCanvas: CanvasLike,
+  dstPoly: PolygonLike,
+  offset: [number, number] = [0, 0]
 ): CanvasLike {
-    const srcW = srcCanvas.width;
-    const srcH = srcCanvas.height;
-    const dstW = dstCanvas.width;
-    const dstH = dstCanvas.height;
-    
-    const offsetX = Math.round(offset[0] * srcW);
-    const offsetY = Math.round(offset[1] * srcH);
-    
-    const srcAbs = srcPoly.absolute(srcW, srcH).map(([x, y]) => [x + offsetX, y + offsetY]) as [number, number][];
-    const dstAbs = dstPoly.absolute(dstW, dstH) as [number, number][];
-    
-    if (srcAbs.length < 3 || dstAbs.length < 3) return dstCanvas;
-    
-    const srcCtx = srcCanvas.getContext('2d');
-    const dstCtx = dstCanvas.getContext('2d');
-    if (!srcCtx || !dstCtx) return dstCanvas;
-    const srcImageData = srcCtx.getImageData(0, 0, srcW, srcH);
-    const dstImageData = dstCtx.getImageData(0, 0, dstW, dstH);
-    
-    const srcTris = PolygonUtils.triangulatePolygon(srcAbs);
-    const dstTris = PolygonUtils.triangulatePolygon(dstAbs);
-    
-    for (let i = 0; i < srcTris.length && i < dstTris.length; i++) {
-        const srcTri = srcTris[i];
-        const dstTri = dstTris[i];
-        // Precompute triangle bounding box and rotation
-        const dstXs = [dstTri[0][0], dstTri[1][0], dstTri[2][0]];
-        const dstYs = [dstTri[0][1], dstTri[1][1], dstTri[2][1]];
-        const minX = Math.max(0, Math.floor(Math.min(dstXs[0], dstXs[1], dstXs[2])));
-        const maxX = Math.min(dstW - 1, Math.ceil(Math.max(dstXs[0], dstXs[1], dstXs[2])));
-        const minY = Math.max(0, Math.floor(Math.min(dstYs[0], dstYs[1], dstYs[2])));
-        const maxY = Math.min(dstH - 1, Math.ceil(Math.max(dstYs[0], dstYs[1], dstYs[2])));
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        let angleRad = 0, cosA = 1, sinA = 0;
-        if (dstPoly.rotation) {
-            angleRad = -dstPoly.rotation * Math.PI / 180;
-            cosA = Math.cos(angleRad);
-            sinA = Math.sin(angleRad);
-        }
-        // Precompute barycentric matrix
-        const A00 = dstTri[0][0] - dstTri[2][0], A01 = dstTri[1][0] - dstTri[2][0];
-        const A10 = dstTri[0][1] - dstTri[2][1], A11 = dstTri[1][1] - dstTri[2][1];
-        const detA = A00 * A11 - A01 * A10;
-        if (Math.abs(detA) < 0.0001) continue;
-        const invA00 = A11 / detA, invA01 = -A01 / detA;
-        const invA10 = -A10 / detA, invA11 = A00 / detA;
-        // For each pixel in the bounding box
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                let xRot = x, yRot = y;
-                if (dstPoly.rotation) {
-                    const xShifted = x - cx, yShifted = y - cy;
-                    xRot = cosA * xShifted - sinA * yShifted + cx;
-                    yRot = sinA * xShifted + cosA * yShifted + cy;
-                }
-                // Fast point-in-triangle test using barycentric coordinates
-                const bx = xRot - dstTri[2][0], by = yRot - dstTri[2][1];
-                const lambda1 = invA00 * bx + invA01 * by;
-                const lambda2 = invA10 * bx + invA11 * by;
-                const lambda3 = 1 - lambda1 - lambda2;
-                if (lambda1 < 0 || lambda1 > 1 || lambda2 < 0 || lambda2 > 1 || lambda3 < 0 || lambda3 > 1) continue;
-                // Map to source coordinates
-                const srcX = lambda1 * srcTri[0][0] + lambda2 * srcTri[1][0] + lambda3 * srcTri[2][0];
-                const srcY = lambda1 * srcTri[0][1] + lambda2 * srcTri[1][1] + lambda3 * srcTri[2][1];
-                const srcXInt = Math.round(Math.max(0, Math.min(srcW - 1, srcX)));
-                const srcYInt = Math.round(Math.max(0, Math.min(srcH - 1, srcY)));
-                const srcIdx = (srcYInt * srcW + srcXInt) * 4;
-                const dstIdx = (y * dstW + x) * 4;
-                dstImageData.data[dstIdx] = srcImageData.data[srcIdx];
-                dstImageData.data[dstIdx + 1] = srcImageData.data[srcIdx + 1];
-                dstImageData.data[dstIdx + 2] = srcImageData.data[srcIdx + 2];
-                dstImageData.data[dstIdx + 3] = srcImageData.data[srcIdx + 3];
-            }
-        }
+  const srcW = srcCanvas.width;
+  const srcH = srcCanvas.height;
+  const dstW = dstCanvas.width;
+  const dstH = dstCanvas.height;
+
+  const offsetX = Math.round(offset[0] * srcW);
+  const offsetY = Math.round(offset[1] * srcH);
+
+  const srcAbs = srcPoly.absolute(srcW, srcH).map(([x, y]) => [x + offsetX, y + offsetY]) as [number, number][];
+  const dstAbs = dstPoly.absolute(dstW, dstH) as [number, number][];
+
+  if (srcAbs.length < 3 || dstAbs.length < 3) return dstCanvas;
+
+  const srcCtx = srcCanvas.getContext('2d');
+  const dstCtx = dstCanvas.getContext('2d');
+  if (!srcCtx || !dstCtx) return dstCanvas;
+  const srcImageData = srcCtx.getImageData(0, 0, srcW, srcH);
+  const dstImageData = dstCtx.getImageData(0, 0, dstW, dstH);
+
+  const srcTris = PolygonUtils.triangulatePolygon(srcAbs);
+  const dstTris = PolygonUtils.triangulatePolygon(dstAbs);
+
+  for (let i = 0; i < srcTris.length && i < dstTris.length; i++) {
+    const srcTri = srcTris[i];
+    const dstTri = dstTris[i];
+    // Precompute triangle bounding box and rotation
+    const dstXs = [dstTri[0][0], dstTri[1][0], dstTri[2][0]];
+    const dstYs = [dstTri[0][1], dstTri[1][1], dstTri[2][1]];
+    const minX = Math.max(0, Math.floor(Math.min(dstXs[0], dstXs[1], dstXs[2])));
+    const maxX = Math.min(dstW - 1, Math.ceil(Math.max(dstXs[0], dstXs[1], dstXs[2])));
+    const minY = Math.max(0, Math.floor(Math.min(dstYs[0], dstYs[1], dstYs[2])));
+    const maxY = Math.min(dstH - 1, Math.ceil(Math.max(dstYs[0], dstYs[1], dstYs[2])));
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    let angleRad = 0, cosA = 1, sinA = 0;
+    if (dstPoly.rotation) {
+      angleRad = -dstPoly.rotation * Math.PI / 180;
+      cosA = Math.cos(angleRad);
+      sinA = Math.sin(angleRad);
     }
-    
-    dstCtx.putImageData(dstImageData, 0, 0);
-    return dstCanvas;
+    // Precompute barycentric matrix
+    const A00 = dstTri[0][0] - dstTri[2][0], A01 = dstTri[1][0] - dstTri[2][0];
+    const A10 = dstTri[0][1] - dstTri[2][1], A11 = dstTri[1][1] - dstTri[2][1];
+    const detA = A00 * A11 - A01 * A10;
+    if (Math.abs(detA) < 0.0001) continue;
+    const invA00 = A11 / detA, invA01 = -A01 / detA;
+    const invA10 = -A10 / detA, invA11 = A00 / detA;
+    // For each pixel in the bounding box
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        let xRot = x, yRot = y;
+        if (dstPoly.rotation) {
+          const xShifted = x - cx, yShifted = y - cy;
+          xRot = cosA * xShifted - sinA * yShifted + cx;
+          yRot = sinA * xShifted + cosA * yShifted + cy;
+        }
+        // Fast point-in-triangle test using barycentric coordinates
+        const bx = xRot - dstTri[2][0], by = yRot - dstTri[2][1];
+        const lambda1 = invA00 * bx + invA01 * by;
+        const lambda2 = invA10 * bx + invA11 * by;
+        const lambda3 = 1 - lambda1 - lambda2;
+        if (lambda1 < 0 || lambda1 > 1 || lambda2 < 0 || lambda2 > 1 || lambda3 < 0 || lambda3 > 1) continue;
+        // Map to source coordinates
+        const srcX = lambda1 * srcTri[0][0] + lambda2 * srcTri[1][0] + lambda3 * srcTri[2][0];
+        const srcY = lambda1 * srcTri[0][1] + lambda2 * srcTri[1][1] + lambda3 * srcTri[2][1];
+        const srcXInt = Math.round(Math.max(0, Math.min(srcW - 1, srcX)));
+        const srcYInt = Math.round(Math.max(0, Math.min(srcH - 1, srcY)));
+        const srcIdx = (srcYInt * srcW + srcXInt) * 4;
+        const dstIdx = (y * dstW + x) * 4;
+        dstImageData.data[dstIdx] = srcImageData.data[srcIdx];
+        dstImageData.data[dstIdx + 1] = srcImageData.data[srcIdx + 1];
+        dstImageData.data[dstIdx + 2] = srcImageData.data[srcIdx + 2];
+        dstImageData.data[dstIdx + 3] = srcImageData.data[srcIdx + 3];
+      }
+    }
+  }
+
+  dstCtx.putImageData(dstImageData, 0, 0);
+  return dstCanvas;
 }
 
 // Main function to run the mapping
@@ -281,9 +281,9 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     canvas.height = img.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-  // draw at native size (no resampling), but disable smoothing to be safe
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0); // original pixels only
+    // draw at native size (no resampling), but disable smoothing to be safe
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0); // original pixels only
     return canvas;
   }).filter((c): c is HTMLCanvasElement => c !== null);
 
@@ -301,9 +301,9 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     canvas.height = base.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return {};
-  // keep intermediate debug canvas pixel-exact
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(base, 0, 0);
+    // keep intermediate debug canvas pixel-exact
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(base, 0, 0);
 
     const color = idx === 0 ? 'rgba(255,0,0,1)' : 'rgba(0,0,255,1)';
     const fillColor = idx === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';
