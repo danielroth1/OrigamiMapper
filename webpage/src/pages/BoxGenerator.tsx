@@ -21,6 +21,7 @@ function BoxGenerator() {
   const [, setTemplate] = useState('Box');
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
+  const [outputDpi, setOutputDpi] = useState<number>(300);
   const [scalePercent, setScalePercent] = useState(0); // percent, can be negative
   const [loading, setLoading] = useState(false);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
@@ -195,7 +196,7 @@ function BoxGenerator() {
         ...(insideJson.output_polygons ?? [])
       ]
     };
-    const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson));
+    const dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson), outputDpi);
     setResults(dict);
     setLoading(false);
     return dict;
@@ -320,23 +321,34 @@ function BoxGenerator() {
               </div>
             </section>
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1em', width: '100%', justifyContent: 'center' }}>
-                <span style={{ color: '#fff' }}></span>
-                <TemplateSelect onTemplate={setTemplate} />
-                <span style={{ color: '#fff' }}>Transform:</span>
-                <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
-                  <option value="none">None</option>
-                  <option value="scale">Scale</option>
-                  <option value="tile">Tile (Fill A4)</option>
-                  <option value="tile4">Tile 4x (2x2)</option>
-                  <option value="tile8">Tile 8x (4x2)</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'center', justifyItems: 'center' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TemplateSelect onTemplate={setTemplate} />
+                </div>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5em' }}>
+                  <span style={{ color: '#fff' }}>Transform:</span>
+                  <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                    <option value="none">None</option>
+                    <option value="scale">Scale</option>
+                    <option value="tile">Tile (Fill A4)</option>
+                    <option value="tile4">Tile 4x (2x2)</option>
+                    <option value="tile8">Tile 8x (4x2)</option>
+                  </select>
+                </div>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5em' }}>
+                  <span style={{ color: '#fff' }}>Output DPI:</span>
+                  <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
+                    <option value={200}>200</option>
+                    <option value={300}>300</option>
+                    <option value={600}>600</option>
+                  </select>
+                </div>
+                {/* buttons moved below grid */}
               </div>
-              <div style={{ display: 'flex', gap: '1em', justifyContent: 'center' }}>
+              <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center' }}>
                 <button onClick={handleRun} disabled={loading} className="menu-btn">
                   {loading ? 'Processing...' : 'Run Mapping'}
                 </button>
-                {/* Map To 3D Box button removed: CubeViewer updates automatically when editors or images change */}
                 <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed} className="menu-btn">
                   Download
                 </button>

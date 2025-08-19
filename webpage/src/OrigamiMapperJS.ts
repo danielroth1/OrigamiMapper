@@ -1,5 +1,5 @@
 // Constants
-const A4_SIZE_PX = [1654, 2339]; // 210x297mm at 200 DPI
+// A4 pixel sizes are selected dynamically based on requested DPI below.
 
 // Class to represent a 2D polygon
 class Polygon2D {
@@ -258,7 +258,8 @@ function mapPolygonPixels(
 }
 
 // Main function to run the mapping
-export async function runMappingJS(outsideImageData: string, insideImageData: string, templateJsonData: string): Promise<{ [key: string]: string }> {
+export async function runMappingJS(outsideImageData: string, insideImageData: string, templateJsonData: string, dpi: number = 300): Promise<{ [key: string]: string }> {
+  // dpi: number (200, 300, 600). Default 300 for backward compatibility.
   const template = JSON.parse(templateJsonData);
   const { offset, inputPolys, outputPolys } = loadJson(template);
 
@@ -280,7 +281,9 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     canvas.height = img.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0); // original pixels only
+  // draw at native size (no resampling), but disable smoothing to be safe
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0); // original pixels only
     return canvas;
   }).filter((c): c is HTMLCanvasElement => c !== null);
 
@@ -298,7 +301,9 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     canvas.height = base.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return {};
-    ctx.drawImage(base, 0, 0);
+  // keep intermediate debug canvas pixel-exact
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(base, 0, 0);
 
     const color = idx === 0 ? 'rgba(255,0,0,1)' : 'rgba(0,0,255,1)';
     const fillColor = idx === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';
@@ -317,16 +322,23 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     intermCanvases.push(canvas);
   }
 
-  // Output canvases per "page" (match their respective source image sizes)
-  const outputCanvases: HTMLCanvasElement[] = [0, 1].map(i => {
-    const src = inputCanvases[i];
+  // Determine A4 pixel size based on requested DPI to allow user control over output resolution
+  let a4Pixels: [number, number];
+  if (dpi === 200) a4Pixels = [1654, 2339];
+  else if (dpi === 600) a4Pixels = [4961, 7016];
+  else /* default 300 */ a4Pixels = [2480, 3508];
+  const [A4_W, A4_H] = a4Pixels;
+  const outputCanvases: HTMLCanvasElement[] = [0, 1].map(() => {
     const c = document.createElement('canvas');
-    c.width = src.width;
-    c.height = src.height;
+    c.width = A4_W;
+    c.height = A4_H;
     const ctx = c.getContext('2d');
     if (ctx) {
+      // start with a white background for printable pages
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, c.width, c.height);
+      // Ensure rendering to these canvases doesn't do smoothing that'd blur sharp edges
+      ctx.imageSmoothingEnabled = false;
     }
     return c;
   });
@@ -345,25 +357,8 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);
   });
 
-  // Helper: scale a canvas to A4 (stretch independently in X/Y to exactly fill A4, no translation)
-  const [A4_W, A4_H] = A4_SIZE_PX; // already defined at top (200 DPI)
-  function toA4(canvas: HTMLCanvasElement): HTMLCanvasElement {
-    if (canvas.width === A4_W && canvas.height === A4_H) return canvas;
-    const a4 = document.createElement('canvas');
-    a4.width = A4_W;
-    a4.height = A4_H;
-    const ctx = a4.getContext('2d');
-    if (!ctx) return canvas; // fallback: original
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, A4_W, A4_H);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    // Non-uniform stretch: map full source to full A4, top-left aligned (no translation)
-    ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, A4_W, A4_H);
-    return a4;
-  }
-
-  const outputCanvasesA4 = outputCanvases.map(c => toA4(c));
+  // Output canvases are already A4, so no additional scaling step is required.
+  const outputCanvasesA4 = outputCanvases;
 
   return {
     output_page1: outputCanvasesA4[0].toDataURL('image/png'),
