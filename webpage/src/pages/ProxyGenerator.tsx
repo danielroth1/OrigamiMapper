@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater } from 'react-icons/io5';
 import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
@@ -141,6 +141,72 @@ const ProxyGenerator: React.FC = () => {
 
   const frame = useMemo(() => frameDefs[cardColor] || blackFrame, [cardColor]);
   const cardRef = useRef<HTMLDivElement>(null);
+  // Export the currently shown card as a single PNG
+  const handleExportSinglePNG = async () => {
+    const tempDiv = document.createElement('div');
+    const targetDPI = 300;
+    const scale = targetDPI / 96;
+    const designCssWidth = 300;
+    const designCssHeight = 420;
+
+    tempDiv.style.width = `${designCssWidth}px`;
+    tempDiv.style.height = `${designCssHeight}px`;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.padding = '0';
+    tempDiv.style.margin = '0';
+    tempDiv.style.boxSizing = 'border-box';
+    tempDiv.style.overflow = 'hidden';
+    tempDiv.style.display = 'block';
+    tempDiv.style.backgroundColor = 'white';
+    tempDiv.id = 'export-temp';
+
+    const resetStyle = document.createElement('style');
+    resetStyle.textContent = `
+      #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+      #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
+      #export-temp img { max-width: 100% !important; max-height: 100% !important; object-fit: contain !important; display: block !important; }
+    `;
+    tempDiv.appendChild(resetStyle);
+    document.body.appendChild(tempDiv);
+
+    const { createRoot } = await import('react-dom/client');
+    const root = createRoot(tempDiv);
+    root.render(
+      <CardPreview
+        cardData={cardData}
+        frame={frame}
+        manaSelects={manaSelects}
+        manaIcons={manaIcons}
+        template={templateType}
+      />
+    );
+
+    await new Promise(resolve => setTimeout(resolve, 220));
+
+    const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
+    const rect = element.getBoundingClientRect();
+    const canvas = await html2canvas(element, {
+      backgroundColor: null,
+      scale,
+      logging: false,
+      useCORS: true,
+      allowTaint: false,
+      width: Math.ceil(rect.width),
+      height: Math.ceil(rect.height),
+      windowWidth: Math.ceil(rect.width),
+      windowHeight: Math.ceil(rect.height),
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `${cardData.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    link.click();
+
+    root.unmount();
+    document.body.removeChild(tempDiv);
+  };
 const handleExportAllPDF = async () => {
   if (savedCards.length === 0) return;
 
@@ -159,8 +225,8 @@ const handleExportAllPDF = async () => {
   const cardsPerRow = 3;
   const cardsPerCol = 3;
 
-  // No gap between cards
-  const cardGapMm = 0;
+  // Small gap between cards to avoid overlapping borders when rendering to PDF
+  const cardGapMm = 0.0; // mm
   // Grid size (no outer margin)
   const gridWidthMm = cardsPerRow * cardMmWidth + (cardsPerRow - 1) * cardGapMm;
   const gridHeightMm = cardsPerCol * cardMmHeight + (cardsPerCol - 1) * cardGapMm;
@@ -173,12 +239,36 @@ const handleExportAllPDF = async () => {
   const pngs = [];
   for (let i = 0; i < savedCards.length; i++) {
     const tempDiv = document.createElement('div');
-    // Größe in Pixeln für 300 DPI (63.5mm × 300DPI × (1/25.4) ≈ 754px)
-    tempDiv.style.width = '754px';
-    tempDiv.style.height = '1045px';
+  // Target rendering DPI for the generated PNGs (higher = crisper print)
+    const targetDPI = 300;
+    const scale = targetDPI / 96; // html2canvas scale factor relative to CSS px
+    // Render the CardPreview at its native design CSS size so internal px-based layout scales correctly
+    // PTGStyle uses width: 300px and height: 420px as its base design
+    const designCssWidth = 300;
+    const designCssHeight = 420;
+    tempDiv.style.width = `${designCssWidth}px`;
+    tempDiv.style.height = `${designCssHeight}px`;
+    // Ensure no extra margins/padding from child components and force full size
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-9999px';
+    tempDiv.style.padding = '0';
+    tempDiv.style.margin = '0';
+    tempDiv.style.boxSizing = 'border-box';
+    tempDiv.style.overflow = 'hidden';
+    tempDiv.style.display = 'block';
     tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
+    // Reset all child element margins/padding to avoid unexpected top/bottom gaps
+    // Use an id so we can override inline styles with !important when rendering for export
+    tempDiv.id = 'export-temp';
+    const resetStyle = document.createElement('style');
+    resetStyle.textContent = `
+      #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+      /* Remove top margin on the CardPreview root but don't override its inline width/height */
+      #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
+      /* Ensure art area images fit inside their container without overflow */
+      #export-temp img { max-width: 100% !important; max-height: 100% !important; object-fit: contain !important; display: block !important; }
+    `;
+    tempDiv.appendChild(resetStyle);
     document.body.appendChild(tempDiv);
 
     const frame = frameDefs[savedCards[i].color] || blackFrame;
@@ -195,14 +285,22 @@ const handleExportAllPDF = async () => {
     );
 
     // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 120));
 
-    // html2canvas mit korrekter Größe und ohne Skalierung
-    const canvas = await html2canvas(tempDiv, {
+    // Render the actual card element (first child) and measure it to avoid clipping
+    const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
+    const rect = element.getBoundingClientRect();
+    // html2canvas: render at a higher pixel density (scale) so the PNG has enough resolution
+    const canvas = await html2canvas(element, {
       backgroundColor: null,
-      scale: 1, // Keine Skalierung, da die Div-Größe bereits korrekt ist
+      scale, // scale up from CSS px to target DPI
       logging: false,
       useCORS: true,
+      allowTaint: false,
+      width: Math.ceil(rect.width),
+      height: Math.ceil(rect.height),
+      windowWidth: Math.ceil(rect.width),
+      windowHeight: Math.ceil(rect.height),
     });
 
     pngs.push(canvas.toDataURL('image/png'));
@@ -220,11 +318,28 @@ const handleExportAllPDF = async () => {
       const xMm = offsetXmm + col * cardMmWidth;
       const yMm = DIN_A4_HEIGHT_MM - (offsetYmm + (row + 1) * cardMmHeight);
       const pngImage = await pdfDoc.embedPng(cardsOnPage[j]);
-      page.drawImage(pngImage, {
-        x: mmToPt(xMm),
-        y: mmToPt(yMm),
+  // PNGs were rendered to the card element size, so draw them to fill the card area exactly
+  const cardXPt = mmToPt(xMm);
+  const cardYPt = mmToPt(yMm);
+  const drawWidthPt = mmToPt(cardMmWidth);
+  const drawHeightPt = mmToPt(cardMmHeight);
+  const offsetXPt = 0;
+  const offsetYPt = 0;
+
+      // Draw opaque background for the card to avoid overlap with adjacent cards
+      page.drawRectangle({
+        x: cardXPt,
+        y: cardYPt,
         width: mmToPt(cardMmWidth),
         height: mmToPt(cardMmHeight),
+        color: rgb(1, 1, 1),
+      });
+
+      page.drawImage(pngImage, {
+        x: cardXPt + offsetXPt,
+        y: cardYPt + offsetYPt,
+        width: drawWidthPt,
+        height: drawHeightPt,
       });
     }
   }
@@ -264,6 +379,7 @@ const handleExportAllPDF = async () => {
           <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
             <button
               type="button"
+              onClick={handleExportSinglePNG}
               style={{
                 padding: '0.6em 1.2em',
                 background: '#222',

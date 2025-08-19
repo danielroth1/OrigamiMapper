@@ -16,7 +16,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
   <div
     ref={ref}
     style={{
-      margin: '2em auto',
+      margin: '0 auto',
       width: '300px',
       height: '420px',
       background: frame.cardFrame,
