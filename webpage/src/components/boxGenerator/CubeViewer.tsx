@@ -20,7 +20,7 @@ interface CubeViewerProps {
 // There are different mappings for outside vs inside so Hi/Vi can be placed independently.
 // Slots (groups) after removing top: 0:+X (R), 1:-X (L), 2:-Y (U bottom), 3:+Z (front), 4:-Z (back)
 const OUTSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','V','H']; // outside: place H on front, V on back
-const INSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','H','V'];  // inside: original ordering (V front, H back)
+const INSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','V','H'];  // inside: original ordering (V front, H back)
 
 function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseColor: number, slotOrder: FaceKey[] = OUTSIDE_SLOT_ORDER): THREE.Material[] {
   return slotOrder.map(key => {
@@ -28,7 +28,18 @@ function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseC
     if (dataUrl) {
       const tex = new THREE.Texture();
       const img = new Image();
-      img.onload = () => { tex.image = img; tex.needsUpdate = true; };
+      img.onload = () => {
+        tex.image = img;
+        // If this material is used for the inside (BackSide), flip horizontally so the
+        // texture appears correctly when viewed from inside the box. We flip by
+        // setting repeat.x = -1 and using RepeatWrapping with center at 0.5.
+        if (side === THREE.BackSide) {
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.center.set(0.5, 0.5);
+          tex.repeat.x = -1;
+        }
+        tex.needsUpdate = true;
+      };
       img.src = dataUrl;
       tex.colorSpace = THREE.SRGBColorSpace;
       return new THREE.MeshStandardMaterial({ map: tex, side, roughness: 0.6, metalness: 0.05 });

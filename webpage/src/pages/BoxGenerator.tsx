@@ -8,7 +8,7 @@ import TemplateSelect from '../components/boxGenerator/TemplateSelect';
 import { runMappingJS } from '../OrigamiMapperJS';
 import { ImageTransform } from '../components/ImageTransform';
 import PolygonEditor, { type PolygonEditorHandle } from '../components/boxGenerator/PolygonEditor';
-import boxData from '../../public/templates/box.json';
+import boxData from '../templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
 
