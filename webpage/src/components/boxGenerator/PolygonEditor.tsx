@@ -287,7 +287,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           state.startX = x; state.startY = y; // reset deltas to avoid jump
           state.lastX = x; state.lastY = y;
           state.bboxCenter = center;
-          state.initialAngle = Math.atan2(y - center.y, x - center.y);
+          // Correct atan2 usage: atan2(deltaY, deltaX) and use center.x (not center.y) for X component
+          state.initialAngle = Math.atan2(y - center.y, x - center.x);
           state.rotationAccum = 0;
           state.originalRotations = new Map(polygonsRef.current.map(p => [p.id, p.rotation || 0]));
         }
@@ -406,14 +407,33 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           if (changed) {
             pushHistory(before);
           }
-          // Persist rotation metadata if rotate occurred
-          if (state.mode === 'rotate' && state.rotationAccum && Math.abs(state.rotationAccum) > 1e-6) {
-            const rotDelta = state.rotationAccum;
-            const updated = polygonsRef.current.map(p => selectedIdsRef.current.has(p.id)
-              ? { ...p, rotation: ((state.originalRotations?.get(p.id) || 0) + rotDelta) }
-              : p);
-            finalPolygons = updated;
-            setPolygons(updated);
+          // Issue is that quick mouse movements somehow caused rotation indices being different than state.rotationAccum.
+          // Persist and reconcile rotation metadata if rotate occurred.
+          // Compute exact per-polygon rotation delta by comparing a representative vertex's angle
+          // before/after around the rotation center and set Polygon.rotation accordingly.
+          if (state.mode === 'rotate') {
+            const center = state.bboxCenter;
+            const origMap = new Map(state.originalPolygons.map(p => [p.id, p]));
+            const reconciled = polygonsRef.current.map(p => {
+              if (!selectedIdsRef.current.has(p.id)) return p;
+              const orig = origMap.get(p.id);
+              if (!orig || !orig.vertices.length || !p.vertices.length) return p;
+              // Use first vertex as representative for angle calculation (consistent with how rotation was applied)
+              const ox = orig.vertices[0][0] * width;
+              const oy = orig.vertices[0][1] * height;
+              const nx = p.vertices[0][0] * width;
+              const ny = p.vertices[0][1] * height;
+              const angBefore = Math.atan2(oy - center.y, ox - center.x);
+              const angAfter = Math.atan2(ny - center.y, nx - center.x);
+              let delta = angAfter - angBefore;
+              if (delta > Math.PI) delta -= 2 * Math.PI;
+              else if (delta < -Math.PI) delta += 2 * Math.PI;
+              const baseRot = state.originalRotations?.get(p.id) ?? (orig.rotation || 0);
+              const newRot = baseRot + delta;
+              return { ...p, rotation: newRot };
+            });
+            finalPolygons = reconciled;
+            setPolygons(reconciled);
           }
           // If it was just a click inside existing selection without movement, unselect (toggle off)
           if (state.pendingClickInsideSelection) {
