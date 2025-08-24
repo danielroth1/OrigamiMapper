@@ -97,7 +97,43 @@ function BoxGenerator() {
         });
         ctx.closePath();
         ctx.clip();
-        ctx.drawImage(img, 0, 0);
+        // Tile the source image across the polygon's bounding box so texture repeats when polygons
+        // reference coordinates outside the 0..1 range.
+        try {
+          const startX = Math.floor(rminX / img.width) * img.width;
+          const startY = Math.floor(rminY / img.height) * img.height;
+          for (let tx = startX; tx <= rmaxX; tx += img.width) {
+            for (let ty = startY; ty <= rmaxY; ty += img.height) {
+              // Determine tile indices relative to start
+              const ix = Math.round((tx - 0) / img.width);
+              const iy = Math.round((ty - 0) / img.height);
+              const flipH = (ix % 2) !== 0; // flip horizontally on odd columns
+              const flipV = (iy % 2) !== 0; // flip vertically on odd rows
+              ctx.save();
+              try {
+                // Move to tile origin. If flipping, adjust origin so drawImage still covers correct area.
+                const drawX = tx;
+                const drawY = ty;
+                if (flipH || flipV) {
+                  const transX = drawX + (flipH ? img.width : 0);
+                  const transY = drawY + (flipV ? img.height : 0);
+                  ctx.translate(transX, transY);
+                  ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+                  ctx.drawImage(img, 0, 0);
+                } else {
+                  ctx.drawImage(img, drawX, drawY);
+                }
+              } catch (err) {
+                // fallback to simple draw
+                try { ctx.drawImage(img, tx, ty); } catch { }
+              }
+              ctx.restore();
+            }
+          }
+        } catch (err) {
+          // Fallback: draw single image at origin
+          try { ctx.drawImage(img, 0, 0); } catch { }
+        }
         ctx.restore();
       });
       ctx.restore();
@@ -570,14 +606,9 @@ function BoxGenerator() {
             Ctrl/Cmd+Drag rotate.
             Drag empty area to marquee select.
           </div>
-          {/* Output previews side by side */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
-            <ImagePreview src={results.output_page1} label="Output Page 1" />
-            <ImagePreview src={results.output_page2} label="Output Page 2" />
-          </div>
         </div>
 
-{/* Settings / Export controls / Reference images */}
+        {/* Settings / Export controls / Reference images */}
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
@@ -688,6 +719,12 @@ function BoxGenerator() {
           </div>
         </div>
 
+        {/* Output previews side by side */}
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
+          <ImagePreview src={results.output_page1} label="Output Page 1" />
+          <ImagePreview src={results.output_page2} label="Output Page 2" />
+        </div>
+        
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
         <div>
           <br />

@@ -241,8 +241,21 @@ function mapPolygonPixels(
         // Map to source coordinates
         const srcX = lambda1 * srcTri[0][0] + lambda2 * srcTri[1][0] + lambda3 * srcTri[2][0];
         const srcY = lambda1 * srcTri[0][1] + lambda2 * srcTri[1][1] + lambda3 * srcTri[2][1];
-        const srcXInt = Math.round(Math.max(0, Math.min(srcW - 1, srcX)));
-        const srcYInt = Math.round(Math.max(0, Math.min(srcH - 1, srcY)));
+        // Map source coordinates into the image using mirrored tiling.
+        // This mirrors horizontally/vertically/diagonally for coords outside [0, srcW) / [0, srcH).
+        const mirrorIndex = (coord: number, size: number) => {
+          if (size <= 1) return 0;
+          const period = 2 * size;
+          let t = coord % period;
+          if (t < 0) t += period;
+          // Continuous mirrored coordinate in [0, size]
+          let m = t < size ? t : (2 * size - t);
+          if (m >= size) m = size - 1;
+          return Math.round(m);
+        };
+
+        const srcXInt = mirrorIndex(srcX, srcW);
+        const srcYInt = mirrorIndex(srcY, srcH);
         const srcIdx = (srcYInt * srcW + srcXInt) * 4;
         const dstIdx = (y * dstW + x) * 4;
         dstImageData.data[dstIdx] = srcImageData.data[srcIdx];
@@ -303,7 +316,23 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     if (!ctx) return {};
     // keep intermediate debug canvas pixel-exact
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(base, 0, 0);
+    // Draw the base image plus mirrored adjacent tiles so debug mapping shows repeated/mirrored patterns
+    const bw = base.width;
+    const bh = base.height;
+    for (let ty = -1; ty <= 1; ty++) {
+      for (let tx = -1; tx <= 1; tx++) {
+        const dx = tx * bw;
+        const dy = ty * bh;
+        const flipH = (tx % 2) !== 0;
+        const flipV = (ty % 2) !== 0;
+        ctx.save();
+        // Translate to tile origin; if flipped, translate by size so scaling flips around tile area
+        ctx.translate(dx + (flipH ? bw : 0), dy + (flipV ? bh : 0));
+        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+        ctx.drawImage(base, 0, 0);
+        ctx.restore();
+      }
+    }
 
     const color = idx === 0 ? 'rgba(255,0,0,1)' : 'rgba(0,0,255,1)';
     const fillColor = idx === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';
