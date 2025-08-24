@@ -18,8 +18,11 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
   const openSaveModal = () => {
     // Use loaded deck name with date suffix if available, else default
     const now = new Date();
-  // Use browser locale date string and replace slashes for filename
-  const dateStr = now.toLocaleDateString().replace(/[/\\]/g, '-');
+  // Build date string with dashes to avoid dots
+  const dd = now.getDate();
+  const mm = now.getMonth() + 1;
+  const yyyy = now.getFullYear();
+  const dateStr = `${dd}-${mm}-${yyyy}`;
   const baseName = initialDeckName || 'mtg_proxy_project';
   const defaultName = `${baseName}_${dateStr}`;
     setDeckNameInput(defaultName);
