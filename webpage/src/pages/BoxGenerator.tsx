@@ -26,6 +26,7 @@ function BoxGenerator() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
+  const [withFoldLines, setWithFoldLines] = useState(true);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
   // Change this constant in code to control the initial zoom programmatically
@@ -323,6 +324,60 @@ function BoxGenerator() {
         const y = (PAGE_H - innerH) / 2;
         // Place image stretched to inner box. If innerW/innerH exceed page, image will be cropped.
         doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+        // Optionally overlay fold helper lines (A4 images) scaled to the same inner box
+        if (withFoldLines) {
+          try {
+            // Use project-relative public path. Vite serves public/ at root (BASE_URL)
+            const base = (import.meta as any).env?.BASE_URL || '/';
+            const helperPath = base + 'assets/lines_page' + (i + 1) + '.png';
+            // fetch and convert to dataURL
+            // Note: jsPDF requires data URL or binary image; ensure we have data URL
+            const resp = await fetch(helperPath);
+            if (resp.ok) {
+              const blob = await resp.blob();
+              const helperDataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              // Rotate the helper image 180deg using an offscreen canvas, then add it
+              const imgEl = new Image();
+              imgEl.src = helperDataUrl;
+              await new Promise<void>((resolve) => {
+                imgEl.onload = () => resolve();
+                imgEl.onerror = () => resolve();
+              });
+              try {
+                const cw = imgEl.naturalWidth || imgEl.width || 1;
+                const ch = imgEl.naturalHeight || imgEl.height || 1;
+                const c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                const cx = c.getContext('2d');
+                if (cx) {
+                  // rotate 180deg around center and draw with transparency
+                    cx.translate(cw / 2, ch / 2);
+                    cx.rotate(Math.PI);
+                    cx.globalAlpha = 0.6;
+                    cx.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
+                    cx.globalAlpha = 1;
+                  const rotatedDataUrl = c.toDataURL('image/png');
+                  doc.addImage(rotatedDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+                } else {
+                  // Fallback: insert original if canvas unavailable
+                  doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+                }
+              } catch (err) {
+                // fallback to original
+                doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+              }
+            }
+          } catch (err) {
+            // non-fatal: continue without overlay
+            console.warn('Failed to load fold helper lines:', err);
+          }
+        }
         // update progress after placing this page image
         setPdfProgress(50 + Math.round(((i + 1) / pageIds.length) * 40));
         // yield so progress UI can update before next iteration
@@ -406,13 +461,28 @@ function BoxGenerator() {
                 {/* buttons moved below grid */}
               </div>
               <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '1em' }}>
-                  <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
-                    {loading ? 'Processing...' : 'Run Mapping'}
-                  </button>
-                  <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed || pdfLoading || loading} className="menu-btn">
-                    {pdfLoading ? 'Preparing PDF...' : 'Download'}
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                  <label
+                    title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                    style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={withFoldLines}
+                      onChange={e => setWithFoldLines(e.target.checked)}
+                      title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                      aria-label={"With fold helper lines"}
+                    />
+                    With fold helper lines
+                  </label>
+                  <div style={{ display: 'flex', gap: '1em' }}>
+                    <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
+                      {loading ? 'Processing...' : 'Run Mapping'}
+                    </button>
+                    <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed || pdfLoading || loading} className="menu-btn">
+                      {pdfLoading ? 'Preparing PDF...' : 'Download'}
+                    </button>
+                  </div>
                 </div>
                 {/* simple progress bar shown while PDF is being generated */}
                 {(pdfLoading || pdfProgress > 0) && (
