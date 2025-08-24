@@ -43,6 +43,12 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+  .action-button {
+    font-size: 0.85em;
+    padding: 0.4em 0.8em;
+    background-color: #222;
+    color: #fff;
+  }
 button:hover {
     filter: drop-shadow(0 0 2em #747bff);
 }
@@ -62,4 +68,42 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+/* Custom modal for deck name input */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background-color: #1a1a1a;
+  padding: 1.5em;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  width: 320px;
+  max-width: 90%;
+}
+.modal-header {
+  font-size: 1.25em;
+  margin-bottom: 0.75em;
+  font-weight: 500;
+}
+.modal-body .input-field {
+  width: 100%;
+  padding: 0.6em;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #242424;
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 1em;
+  margin-bottom: 1em;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
 }

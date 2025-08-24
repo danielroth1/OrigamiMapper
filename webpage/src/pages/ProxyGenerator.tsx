@@ -113,6 +113,20 @@ const ProxyGenerator: React.FC = () => {
       return newCards;
     });
   };
+  // Load project configuration from JSON
+  const handleLoadProject = (config: { deckName: string; savedCards: typeof savedCards; currentCardIdx: number | null }) => {
+    if (!config || !Array.isArray(config.savedCards)) return;
+    setSavedCards(config.savedCards);
+    setCurrentCardIdx(config.currentCardIdx);
+    if (config.currentCardIdx !== null && config.savedCards[config.currentCardIdx]) {
+      const card = config.savedCards[config.currentCardIdx];
+      setCardData(card.data);
+      setCardColor(card.color);
+      setTemplateType(card.template);
+      setManaSelects(card.mana);
+    }
+  };
+
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
     R: (color) => <IoFlame style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     U: (color) => <IoWater style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
@@ -366,6 +380,7 @@ const ProxyGenerator: React.FC = () => {
           onLoadCard={(card, idx) => handleLoadCard(card, idx)}
           onExportAllPDF={handleExportAllPDF}
           currentCardIdx={currentCardIdx}
+          onLoadProject={handleLoadProject}
         />
         <div style={{ flex: 1 }}>
           <CardPreview
