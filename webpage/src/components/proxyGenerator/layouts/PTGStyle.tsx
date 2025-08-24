@@ -55,39 +55,34 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       zIndex: 2
     }}>
       <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
-      <span style={{
-        fontFamily: 'monospace',
-        color: frame.manaCostText,
-        background: frame.manaCostBg,
-        borderRadius: frame.manaCostRadius,
-        padding: frame.manaCostPadding,
-        marginLeft: '0.5em'
-      }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', marginLeft: '0.5em', fontFamily: 'monospace', color: frame.manaCostText }}>
         {cardData.manaCost && (
           <span style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '1.0em',
-            height: '1.0em',
+            width: '1.4em',
+            height: '1.4em',
             borderRadius: '50%',
             background: frame.manaCostBg,
             border: `2px solid ${frame.manaCostText}`,
-            fontSize: '1.0em',
+            fontSize: '1.1em',
             fontWeight: 'bold',
             color: frame.manaCostText,
-            marginRight: '0.2em'
+            lineHeight: 1
           }}>{cardData.manaCost}</span>
         )}
-        {manaSelects.map((symbol, i) => {
-          if (!symbol) return null;
-          const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
-          return (
-            <span key={i} style={{ marginLeft: '0.2em' }}>
-              {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
-            </span>
-          );
-        })}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
+          {manaSelects.map((symbol, i) => {
+            if (!symbol) return null;
+            const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
+            return (
+              <span key={i}>
+                {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
+              </span>
+            );
+          })}
+        </span>
       </span>
     </div>
     <div style={{
