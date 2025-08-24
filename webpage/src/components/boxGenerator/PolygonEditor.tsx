@@ -811,8 +811,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         <button
           type="button"
           style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={() => { if (typeof onDelete === 'function') onDelete(); }}
-          title="Delete background image"
+          onClick={() => {
+            if (typeof onDelete !== 'function') return;
+            const ok = window.confirm('Delete image? This cannot be undone.');
+            if (ok) onDelete();
+          }}
+          title="Delete image"
         ><IoTrash style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
           type="button"
