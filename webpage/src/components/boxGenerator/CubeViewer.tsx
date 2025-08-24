@@ -103,8 +103,8 @@ export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=
   <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
   <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
       <TexturedOpenBox outsideFaces={outsideFaces} insideFaces={insideFaces} width={width} height={height} />
-      <OrbitControls enablePan={false} />
-      <Stats />
+  <OrbitControls enablePan={false} />
+  {import.meta.env.DEV && <Stats />}
     </Canvas>
   );
 }
