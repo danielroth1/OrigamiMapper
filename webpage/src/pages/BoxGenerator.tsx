@@ -487,6 +487,97 @@ function BoxGenerator() {
           This tool generates printable templates from your images. <br />
           Perfect for holding a standard deck of 60 cards.
         </div>
+
+        {/* 3D cube preview + 2D Editors */}
+        <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
+          
+          {/* 3d Cube preview */}
+          <div style={{ width: 320, height: 260 }}>
+            {/* framed boundary for the canvas */}
+            <div style={{
+              width: '100%',
+              height: '100%',
+              padding: 8,
+              borderRadius: 10,
+              background: '#0f0f10',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1 }}>
+                  <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} initialZoom={DEFAULT_VIEWER_ZOOM} />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* 2D Editors side by side */}
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+              <PolygonEditor
+                ref={outsideEditorRef}
+                onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                data={{
+                  ...boxData,
+                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                  input_polygons: (boxData.input_polygons ?? [])
+                    .filter(p => !p.id.includes('i'))
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    })),
+                  output_polygons: (boxData.output_polygons ?? [])
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    }))
+                }}
+                label='Outside image'
+                backgroundImg={outsideImgTransformed}
+                onUploadImage={setOutsideImg}
+                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
+              />
+              <PolygonEditor
+                ref={insideEditorRef}
+                onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                data={{
+                  ...boxData,
+                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                  input_polygons: (boxData.input_polygons ?? [])
+                    .filter(p => p.id.includes('i'))
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    })),
+                  output_polygons: (boxData.output_polygons ?? [])
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    }))
+                }}
+                label='Inside image'
+                backgroundImg={insideImgTransformed}
+                onUploadImage={setInsideImg}
+                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
+              />
+          </div>
+          {/* Shared info text below both editors */}
+          <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
+            Drag to move (auto group).
+            Shift+Drag scale.
+            Ctrl/Cmd+Drag rotate.
+            Drag empty area to marquee select.
+          </div>
+          {/* Output previews side by side */}
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
+            <ImagePreview src={results.output_page1} label="Output Page 1" />
+            <ImagePreview src={results.output_page2} label="Output Page 2" />
+          </div>
+        </div>
+
+{/* Settings / Export controls / Reference images */}
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
@@ -596,90 +687,7 @@ function BoxGenerator() {
             <img src="/origami-mapper/assets/box_inside_mapping.png" width={120} />
           </div>
         </div>
-        <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Editors side by side */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-              <PolygonEditor
-                ref={outsideEditorRef}
-                onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                data={{
-                  ...boxData,
-                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                  input_polygons: (boxData.input_polygons ?? [])
-                    .filter(p => !p.id.includes('i'))
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    })),
-                  output_polygons: (boxData.output_polygons ?? [])
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    }))
-                }}
-                label='Outside image'
-                backgroundImg={outsideImgTransformed}
-                onUploadImage={setOutsideImg}
-                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
-              />
-              <PolygonEditor
-                ref={insideEditorRef}
-                onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                data={{
-                  ...boxData,
-                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                  input_polygons: (boxData.input_polygons ?? [])
-                    .filter(p => p.id.includes('i'))
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    })),
-                  output_polygons: (boxData.output_polygons ?? [])
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    }))
-                }}
-                label='Inside image'
-                backgroundImg={insideImgTransformed}
-                onUploadImage={setInsideImg}
-                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
-              />
-          </div>
-          {/* Shared info text below both editors */}
-          <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
-            Drag to move (auto group).
-            Shift+Drag scale.
-            Ctrl/Cmd+Drag rotate.
-            Drag empty area to marquee select.
-          </div>
-          <div style={{ width: 320, height: 260 }}>
-            {/* framed boundary for the canvas */}
-            <div style={{
-              width: '100%',
-              height: '100%',
-              padding: 8,
-              borderRadius: 10,
-              background: '#0f0f10',
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1 }}>
-                  <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} initialZoom={DEFAULT_VIEWER_ZOOM} />
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Output previews side by side */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
-            <ImagePreview src={results.output_page1} label="Output Page 1" />
-            <ImagePreview src={results.output_page2} label="Output Page 2" />
-          </div>
-        </div>
+
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
         <div>
           <br />
