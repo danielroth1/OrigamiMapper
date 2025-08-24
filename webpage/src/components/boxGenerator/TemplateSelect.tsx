@@ -21,12 +21,12 @@ export default function TemplateSelect({ onTemplate }: TemplateSelectProps) {
   }, [selected, onTemplate]);
 
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '1em', margin: 0 }}>
-      <span>Template:</span>
+    <label style={{ display: 'flex', alignItems: 'start', gap: '1em', margin: 0 }}>
+      <span style={{ color: '#fff' }}>Template:</span>
       <select
         value={selected}
         onChange={e => setSelected(e.target.value)}
-        style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px', marginLeft: '1em' }}
+        style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}
       >
         {templates.map(t => (
           <option key={t} value={t}>{displayName(t)}</option>

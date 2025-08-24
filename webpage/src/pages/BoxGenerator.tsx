@@ -27,6 +27,7 @@ function BoxGenerator() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
   const [withFoldLines, setWithFoldLines] = useState(true);
+  const [withCutLines, setWithCutLines] = useState(true);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
   // Change this constant in code to control the initial zoom programmatically
@@ -272,8 +273,8 @@ function BoxGenerator() {
         fetchAsDataUrlIfExists(outsideUrl),
         fetchAsDataUrlIfExists(insideUrl)
       ]);
-      if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
-      if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
+  if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
+  if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
     })();
   }, [outsideImgRaw, insideImgRaw]);
 
@@ -315,7 +316,7 @@ function BoxGenerator() {
           if (i < pageIds.length - 1) doc.addPage();
           continue;
         }
-        const dataUrl = await ensureDataUrl(url);
+  const dataUrl = await ensureDataUrl(url);
         // marginPercent applies to each side (percentage of page width/height)
         const frac = (scalePercent || 0) / 100;
         const innerW = PAGE_W * (1 - 2 * frac);
@@ -378,6 +379,30 @@ function BoxGenerator() {
             console.warn('Failed to load fold helper lines:', err);
           }
         }
+        // Optionally add dotted cut-line outline hugging the image edges
+        if (withCutLines) {
+          try {
+            const DPI = 96;
+            const pxW = Math.max(1, Math.round((innerW / 25.4) * DPI));
+            const pxH = Math.max(1, Math.round((innerH / 25.4) * DPI));
+            const c2 = document.createElement('canvas');
+            c2.width = pxW;
+            c2.height = pxH;
+            const cx2 = c2.getContext('2d');
+            if (cx2) {
+              cx2.clearRect(0, 0, pxW, pxH);
+              cx2.strokeStyle = 'rgba(0,0,0,0.6)';
+              cx2.lineWidth = 1;
+              cx2.setLineDash([2, 2]);
+              const inset = 0.5;
+              cx2.strokeRect(inset, inset, pxW - 1, pxH - 1);
+              const overlayDataUrl = c2.toDataURL('image/png');
+              doc.addImage(overlayDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+            }
+          } catch (err) {
+            console.warn('Failed to draw cut-line overlay:', err);
+          }
+        }
         // update progress after placing this page image
         setPdfProgress(50 + Math.round(((i + 1) / pageIds.length) * 40));
         // yield so progress UI can update before next iteration
@@ -436,11 +461,11 @@ function BoxGenerator() {
               </div>
             </section>
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'center', justifyItems: 'center' }}>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
                   <TemplateSelect onTemplate={setTemplate} />
                 </div>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5em' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Transform:</span>
                   <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
                     <option value="none">None</option>
@@ -450,7 +475,7 @@ function BoxGenerator() {
                     <option value="tile8">Tile 8x (4x2)</option>
                   </select>
                 </div>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5em' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Output DPI:</span>
                   <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
                     <option value={200}>200</option>
@@ -461,20 +486,35 @@ function BoxGenerator() {
                 {/* buttons moved below grid */}
               </div>
               <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                  <label
-                    title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                    style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={withFoldLines}
-                      onChange={e => setWithFoldLines(e.target.checked)}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.25em' }}>
+                    <label
                       title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                      aria-label={"With fold helper lines"}
-                    />
-                    With fold helper lines
-                  </label>
+                      style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={withFoldLines}
+                        onChange={e => setWithFoldLines(e.target.checked)}
+                        title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                        aria-label={"With fold helper lines"}
+                      />
+                      With fold helper lines
+                    </label>
+                    <label
+                      title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
+                      style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={withCutLines}
+                        onChange={e => setWithCutLines(e.target.checked)}
+                        title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
+                        aria-label={"With cut lines"}
+                      />
+                      With cut lines
+                    </label>
+                  </div>
                   <div style={{ display: 'flex', gap: '1em' }}>
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
