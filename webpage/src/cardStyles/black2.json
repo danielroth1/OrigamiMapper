@@ -1,6 +1,8 @@
   {
     "color": "Black",
     "cardFrame": "#22211c",
+    "innerBorder": "#ede8d6",
+    "outerBorder": "#ede8d6",
     "titleBar": "#444",
     "titleBarText": "#ede8d6",
     "titleBarBorder": "#ede8d6",

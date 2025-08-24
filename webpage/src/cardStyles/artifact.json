@@ -2,6 +2,7 @@
   "color": "Artifact",
   "cardFrame": "#A8A8A8",
   "innerBorder": "#888888",
+  "outerBorder": "#888888",
   "titleBar": "#888888",
   "titleBarText": "#000000",
   "titleBarBorder": "#CCCCCC",

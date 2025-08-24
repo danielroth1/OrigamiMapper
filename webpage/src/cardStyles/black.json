@@ -2,6 +2,7 @@
   "color": "Black2",
   "cardFrame": "linear-gradient(135deg, #1e1e1e 0%, #252526 60%, #2d2d2d 100%)",
   "innerBorder": "#3c3c3c",
+  "outerBorder": "#3c3c3c",
   "titleBar": "#252526",
   "titleBarText": "#d4d4d4",
   "titleBarBorder": "#3c3c3c",

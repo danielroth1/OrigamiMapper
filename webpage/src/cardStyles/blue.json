@@ -1,7 +1,8 @@
   {
     "color": "Blue",
     "cardFrame": "#0cd4f7",
-    "innerBorder": "#0bbfe0",
+  "innerBorder": "#0bbfe0",
+  "outerBorder": "#0bbfe0",
     "titleBar": "#0bbfe0",
     "titleBarText": "#ffffff",
     "titleBarBorder": "#0bbfe0",
