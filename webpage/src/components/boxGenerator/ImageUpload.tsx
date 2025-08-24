@@ -2,9 +2,11 @@
 interface ImageUploadProps {
   label: string;
   onImage: (dataUrl: string) => void;
+  // optional id to apply to the file input element so other UI can trigger it
+  inputId?: string;
 }
 
-export default function ImageUpload({ label, onImage }: ImageUploadProps) {
+export default function ImageUpload({ label, onImage, inputId }: ImageUploadProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -36,7 +38,7 @@ export default function ImageUpload({ label, onImage }: ImageUploadProps) {
   return (
     <label>
       {label}
-      <input type="file" accept="image/*" onChange={handleChange} />
+      <input id={inputId} type="file" accept="image/*" onChange={handleChange} />
     </label>
   );
 }

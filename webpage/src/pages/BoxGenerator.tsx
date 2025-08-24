@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import CubeViewer, { type FaceTextures } from "../components/boxGenerator/CubeViewer";
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
-import ImageUpload from '../components/boxGenerator/ImageUpload';
 import ImagePreview from '../components/boxGenerator/ImagePreview';
 import TemplateSelect from '../components/boxGenerator/TemplateSelect';
 import { runMappingJS } from '../OrigamiMapperJS';
@@ -30,8 +29,11 @@ function BoxGenerator() {
   const [withCutLines, setWithCutLines] = useState(true);
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
+  const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
   // Change this constant in code to control the initial zoom programmatically
   const DEFAULT_VIEWER_ZOOM = 1.0;
+  // 1x1 transparent PNG used as placeholder when one image is missing for mapping
+  const BLANK_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
   // Build face textures from polygons + background images (async: waits for image load)
   const buildFaceTextures = async (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): Promise<FaceTextures> => {
@@ -176,14 +178,6 @@ function BoxGenerator() {
   }, [outsideImgTransformed, insideImgTransformed]);
 
   const handleRun = async (showProgress = false) => {
-    if (!outsideImgTransformed || !insideImgTransformed) {
-      alert('Please upload both images.');
-      return null;
-    }
-    if (!outsideEditorRef.current || !insideEditorRef.current) {
-      alert('Polygon editors not ready.');
-      return null;
-    }
     setLoading(true);
     if (showProgress) {
       // show the shared progress bar while mapping runs
@@ -192,9 +186,26 @@ function BoxGenerator() {
       // yield so progress UI shows before heavy mapping work
       await new Promise(resolve => setTimeout(resolve, 20));
     }
-    // Get JSONs from both editors
-    const outsideJson = outsideEditorRef.current.getCurrentJson();
-    const insideJson = insideEditorRef.current.getCurrentJson();
+    // Helper to produce default json from boxData for missing side
+    const makeDefaultForSide = (isInside: boolean) => ({
+      ...boxData,
+      offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+      input_polygons: (boxData.input_polygons ?? [])
+        .filter(p => isInside ? p.id.includes('i') : !p.id.includes('i'))
+        .map(p => ({
+          ...p,
+          vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+        })),
+      output_polygons: (boxData.output_polygons ?? [])
+        .map(p => ({
+          ...p,
+          vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+        }))
+    });
+
+    // Get JSONs from mounted editors or defaults when editor is not present
+    const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : makeDefaultForSide(false);
+    const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : makeDefaultForSide(true);
     // Combine them: merge input_polygons and output_polygons, keep other fields from outsideJson
     const combinedJson = {
       ...outsideJson,
@@ -212,7 +223,17 @@ function BoxGenerator() {
     let dict;
     let mappingSucceeded = false;
     try {
-      dict = await runMappingJS(outsideImgTransformed, insideImgTransformed, JSON.stringify(combinedJson), outputDpi);
+      // If one side is missing, pass a white canvas image as replacement (do not show on canvas).
+      const makeWhiteDataUrl = () => {
+        const c = document.createElement('canvas');
+        c.width = 800; c.height = 600;
+        const cx = c.getContext('2d');
+        if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, c.width, c.height); }
+        return c.toDataURL('image/png');
+      };
+      const leftImg = outsideImgTransformed || makeWhiteDataUrl();
+      const rightImg = insideImgTransformed || makeWhiteDataUrl();
+      dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi);
       // mapping done
       if (showProgress) {
         // mapping progress stays within 0..50 so PDF generation can continue from 50..100
@@ -246,6 +267,7 @@ function BoxGenerator() {
     // Debug gate: only run when in dev mode or explicit VITE_DEBUG flag
     const isDebug = (import.meta as any).env?.DEV || (import.meta as any).env?.VITE_DEBUG === 'true';
     if (!isDebug) return; // skip in production unless flag set
+    if (suppressAutoDemo) return; // user explicitly deleted images; don't auto-reload them
     // Only attempt if neither image is already set (avoid overriding user uploads)
     if (outsideImgRaw || insideImgRaw) return;
     const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
@@ -295,8 +317,6 @@ function BoxGenerator() {
     try {
       const pageIds = ['output_page1', 'output_page2'];
       const source = resultsOverride ?? results;
-      const hasAny = pageIds.some(id => !!source[id]);
-      if (!hasAny) return;
       setPdfLoading(true);
       // let React render loading state before doing heavy synchronous work
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -312,17 +332,37 @@ function BoxGenerator() {
         setPdfProgress(50 + Math.round((i / pageIds.length) * 40));
         // yield so progress UI can update before potentially heavy work
         await new Promise(resolve => setTimeout(resolve, 20));
-        if (!url) {
-          if (i < pageIds.length - 1) doc.addPage();
-          continue;
-        }
-  const dataUrl = await ensureDataUrl(url);
         // marginPercent applies to each side (percentage of page width/height)
         const frac = (scalePercent || 0) / 100;
         const innerW = PAGE_W * (1 - 2 * frac);
         const innerH = PAGE_H * (1 - 2 * frac);
         const x = (PAGE_W - innerW) / 2;
         const y = (PAGE_H - innerH) / 2;
+        // Try to obtain data URL if page image exists
+        let dataUrl: string | null = null;
+        if (url) {
+          try { dataUrl = await ensureDataUrl(url); } catch (err) { dataUrl = null; }
+        }
+        // If page image missing, create a blank white canvas to insert
+        if (!dataUrl) {
+          try {
+            const c = document.createElement('canvas');
+            // compute px size using 96 DPI as approx for canvas; this is only for raster generation
+            const pxW = Math.max(1, Math.round((innerW / 25.4) * 96));
+            const pxH = Math.max(1, Math.round((innerH / 25.4) * 96));
+            c.width = pxW; c.height = pxH;
+            const cx = c.getContext('2d');
+            if (cx) {
+              cx.fillStyle = '#ffffff';
+              cx.fillRect(0, 0, pxW, pxH);
+              dataUrl = c.toDataURL('image/png');
+            } else {
+              dataUrl = BLANK_PNG;
+            }
+          } catch (err) {
+            dataUrl = BLANK_PNG;
+          }
+        }
         // Place image stretched to inner box. If innerW/innerH exceed page, image will be cropped.
         doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
         // Optionally overlay fold helper lines (A4 images) scaled to the same inner box
@@ -442,7 +482,7 @@ function BoxGenerator() {
       <div className="App">
         {/* Fixed header for all pages */}
         <Header />
-        <div style={{ color: '#fff', margin: '2em auto 0 auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
+        <div style={{ color: '#fff', margin: '2em auto 2em auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
           Build your own Card Deck Box! <br />
           This tool generates printable templates from your images. <br />
           Perfect for holding a standard deck of 60 cards.
@@ -453,13 +493,7 @@ function BoxGenerator() {
             <img src="/origami-mapper/assets/box_outside_mapping.png" width={120} />
           </div>
           <div style={{ flex: '0 1 400px' }}>
-            <section className="upload-card" style={{ background: '#181818', borderRadius: '12px', padding: '1.5em', paddingTop: '0.1em', margin: '1.5em auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006' }}>
-              <h2 style={{ color: '#fff', fontSize: '1.3em', marginBottom: '1em' }}>Upload Images</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-                <ImageUpload label="Upload Outside Image" onImage={setOutsideImg} />
-                <ImageUpload label="Upload Inside Image" onImage={setInsideImg} />
-              </div>
-            </section>
+            {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
                 <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
@@ -541,7 +575,7 @@ function BoxGenerator() {
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
                     </button>
-                    <button onClick={() => handleRunThenDownload()} disabled={!outsideImgTransformed || !insideImgTransformed || pdfLoading || loading} className="menu-btn">
+                    <button onClick={() => handleRunThenDownload()} disabled={pdfLoading || loading} className="menu-btn">
                       {pdfLoading ? 'Preparing PDF...' : 'Download'}
                     </button>
                   </div>
@@ -565,48 +599,52 @@ function BoxGenerator() {
         <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
           {/* Editors side by side */}
           <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-            <PolygonEditor
-              ref={outsideEditorRef}
-              onChange={json => scheduleBuild(json.input_polygons, undefined)}
-              data={{
-                ...boxData,
-                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                input_polygons: (boxData.input_polygons ?? [])
-                  .filter(p => !p.id.includes('i'))
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  })),
-                output_polygons: (boxData.output_polygons ?? [])
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  }))
-              }}
-              label='Outside image mapping'
-              backgroundImg={outsideImgTransformed}
-            />
-            <PolygonEditor
-              ref={insideEditorRef}
-              onChange={json => scheduleBuild(undefined, json.input_polygons)}
-              data={{
-                ...boxData,
-                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                input_polygons: (boxData.input_polygons ?? [])
-                  .filter(p => p.id.includes('i'))
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  })),
-                output_polygons: (boxData.output_polygons ?? [])
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  }))
-              }}
-              label='Inside image mapping'
-              backgroundImg={insideImgTransformed}
-            />
+              <PolygonEditor
+                ref={outsideEditorRef}
+                onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                data={{
+                  ...boxData,
+                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                  input_polygons: (boxData.input_polygons ?? [])
+                    .filter(p => !p.id.includes('i'))
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    })),
+                  output_polygons: (boxData.output_polygons ?? [])
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    }))
+                }}
+                label='Outside image'
+                backgroundImg={outsideImgTransformed}
+                onUploadImage={setOutsideImg}
+                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
+              />
+              <PolygonEditor
+                ref={insideEditorRef}
+                onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                data={{
+                  ...boxData,
+                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                  input_polygons: (boxData.input_polygons ?? [])
+                    .filter(p => p.id.includes('i'))
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    })),
+                  output_polygons: (boxData.output_polygons ?? [])
+                    .map(p => ({
+                      ...p,
+                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                    }))
+                }}
+                label='Inside image'
+                backgroundImg={insideImgTransformed}
+                onUploadImage={setInsideImg}
+                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
+              />
           </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>

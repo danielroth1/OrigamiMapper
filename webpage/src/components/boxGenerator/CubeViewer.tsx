@@ -75,7 +75,8 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
   }, [width, height]);
 
   const outsideMats = useMemo(()=>buildMaterials(outsideFaces, THREE.FrontSide, 0xcccccc, OUTSIDE_SLOT_ORDER), [outsideFaces]);
-  const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, 0x222222, INSIDE_SLOT_ORDER), [insideFaces]);
+  const insideBaseColor = (insideFaces && Object.keys(insideFaces).length > 0) ? 0x222222 : 0xffffff;
+  const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, insideBaseColor, INSIDE_SLOT_ORDER), [insideFaces]);
 
   return (
     <>

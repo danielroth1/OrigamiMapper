@@ -4,7 +4,8 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle } from 'react-icons/io5';
+import ImageUpload from './ImageUpload';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -17,9 +18,13 @@ interface PolygonEditorProps {
   label: string;
   // optional callback invoked when polygons or background image change
   onChange?: (json: OrigamiMapperTypes.TemplateJson) => void;
+  // optional callback invoked when user wants to delete the current background image
+  onDelete?: () => void;
+  // optional callback when user uploads an image from inside this editor
+  onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange, onDelete, onUploadImage }, ref) => {
   // Track Shift key globally
   const shiftPressedRef = useRef(false);
   useEffect(() => {
@@ -476,6 +481,24 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene || !a4PlaneRef.current) return;
+    // If renderer exists, hide or show its DOM element depending on whether a background image is present.
+    if (rendererRef.current && mountRef.current && rendererRef.current.domElement) {
+      try { rendererRef.current.domElement.style.display = backgroundImg ? '' : 'none'; } catch { }
+    }
+    if (!backgroundImg) {
+      // When no background image is present we don't mount the renderer/scene for performance
+      // and to avoid showing an empty canvas. Ensure any previous bg mesh is removed.
+      if (bgImageMeshRef.current) {
+        scene.remove(bgImageMeshRef.current);
+        (bgImageMeshRef.current.material as THREE.Material).dispose();
+        (bgImageMeshRef.current.geometry as THREE.BufferGeometry).dispose();
+        bgImageMeshRef.current = null;
+      }
+  const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
+  mat.map = null;
+  mat.needsUpdate = true;
+      return;
+    }
     if (backgroundImg) {
       const img = new Image();
       img.onload = () => {
@@ -512,23 +535,18 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       bgImageMeshRef.current = null;
     }
 
-    if (!backgroundImg) {
-      const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
-      mat.map = null;
-      mat.needsUpdate = true;
-      return;
-    }
-
     const loader = new THREE.TextureLoader();
-    loader.load(backgroundImg, (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const geom = new THREE.PlaneGeometry(width, height);
-      const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(width / 2, height / 2, -0.5);
-      scene.add(mesh);
-      bgImageMeshRef.current = mesh;
-    });
+    if (backgroundImg) {
+      loader.load(backgroundImg as string, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const geom = new THREE.PlaneGeometry(width, height);
+        const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(width / 2, height / 2, -0.5);
+        scene.add(mesh);
+        bgImageMeshRef.current = mesh;
+      });
+    }
   }, [backgroundImg, width, height]);
 
   // Update polygon meshes/groups and drag controls when polygons change
@@ -732,7 +750,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
   return (
     <div style={{ textAlign: 'center', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
+      {backgroundImg && (
+        <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
+      )}
       <div
         ref={mountRef}
         style={{
@@ -756,7 +776,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             pointerEvents: 'none'
           }} />
         )}
+        {!backgroundImg && (
+          <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
+          </div>
+        )}
       </div>
+      {backgroundImg && (
       <div style={{
         marginTop: '0.5em',
         display: 'flex',
@@ -771,7 +797,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           style={{ display: 'none' }}
           onChange={handleImport}
         />
-        <button
+  <button
           type="button"
           style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
           onClick={() => fileInputRef.current?.click()}
@@ -782,6 +808,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           onClick={handleExport}
           title="Export JSON"
         ><IoDownload style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+        <button
+          type="button"
+          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+          onClick={() => { if (typeof onDelete === 'function') onDelete(); }}
+          title="Delete background image"
+        ><IoTrash style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
           type="button"
           disabled={!canRevert}
@@ -802,7 +834,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           onClick={handleReset}
           title="Reset"
         ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-      </div>
+  </div>
+  )}
     </div>
   );
 });
