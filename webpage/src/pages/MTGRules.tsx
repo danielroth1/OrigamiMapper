@@ -3,7 +3,7 @@ import Header from '../components/Header';
 const MTGRules: React.FC = () => (
   <div className="App">
     <Header />
-    <div style={{
+  <div className="mtg-rules-content" style={{
         maxWidth: '900px',
         margin: '2em auto',
         background: 'linear-gradient(135deg, #232526 0%, #414345 100%)',

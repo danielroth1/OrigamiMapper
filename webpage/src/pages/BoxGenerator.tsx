@@ -521,7 +521,6 @@ function BoxGenerator() {
             <ImagePreview src={results.output_page2} label="Output Page 2" />
           </div>
         </div>
-      </div>
       <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
         <div>
           <br />
@@ -532,6 +531,7 @@ function BoxGenerator() {
           <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
         </div>
       </footer>
+      </div>
     </>
   );
 }
