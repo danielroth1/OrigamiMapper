@@ -22,7 +22,7 @@ function BoxGenerator() {
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [outputDpi, setOutputDpi] = useState<number>(300);
-  const [scalePercent, setScalePercent] = useState(0); // percent, can be negative
+  const [scalePercent, setScalePercent] = useState(0); // percent (0..100+): amount to reduce the printed box on each side
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -515,6 +515,28 @@ function BoxGenerator() {
                       With cut lines
                     </label>
                   </div>
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                    <div
+                      title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                      style={{ color: '#fff', fontSize: '0.9em' }}
+                    >
+                      Scale: {scalePercent}%
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={30}
+                      value={scalePercent}
+                      onChange={e => {
+                        // prevent negative values: clamp to 0 or above
+                        const v = Math.max(0, Number(e.target.value));
+                        setScalePercent(v);
+                      }}
+                      title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                      aria-label={"Reduce the box size by percentage"}
+                      style={{ width: '85%' }}
+                    />
+                  </div>
                   <div style={{ display: 'flex', gap: '1em' }}>
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
@@ -532,17 +554,6 @@ function BoxGenerator() {
                     </div>
                   </div>
                 )}
-              </div>
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                <div style={{ color: '#fff', fontSize: '0.9em' }}>Scale: {scalePercent}%</div>
-                <input
-                  type="range"
-                  min={-20}
-                  max={30}
-                  value={scalePercent}
-                  onChange={e => setScalePercent(Number(e.target.value))}
-                  style={{ width: '85%' }}
-                />
               </div>
             </section>
           </div>
