@@ -12,6 +12,7 @@ import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
 import white2Frame from '../cardStyles/white2.json';
 import blueFrame from '../cardStyles/blue.json';
+import blue2Frame from '../cardStyles/blue2.json';
 import redFrame from '../cardStyles/red.json';
 import red2Frame from '../cardStyles/red2.json';
 import greenFrame from '../cardStyles/green.json';
@@ -42,6 +43,7 @@ const frameDefs: Record<string, any> = {
   White: whiteFrame,
   White2: white2Frame,
   Blue: blueFrame,
+  Blue2: blue2Frame,
   Red: redFrame,
   Red2: red2Frame,
   Green: greenFrame,

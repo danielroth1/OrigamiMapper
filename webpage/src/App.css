@@ -101,6 +101,11 @@ body {
   background: #444;
   filter: drop-shadow(0 0 2em #3940ca);
 }
+.all-button-hover, button:hover, input[type="button"]:hover, input[type="submit"]:hover, input[type="reset"]:hover {
+  /* Keep the site-wide menu hover appearance for all buttons. Use !important to override inline backgrounds. */
+  background: #444 !important;
+  filter: drop-shadow(0 0 2em #3940ca) !important;
+}
 .menu-btn.active {
   background: #444;
   color: #bbb;

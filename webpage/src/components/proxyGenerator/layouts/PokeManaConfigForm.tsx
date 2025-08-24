@@ -1,4 +1,5 @@
 import React from 'react';
+import CardColorSelect from './CardColorSelect';
 
 interface PokeManaConfigFormProps {
   cardData: any;
@@ -18,22 +19,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
     <form style={{ display: 'flex', flexDirection: 'column', gap: '1em', borderRadius: '8px', padding: '1em' }}>
       <div style={{ display: 'flex', gap: '2em', alignItems: 'center', marginBottom: '1em', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
-          <label htmlFor="card-color-select">Card Color:</label>
-          <select
-            id="card-color-select"
-            value={props.cardStyle}
-            onChange={e => props.setCardStyle(e.target.value)}
-            style={{ minWidth: '120px', padding: '0.3em', borderRadius: '6px' }}
-          >
-            <option value="Black">Black</option>
-            <option value="Black2">Black2</option>
-            <option value="Green">Green</option>
-            <option value="White">White</option>
-            <option value="Red">Red</option>
-            <option value="Blue">Blue</option>
-            <option value="Yellow">Yellow</option>
-            <option value="Artifact">Artifact</option>
-          </select>
+          <CardColorSelect cardStyle={props.cardStyle} setCardStyle={props.setCardStyle} />
           <label htmlFor="card-template-select" style={{ marginLeft: '2em' }}>Card Style:</label>
           <select
             id="card-template-select"

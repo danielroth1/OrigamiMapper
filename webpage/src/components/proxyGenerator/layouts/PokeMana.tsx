@@ -15,7 +15,13 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       width: '300px',
       height: '420px',
       background: frame.cardFrame,
-      border: `2px solid ${frame.cardFrame}`,
+      border: (() => {
+        const outer = frame.outerBorder;
+        if (outer) return `2px solid ${outer}`;
+        const cf = frame.cardFrame;
+        if (typeof cf === 'string' && cf.trim().startsWith('#')) return `2px solid ${cf}`;
+        return undefined;
+      })(),
       borderRadius: '12px',
       overflow: 'hidden',
       position: 'relative',

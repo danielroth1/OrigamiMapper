@@ -20,7 +20,14 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       width: '300px',
       height: '420px',
       background: frame.cardFrame,
-  border: `2px solid ${frame.outerBorder || frame.cardFrame}`,
+  // Prefer an explicit outerBorder. Only fall back to cardFrame when it's a solid color (hex).
+  border: (() => {
+    const outer = frame.outerBorder;
+    if (outer) return `2px solid ${outer}`;
+    const cf = frame.cardFrame;
+    if (typeof cf === 'string' && cf.trim().startsWith('#')) return `2px solid ${cf}`;
+    return undefined;
+  })(),
       borderRadius: '12px',
       boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
       overflow: 'hidden',
