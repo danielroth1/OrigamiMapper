@@ -244,14 +244,19 @@ function mapPolygonPixels(
         // Map source coordinates into the image using mirrored tiling.
         // This mirrors horizontally/vertically/diagonally for coords outside [0, srcW) / [0, srcH).
         const mirrorIndex = (coord: number, size: number) => {
+          // Robust mirrored repeat: map any real coord into [0, size-1] using mirrored tiles.
           if (size <= 1) return 0;
           const period = 2 * size;
+          // positive modulus
           let t = coord % period;
           if (t < 0) t += period;
-          // Continuous mirrored coordinate in [0, size]
+          // mirrored coordinate in [0, size)
           let m = t < size ? t : (2 * size - t);
-          if (m >= size) m = size - 1;
-          return Math.round(m);
+          // floor to integer index and clamp to valid range
+          let idx = Math.floor(m);
+          if (idx < 0) idx = 0;
+          if (idx >= size) idx = size - 1;
+          return idx;
         };
 
         const srcXInt = mirrorIndex(srcX, srcW);
@@ -299,13 +304,6 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     ctx.drawImage(img, 0, 0); // original pixels only
     return canvas;
   }).filter((c): c is HTMLCanvasElement => c !== null);
-
-  // Safety: ensure we have both canvases
-  if (inputCanvases.length < 2) {
-    return {};
-  }
-
-  // Intermediate (debug) canvases per image (same native size)
   const intermCanvases: HTMLCanvasElement[] = [];
   for (let idx = 0; idx < 2; idx++) {
     const base = inputCanvases[idx];
@@ -316,23 +314,6 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     if (!ctx) return {};
     // keep intermediate debug canvas pixel-exact
     ctx.imageSmoothingEnabled = false;
-    // Draw the base image plus mirrored adjacent tiles so debug mapping shows repeated/mirrored patterns
-    const bw = base.width;
-    const bh = base.height;
-    for (let ty = -1; ty <= 1; ty++) {
-      for (let tx = -1; tx <= 1; tx++) {
-        const dx = tx * bw;
-        const dy = ty * bh;
-        const flipH = (tx % 2) !== 0;
-        const flipV = (ty % 2) !== 0;
-        ctx.save();
-        // Translate to tile origin; if flipped, translate by size so scaling flips around tile area
-        ctx.translate(dx + (flipH ? bw : 0), dy + (flipV ? bh : 0));
-        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-        ctx.drawImage(base, 0, 0);
-        ctx.restore();
-      }
-    }
 
     const color = idx === 0 ? 'rgba(255,0,0,1)' : 'rgba(0,0,255,1)';
     const fillColor = idx === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';

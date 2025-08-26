@@ -87,6 +87,8 @@ function BoxGenerator() {
       ctx.translate(cx, cy);
       ctx.rotate(invRot);
       ctx.translate(-cx, -cy);
+      // disable smoothing to keep pixel-exact tiling
+      ctx.imageSmoothingEnabled = false;
       // Draw each polygon path, clip, draw image
       polys.forEach(p => {
         ctx.save();
@@ -111,7 +113,7 @@ function BoxGenerator() {
               const flipV = (iy % 2) !== 0; // flip vertically on odd rows
               ctx.save();
               try {
-                // Move to tile origin. If flipping, adjust origin so drawImage still covers correct area.
+                // Move to tile origin. Draw with a 1px overlap to avoid seam gaps caused by clipping/rounding.
                 const drawX = tx;
                 const drawY = ty;
                 if (flipH || flipV) {
@@ -124,7 +126,7 @@ function BoxGenerator() {
                   ctx.drawImage(img, drawX, drawY);
                 }
               } catch (err) {
-                // fallback to simple draw
+                // fallback to simple draw without overlap
                 try { ctx.drawImage(img, tx, ty); } catch { }
               }
               ctx.restore();
@@ -331,8 +333,8 @@ function BoxGenerator() {
         fetchAsDataUrlIfExists(outsideUrl),
         fetchAsDataUrlIfExists(insideUrl)
       ]);
-  if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
-  if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
+      if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
+      if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
     })();
   }, [outsideImgRaw, insideImgRaw]);
 
@@ -434,11 +436,11 @@ function BoxGenerator() {
                 const cx = c.getContext('2d');
                 if (cx) {
                   // rotate 180deg around center and draw with transparency
-                    cx.translate(cw / 2, ch / 2);
-                    cx.rotate(Math.PI);
-                    cx.globalAlpha = 0.6;
-                    cx.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
-                    cx.globalAlpha = 1;
+                  cx.translate(cw / 2, ch / 2);
+                  cx.rotate(Math.PI);
+                  cx.globalAlpha = 0.6;
+                  cx.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
+                  cx.globalAlpha = 1;
                   const rotatedDataUrl = c.toDataURL('image/png');
                   doc.addImage(rotatedDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
                 } else {
@@ -526,7 +528,7 @@ function BoxGenerator() {
 
         {/* 3D cube preview + 2D Editors */}
         <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
-          
+
           {/* 3d Cube preview */}
           <div style={{ width: 320, height: 260 }}>
             {/* framed boundary for the canvas */}
@@ -549,55 +551,55 @@ function BoxGenerator() {
               </div>
             </div>
           </div>
-          
+
           {/* 2D Editors side by side */}
           <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-              <PolygonEditor
-                ref={outsideEditorRef}
-                onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                data={{
-                  ...boxData,
-                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                  input_polygons: (boxData.input_polygons ?? [])
-                    .filter(p => !p.id.includes('i'))
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    })),
-                  output_polygons: (boxData.output_polygons ?? [])
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    }))
-                }}
-                label='Outside image'
-                backgroundImg={outsideImgTransformed}
-                onUploadImage={setOutsideImg}
-                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
-              />
-              <PolygonEditor
-                ref={insideEditorRef}
-                onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                data={{
-                  ...boxData,
-                  offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                  input_polygons: (boxData.input_polygons ?? [])
-                    .filter(p => p.id.includes('i'))
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    })),
-                  output_polygons: (boxData.output_polygons ?? [])
-                    .map(p => ({
-                      ...p,
-                      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                    }))
-                }}
-                label='Inside image'
-                backgroundImg={insideImgTransformed}
-                onUploadImage={setInsideImg}
-                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
-              />
+            <PolygonEditor
+              ref={outsideEditorRef}
+              onChange={json => scheduleBuild(json.input_polygons, undefined)}
+              data={{
+                ...boxData,
+                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                input_polygons: (boxData.input_polygons ?? [])
+                  .filter(p => !p.id.includes('i'))
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  })),
+                output_polygons: (boxData.output_polygons ?? [])
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  }))
+              }}
+              label='Outside image'
+              backgroundImg={outsideImgTransformed}
+              onUploadImage={setOutsideImg}
+              onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
+            />
+            <PolygonEditor
+              ref={insideEditorRef}
+              onChange={json => scheduleBuild(undefined, json.input_polygons)}
+              data={{
+                ...boxData,
+                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+                input_polygons: (boxData.input_polygons ?? [])
+                  .filter(p => p.id.includes('i'))
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  })),
+                output_polygons: (boxData.output_polygons ?? [])
+                  .map(p => ({
+                    ...p,
+                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+                  }))
+              }}
+              label='Inside image'
+              backgroundImg={insideImgTransformed}
+              onUploadImage={setInsideImg}
+              onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
+            />
           </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
@@ -724,17 +726,17 @@ function BoxGenerator() {
           <ImagePreview src={results.output_page1} label="Output Page 1" />
           <ImagePreview src={results.output_page2} label="Output Page 2" />
         </div>
-        
-      <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
-        <div>
-          <br />
-          <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>GitHub</a>
-          |
-          <a href="https://blog.mailbase.info" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Blog</a>
-          |
-          <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
-        </div>
-      </footer>
+
+        <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
+          <div>
+            <br />
+            <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>GitHub</a>
+            |
+            <a href="https://blog.mailbase.info" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Blog</a>
+            |
+            <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
+          </div>
+        </footer>
       </div>
     </>
   );
