@@ -116,7 +116,27 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       ) : cardData.box ? (
         <span style={{ color: frame.manaCostText, fontSize: '2.5em', fontWeight: 'bold', textTransform: 'uppercase' }}>{cardData.box}</span>
       ) : (
-        <span style={{ color: frame.manaCostText, fontSize: '4em' }}>?</span>
+        (() => {
+          // Prefer same icons as manaIcons via a symbol; fallback to frame.icon, else '?'
+          const colorToSymbol: Record<string, string> = {
+            Red: 'R', Red2: 'R',
+            Blue: 'U', Blue2: 'U',
+            Green: 'G',
+            White: 'W', White2: 'W',
+            Black: 'B', Black2: 'B',
+            Yellow: 'Y',
+            Artifact: 'A'
+          };
+          const symbol = (frame?.iconSymbol as string) || colorToSymbol[(frame?.color as string) || ''] || '';
+          if (symbol && manaIcons[symbol]) {
+            const iconColor = (frame?.manaIconColors?.[symbol]) || frame?.manaCostText || '#000';
+            return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '70%', height: '70%', fontSize: '3.2em' }}>{manaIcons[symbol](iconColor)}</span>;
+          }
+          if (frame?.icon) {
+            return <span style={{ color: frame.manaCostText, fontSize: '4.5em' }}>{frame.icon}</span>;
+          }
+          return <span style={{ color: frame.manaCostText, fontSize: '4.5em' }}>?</span>;
+        })()
       )}
     </div>
 

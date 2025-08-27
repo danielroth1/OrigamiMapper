@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import { PDFDocument, rgb } from 'pdf-lib';
-import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater } from 'react-icons/io5';
+import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
 import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
@@ -141,7 +141,8 @@ const ProxyGenerator: React.FC = () => {
     G: (color) => <IoLeafSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     W: (color) => <IoSunny style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     B: (color) => <IoSkullSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-    Y: (color) => <IoFlashSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />
+  Y: (color) => <IoFlashSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+  A: (color) => <IoCog style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

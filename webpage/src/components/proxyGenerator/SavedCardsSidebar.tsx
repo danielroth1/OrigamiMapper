@@ -23,7 +23,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
   const mm = now.getMonth() + 1;
   const yyyy = now.getFullYear();
   const dateStr = `${dd}-${mm}-${yyyy}`;
-  const baseName = initialDeckName || 'Proxy_The_Gathering';
+  const baseName = initialDeckName || 'Your_Proxy_The_Gathering_Deck';
   const defaultName = `${baseName}_${dateStr}`;
     setDeckNameInput(defaultName);
     setIsModalOpen(true);
