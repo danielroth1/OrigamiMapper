@@ -52,15 +52,43 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
           </select>
         ))}
       </div>
+      {/* Art image options */}
+      <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+        <label htmlFor="imageFit">Art Image Fit:</label>
+        <select id="imageFit" name="imageFit" value={props.cardData.imageFit || 'cover'} onChange={props.onChange} style={{ minWidth: '140px' }}>
+          <option value="cover">All of the space should be filled (cover)</option>
+          <option value="contain">Fit (contain)</option>
+          <option value="fill">Stretch (fill)</option>
+        </select>
+        <label htmlFor="imageTransform">Transform:</label>
+        <select id="imageTransform" name="imageTransform" value={props.cardData.imageTransform || 'none'} onChange={props.onChange} style={{ minWidth: '140px' }}>
+          <option value="none">None</option>
+          <option value="rotate90">Rotate 90°</option>
+          <option value="rotate180">Rotate 180°</option>
+          <option value="rotate270">Rotate 270°</option>
+          <option value="flipH">Flip Horizontal</option>
+          <option value="flipV">Flip Vertical</option>
+        </select>
+      </div>
       <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
         <label>Type Line:</label>
         <input type="text" name="typeLine" value={props.cardData.typeLine} onChange={props.onChange} style={{ flex: 1 }} />
       </div>
       <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+        <label>
+          <input
+            type="checkbox"
+            name="showPT"
+            checked={props.cardData.showPT !== false}
+            onChange={props.onChange}
+            style={{ marginRight: '0.5em' }}
+          />
+          Power / Toughness enabled
+        </label>
         <label>Power:</label>
-        <input type="number" name="power" value={props.cardData.power} onChange={props.onChange} style={{ width: '60px' }} />
+        <input type="number" name="power" value={props.cardData.power} onChange={props.onChange} style={{ width: '60px' }} disabled={props.cardData.showPT === false} />
         <label>Toughness:</label>
-        <input type="number" name="toughness" value={props.cardData.toughness} onChange={props.onChange} style={{ width: '60px' }} />
+        <input type="number" name="toughness" value={props.cardData.toughness} onChange={props.onChange} style={{ width: '60px' }} disabled={props.cardData.showPT === false} />
       </div>
       <div>
         <label>Rules Text:</label>

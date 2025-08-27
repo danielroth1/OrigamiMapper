@@ -22,6 +22,8 @@ import yellowFrame from '../cardStyles/yellow.json';
 const currentYear = new Date().getFullYear();
 const initialCardData = {
   image: '',
+  imageFit: 'cover', // cover | contain | fill
+  imageTransform: 'none', // none | rotate90 | rotate180 | rotate270 | flipH | flipV
   name: 'Electro Rat',
   manaCost: '3',
   typeLine: 'Creature — Plague Rat',
@@ -31,10 +33,11 @@ const initialCardData = {
   flavorText: "A spark of energy and joy, always ready to light up the battlefield with a cheerful charge.",
   collectorNo: '0217',
   rarity: 'M',
-  setCode: 'MYT',
+  setCode: 'PTG',
   language: 'EN',
   artist: 'Jonas Roth',
   copyright: `© ${currentYear} Jonas Roth`,
+  showPT: true,
 };
 
 const frameDefs: Record<string, any> = {
@@ -139,8 +142,10 @@ const ProxyGenerator: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target as any;
-    setCardData(prev => ({ ...prev, [name]: value }));
+    const target = e.target as any;
+    const { name, type } = target;
+    const newValue = type === 'checkbox' ? !!target.checked : target.value;
+    setCardData(prev => ({ ...prev, [name]: newValue }));
   };
 
   const handleManaSelect = (index: number, value: string) => {
@@ -178,10 +183,11 @@ const ProxyGenerator: React.FC = () => {
     tempDiv.id = 'export-temp';
 
     const resetStyle = document.createElement('style');
+    const exportFit = (cardData.imageFit || 'cover');
     resetStyle.textContent = `
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
       #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
-      #export-temp img { max-width: 100% !important; max-height: 100% !important; object-fit: contain !important; display: block !important; }
+      #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
     `;
     tempDiv.appendChild(resetStyle);
     document.body.appendChild(tempDiv);
@@ -277,12 +283,13 @@ const ProxyGenerator: React.FC = () => {
       // Use an id so we can override inline styles with !important when rendering for export
       tempDiv.id = 'export-temp';
       const resetStyle = document.createElement('style');
-      resetStyle.textContent = `
+      const exportFit = (savedCards[i].data as any).imageFit || 'cover';
+  resetStyle.textContent = `
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
       /* Remove top margin on the CardPreview root but don't override its inline width/height */
       #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
-      /* Ensure art area images fit inside their container without overflow */
-      #export-temp img { max-width: 100% !important; max-height: 100% !important; object-fit: contain !important; display: block !important; }
+  /* Ensure art area images obey selected fit */
+  #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
     `;
       tempDiv.appendChild(resetStyle);
       document.body.appendChild(tempDiv);

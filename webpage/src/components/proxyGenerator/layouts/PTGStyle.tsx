@@ -63,6 +63,17 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>
       <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', marginLeft: '0.5em', fontFamily: 'monospace', color: frame.manaCostText }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
+          {manaSelects.map((symbol, i) => {
+            if (!symbol) return null;
+            const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
+            return (
+              <span key={i}>
+                {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
+              </span>
+            );
+          })}
+        </span>
         {cardData.manaCost && (
           <span style={{
             display: 'inline-flex',
@@ -79,17 +90,6 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             lineHeight: 1
           }}>{cardData.manaCost}</span>
         )}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
-          {manaSelects.map((symbol, i) => {
-            if (!symbol) return null;
-            const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
-            return (
-              <span key={i}>
-                {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
-              </span>
-            );
-          })}
-        </span>
       </span>
     </div>
     <div style={{
@@ -110,9 +110,20 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
           src={cardData.image}
           alt="Card art preview"
           style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'cover',
+            width: '100%',
+            height: '100%',
+            objectFit: (cardData.imageFit || 'cover') as any,
+            // Apply simple CSS transforms (rotation/flips)
+            transform: (() => {
+              switch (cardData.imageTransform) {
+                case 'rotate90': return 'rotate(90deg)';
+                case 'rotate180': return 'rotate(180deg)';
+                case 'rotate270': return 'rotate(270deg)';
+                case 'flipH': return 'scaleX(-1)';
+                case 'flipV': return 'scaleY(-1)';
+                default: return undefined;
+              }
+            })(),
             boxShadow: '0 2px 8px #0004'
           }}
         />
@@ -160,20 +171,22 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>
       <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
     </div>
-    <div style={{
-      position: 'absolute',
-      bottom: '0.4em',
-      right: '0.4em',
-      border: `1px solid ${frame.powerToughnessBorder}`,
-      background: frame.powerToughnessBg,
-      padding: '0 0.2em',
-      fontWeight: 'bold',
-      fontSize: '0.9em',
-      color: frame.powerToughnessTextColor || '#000',
-      zIndex: 3
-    }}>
-      {cardData.power}/{cardData.toughness}
-    </div>
+    {cardData.showPT !== false && (
+      <div style={{
+        position: 'absolute',
+        bottom: '0.4em',
+        right: '0.4em',
+        border: `1px solid ${frame.powerToughnessBorder}`,
+        background: frame.powerToughnessBg,
+        padding: '0 0.2em',
+        fontWeight: 'bold',
+        fontSize: '0.9em',
+        color: frame.powerToughnessTextColor || '#000',
+        zIndex: 3
+      }}>
+        {cardData.power}/{cardData.toughness}
+      </div>
+    )}
     <div style={{
       position: 'absolute',
       bottom: '0.4em',

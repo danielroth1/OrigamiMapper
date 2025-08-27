@@ -30,28 +30,47 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       flexDirection: 'column'
     }}
   >
-    {/* Header with name and mana symbols */}
+    {/* Header aligned with PTGStyle */}
     <div style={{
       background: frame.titleBar,
-      padding: '0.5em',
+      borderBottom: frame.titleBarBorder ? `1px solid ${frame.titleBarBorder}` : undefined,
+      padding: '0.4em 0.6em',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       color: frame.titleBarText,
-      fontSize: '1.2em',
-      textTransform: 'uppercase'
+      position: 'relative',
+      zIndex: 2
     }}>
-      <span style={{ fontWeight: 'bold' }}>{cardData.name}</span>
-      <span>
-        {manaSelects.map((symbol, i) => {
-          if (!symbol) return null;
-          const color = frame.manaIconColors?.[symbol] || '#000';
-          return (
-            <span key={i} style={{ marginLeft: '0.3em' }}>
-              {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
-            </span>
-          );
-        })}
+      <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', marginLeft: '0.5em', fontFamily: 'monospace', color: frame.manaCostText }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
+          {manaSelects.map((symbol, i) => {
+            if (!symbol) return null;
+            const color = frame.manaIconColors?.[symbol] || '#000';
+            return (
+              <span key={i}>
+                {manaIcons[symbol] ? manaIcons[symbol](color) : symbol}
+              </span>
+            );
+          })}
+        </span>
+        {cardData.manaCost && (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '1.4em',
+            height: '1.4em',
+            borderRadius: '50%',
+            background: frame.manaCostBg,
+            border: `2px solid ${frame.manaCostText}`,
+            fontSize: '1.1em',
+            fontWeight: 'bold',
+            color: frame.manaCostText,
+            lineHeight: 1
+          }}>{cardData.manaCost}</span>
+        )}
       </span>
     </div>
 
