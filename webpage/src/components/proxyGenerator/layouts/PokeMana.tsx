@@ -134,7 +134,6 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       zIndex: 2
     }}>
       <span>{cardData.bottomText || ''}</span>
-      <span>{cardData.collectorNo}</span>
     </div>
 
     {cardData.showPT !== false && (
@@ -151,6 +150,33 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
         zIndex: 3
       }}>
         {cardData.power}/{cardData.toughness}
+      </div>
+    )}
+  {/* Vertical right-side info (rarity • setCode • language • collectorNo) */}
+  {(cardData?.collectorNo || cardData?.rarity || cardData?.setCode || cardData?.language) && (
+      <div
+        style={{
+          position: 'absolute',
+          top: '0.5em',
+          bottom: '0.5em',
+          right: '0.2em',
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed',
+          fontSize: '0.45em', // very small
+          lineHeight: 1.1,
+          letterSpacing: '0.02em',
+          color: frame.bottomInfoText || '#666',
+          zIndex: 4,
+          pointerEvents: 'none',
+          opacity: 0.9
+        }}
+      >
+        {[
+          cardData?.rarity,
+          cardData?.setCode,
+      cardData?.language,
+      cardData?.collectorNo
+        ].filter(Boolean).join(' • ')}
       </div>
     )}
     </div>
