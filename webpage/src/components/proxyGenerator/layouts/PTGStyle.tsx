@@ -32,6 +32,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
       overflow: 'hidden',
       fontFamily: 'Trebuchet MS, Verdana, Arial, sans-serif',
+  fontWeight: 'bold',
       position: 'relative',
       display: 'flex',
       flexDirection: 'column'

@@ -38,6 +38,9 @@ const initialCardData = {
   artist: 'Jonas Roth',
   copyright: `© ${currentYear} Jonas Roth`,
   showPT: true,
+  showMana: true,
+  useCustomTitle: false,
+  bottomText: '',
 };
 
 const frameDefs: Record<string, any> = {
