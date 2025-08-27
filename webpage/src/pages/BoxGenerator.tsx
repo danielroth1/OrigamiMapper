@@ -469,8 +469,8 @@ function BoxGenerator() {
       if (!rec) return;
       const outDataUrl = await blobToDataUrl(rec.outsideBlob);
       const inDataUrl = await blobToDataUrl(rec.insideBlob);
-      if (outDataUrl) setOutsideImg(outDataUrl);
-      if (inDataUrl) setInsideImg(inDataUrl);
+      setOutsideImg(outDataUrl ?? "");
+      setInsideImg(inDataUrl ?? "");
       if (rec.transformMode) setTransformMode(rec.transformMode);
       if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
       if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
@@ -542,16 +542,18 @@ function BoxGenerator() {
         } catch (e) { console.warn('box.json parse error', e); }
       }
       // images
+      let dataUrl = "";
       if (zip.file('outside.png')) {
         const blob = await zip.file('outside.png')!.async('blob');
-        const dataUrl = await blobToDataUrl(blob);
-        if (dataUrl) setOutsideImg(dataUrl);
+        dataUrl = await blobToDataUrl(blob) ?? "";
       }
+      setOutsideImg(dataUrl);
+      dataUrl = "";
       if (zip.file('inside.png')) {
         const blob = await zip.file('inside.png')!.async('blob');
-        const dataUrl = await blobToDataUrl(blob);
-        if (dataUrl) setInsideImg(dataUrl);
+        dataUrl = await blobToDataUrl(blob) ?? "";
       }
+      setInsideImg(dataUrl);
     } catch (err) {
       console.error('Failed to load .mapper file:', err);
       alert('Failed to load project file: ' + String(err));
@@ -776,6 +778,7 @@ function BoxGenerator() {
             <PolygonEditor
               ref={outsideEditorRef}
               onChange={json => scheduleBuild(json.input_polygons, undefined)}
+              onOutsave={() => { void saveAutosave(); }}
               data={getEditorData(false)}
               label='Outside image'
               backgroundImg={outsideImgTransformed}
@@ -785,6 +788,7 @@ function BoxGenerator() {
             <PolygonEditor
               ref={insideEditorRef}
               onChange={json => scheduleBuild(undefined, json.input_polygons)}
+              onOutsave={() => { void saveAutosave(); }}
               data={getEditorData(true)}
               label='Inside image'
               backgroundImg={insideImgTransformed}

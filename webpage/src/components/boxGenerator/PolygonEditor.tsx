@@ -19,13 +19,15 @@ interface PolygonEditorProps {
   label: string;
   // optional callback invoked when polygons or background image change
   onChange?: (json: OrigamiMapperTypes.TemplateJson) => void;
+  // optional callback invoked when an autosave should occur (only on mouse up after a change)
+  onOutsave?: (json: OrigamiMapperTypes.TemplateJson) => void;
   // optional callback invoked when user wants to delete the current background image
   onDelete?: () => void;
   // optional callback when user uploads an image from inside this editor
   onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange, onDelete, onUploadImage }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
   // Track Shift key globally
   const shiftPressedRef = useRef(false);
   useEffect(() => {
@@ -451,8 +453,19 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       transformStateRef.current = null;
 
       // Notify parent once after user finishes interaction
-      if (typeof onChange === 'function' && changed) {
-        try { onChange({ ...data, input_polygons: finalPolygons }); } catch { }
+      if (changed) {
+        const json = { ...data, input_polygons: finalPolygons };
+        if (typeof onChange === 'function') {
+          try { onChange(json); } catch { }
+        }
+        // Trigger autosave callback only on mouse up after a change
+        if (typeof onOutsave === 'function') {
+          try { onOutsave(json); } catch { }
+        }
+        // Also emit a CustomEvent for external listeners (optional)
+        try {
+          window.dispatchEvent(new CustomEvent('polygonEditor:outsave', { detail: { json, label } }));
+        } catch {}
       }
     };
     canvasEl.addEventListener('mousedown', handleMouseDown);
