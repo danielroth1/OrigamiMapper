@@ -729,6 +729,25 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name);
+    const isJson = file.type === 'application/json' || /\.json$/i.test(file.name);
+
+    if (isImage) {
+      // Load as image and pass to parent
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        if (typeof onUploadImage === 'function') {
+          onUploadImage(dataUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+      return;
+    }
+
+    // Fallback to JSON import (polygon layout)
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -741,7 +760,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           }
         }
       } catch (err) {
-        alert('Invalid JSON file.');
+        const msg = isJson ? 'Invalid JSON file.' : 'Unsupported file. Please choose an image or a JSON file.';
+        alert(msg);
       }
     };
     reader.readAsText(file);
@@ -793,7 +813,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/json"
+          accept=".json,image/*"
           style={{ display: 'none' }}
           onChange={handleImport}
         />
@@ -801,7 +821,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           type="button"
           style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
           onClick={() => fileInputRef.current?.click()}
-          title="Import JSON"
+          title="Import JSON or Image"
         ><IoFolderOpen style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
         <button
           style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
