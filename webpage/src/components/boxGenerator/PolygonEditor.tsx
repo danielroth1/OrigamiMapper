@@ -10,6 +10,7 @@ import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash } 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
   scalePolygonsToCanvas: () => void; // uniformly scale all polygons to fit canvas (contain)
+  setFromJson: (json: OrigamiMapperTypes.TemplateJson) => void;
 }
 
 interface PolygonEditorProps {
@@ -715,6 +716,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       input_polygons: polygons
     }),
     scalePolygonsToCanvas: () => scalePolygonsToCanvas(polygonsRef.current, width, height),
+    setFromJson: (json: OrigamiMapperTypes.TemplateJson) => {
+      if (!json || !json.input_polygons) return;
+      pushHistory(polygonsRef.current);
+      setPolygons(json.input_polygons);
+      setSelectedIds(new Set());
+      if (typeof onChange === 'function') {
+        try { onChange({ ...data, input_polygons: json.input_polygons }); } catch { }
+      }
+    }
   }), [data, polygons]);
 
   const handleExport = () => {

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import CubeViewer, { type FaceTextures } from "../components/boxGenerator/CubeViewer";
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
 import ImagePreview from '../components/boxGenerator/ImagePreview';
@@ -10,6 +12,7 @@ import PolygonEditor, { type PolygonEditorHandle } from '../components/boxGenera
 import boxData from '../templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
+import { IoSave, IoCloudUpload } from 'react-icons/io5';
 
 
 function BoxGenerator() {
@@ -171,6 +174,19 @@ function BoxGenerator() {
   // Refs for PolygonEditors
   const outsideEditorRef = useRef<PolygonEditorHandle>(null);
   const insideEditorRef = useRef<PolygonEditorHandle>(null);
+
+  const getEditorData = (isInside: boolean) => ({
+  ...boxData,
+  offset: (Array.isArray(boxData.offset) ? (boxData.offset.slice(0, 2) as [number, number]) : ([0, 0] as [number, number])),
+    input_polygons: (boxData.input_polygons ?? []).filter(p => isInside ? p.id.includes('i') : !p.id.includes('i')).map(p => ({
+      ...p,
+      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+    })),
+    output_polygons: (boxData.output_polygons ?? []).map(p => ({
+      ...p,
+      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+    }))
+  });
 
   // Transform image according to selected mode
   const transformImage = (
@@ -362,6 +378,201 @@ function BoxGenerator() {
       reader.readAsDataURL(blob);
     });
   };
+
+  // -------------------------
+  // Autosave (IndexedDB) & .mapper file save/load helpers
+  // -------------------------
+  const DB_NAME = 'origami-mapper';
+  const STORE_NAME = 'projects';
+  const DB_VERSION = 1;
+
+  const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
+  const putItem = async (item: any) => {
+    const db = await openDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const r = store.put(item);
+      r.onsuccess = () => resolve();
+      r.onerror = () => reject(r.error);
+    });
+  };
+
+  const getItem = async (id: string) => {
+    const db = await openDB();
+    return new Promise<any>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const r = store.get(id);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+  };
+
+  const dataUrlToBlob = async (dataUrl?: string | null) => {
+    if (!dataUrl) return null;
+    try {
+      const res = await fetch(dataUrl);
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  };
+
+  const blobToDataUrl = (blob?: Blob | null) => new Promise<string | null>((resolve, reject) => {
+    if (!blob) return resolve(null);
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+  // Autosave current app state under id 'autosave'
+  const saveAutosave = async () => {
+    try {
+      const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null;
+      const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : null;
+      const outsideBlob = await dataUrlToBlob(outsideImgRaw || null);
+      const insideBlob = await dataUrlToBlob(insideImgRaw || null);
+      const item = {
+        id: 'autosave',
+        updatedAt: Date.now(),
+        outsideBlob,
+        insideBlob,
+        outsideJson,
+        insideJson,
+        transformMode,
+        scalePercent,
+        outputDpi,
+        withFoldLines,
+        withCutLines
+      };
+      await putItem(item);
+    } catch (err) {
+      // non-fatal
+      console.warn('Failed to autosave:', err);
+    }
+  };
+
+  const loadAutosave = async () => {
+    try {
+      const rec = await getItem('autosave');
+      if (!rec) return;
+      const outDataUrl = await blobToDataUrl(rec.outsideBlob);
+      const inDataUrl = await blobToDataUrl(rec.insideBlob);
+      if (outDataUrl) setOutsideImg(outDataUrl);
+      if (inDataUrl) setInsideImg(inDataUrl);
+      if (rec.transformMode) setTransformMode(rec.transformMode);
+      if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
+      if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
+      if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
+      if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
+      // restore editor JSONs if editors are mounted later; use a small timeout to allow refs to attach
+      setTimeout(() => {
+        try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch (e) { }
+        try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch (e) { }
+      }, 50);
+    } catch (err) {
+      console.warn('Failed to load autosave:', err);
+    }
+  };
+
+  // Save to .mapper (zip) file
+  const saveToMapperFile = async () => {
+    try {
+      // Build combined JSON like handleRun does
+      const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : boxData;
+      const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : boxData;
+      const combinedJson = {
+        ...outsideJson,
+        input_polygons: [ ...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? []) ],
+        output_polygons: [ ...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? []) ]
+      };
+
+      const zip = new JSZip();
+      zip.file('box.json', JSON.stringify(combinedJson, null, 2));
+      // add raw images if present
+      if (outsideImgRaw) {
+        const outBlob = await dataUrlToBlob(outsideImgRaw);
+        if (outBlob) zip.file('outside.png', outBlob);
+      }
+      if (insideImgRaw) {
+        const inBlob = await dataUrlToBlob(insideImgRaw);
+        if (inBlob) zip.file('inside.png', inBlob);
+      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, 'origami_project.mapper');
+    } catch (err) {
+      console.error('Failed to save .mapper file:', err);
+      alert('Failed to save project file: ' + String(err));
+    }
+  };
+
+  // Hidden file input ref for loading .mapper files
+  const mapperInputRef = useRef<HTMLInputElement | null>(null);
+
+  const onMapperFileSelected = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const ab = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(ab);
+      // read box.json
+      if (zip.file('box.json')) {
+        const txt = await zip.file('box.json')!.async('string');
+        try {
+          const parsed = JSON.parse(txt);
+          // Split parsed JSON into outside/inside variants and set into respective editors
+          const outsideParsed = {
+            ...parsed,
+            input_polygons: (parsed.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
+          };
+          const insideParsed = {
+            ...parsed,
+            input_polygons: (parsed.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
+          };
+          setTimeout(() => {
+            try { if (outsideParsed && outsideEditorRef.current) outsideEditorRef.current.setFromJson(outsideParsed); } catch (e) { }
+            try { if (insideParsed && insideEditorRef.current) insideEditorRef.current.setFromJson(insideParsed); } catch (e) { }
+          }, 50);
+        } catch (e) { console.warn('box.json parse error', e); }
+      }
+      // images
+      if (zip.file('outside.png')) {
+        const blob = await zip.file('outside.png')!.async('blob');
+        const dataUrl = await blobToDataUrl(blob);
+        if (dataUrl) setOutsideImg(dataUrl);
+      }
+      if (zip.file('inside.png')) {
+        const blob = await zip.file('inside.png')!.async('blob');
+        const dataUrl = await blobToDataUrl(blob);
+        if (dataUrl) setInsideImg(dataUrl);
+      }
+    } catch (err) {
+      console.error('Failed to load .mapper file:', err);
+      alert('Failed to load project file: ' + String(err));
+    }
+  };
+
+  // Wire autosave: debounce changes
+  const autosaveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = window.setTimeout(() => { void saveAutosave(); }, 600);
+    return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outsideImgRaw, insideImgRaw, transformMode, scalePercent, outputDpi, withFoldLines, withCutLines]);
+
+  // Load autosave on mount
+  useEffect(() => { void loadAutosave(); }, []);
 
   const handleDownloadPdf = async (resultsOverride?: { [key: string]: string }) => {
     try {
@@ -569,21 +780,7 @@ function BoxGenerator() {
             <PolygonEditor
               ref={outsideEditorRef}
               onChange={json => scheduleBuild(json.input_polygons, undefined)}
-              data={{
-                ...boxData,
-                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                input_polygons: (boxData.input_polygons ?? [])
-                  .filter(p => !p.id.includes('i'))
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  })),
-                output_polygons: (boxData.output_polygons ?? [])
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  }))
-              }}
+              data={getEditorData(false)}
               label='Outside image'
               backgroundImg={outsideImgTransformed}
               onUploadImage={setOutsideImg}
@@ -592,21 +789,7 @@ function BoxGenerator() {
             <PolygonEditor
               ref={insideEditorRef}
               onChange={json => scheduleBuild(undefined, json.input_polygons)}
-              data={{
-                ...boxData,
-                offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
-                input_polygons: (boxData.input_polygons ?? [])
-                  .filter(p => p.id.includes('i'))
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  })),
-                output_polygons: (boxData.output_polygons ?? [])
-                  .map(p => ({
-                    ...p,
-                    vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
-                  }))
-              }}
+              data={getEditorData(true)}
               label='Inside image'
               backgroundImg={insideImgTransformed}
               onUploadImage={setInsideImg}
@@ -732,6 +915,15 @@ function BoxGenerator() {
                     <button onClick={() => handleRunThenDownload()} disabled={pdfLoading || loading} className="menu-btn">
                       {pdfLoading ? 'Preparing PDF...' : 'Download'}
                     </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1em', marginTop: '0.5em' }}>
+                    <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
+                      <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
+                    </button>
+                    <button onClick={() => mapperInputRef.current?.click()} disabled={loading || pdfLoading} className="menu-btn" title="Load project (.mapper)">
+                      <IoCloudUpload style={{ verticalAlign: 'middle', marginRight: 8 }} /> Load
+                    </button>
+                    <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
                   </div>
                 </div>
                 {/* simple progress bar shown while PDF is being generated */}
