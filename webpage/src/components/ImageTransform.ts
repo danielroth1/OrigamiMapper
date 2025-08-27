@@ -3,6 +3,43 @@
  */
 export class ImageTransform {
   /**
+   * Rotates the given image by 0/90/180/270 degrees and returns a new data URL.
+   */
+  static rotateDegrees(dataUrl: string, degrees: 0 | 90 | 180 | 270, callback: (rotatedDataUrl: string) => void) {
+    if (degrees === 0) {
+      callback(dataUrl);
+      return;
+    }
+    const img = new window.Image();
+    img.onload = () => {
+      const rad = (degrees * Math.PI) / 180;
+      const swap = degrees === 90 || degrees === 270;
+      const canvas = document.createElement('canvas');
+      canvas.width = swap ? img.height : img.width;
+      canvas.height = swap ? img.width : img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        callback(dataUrl);
+        return;
+      }
+      ctx.save();
+      // Move origin to center then rotate and draw
+      if (degrees === 90) {
+        ctx.translate(canvas.width, 0);
+      } else if (degrees === 180) {
+        ctx.translate(canvas.width, canvas.height);
+      } else if (degrees === 270) {
+        ctx.translate(0, canvas.height);
+      }
+      ctx.rotate(rad);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+      callback(canvas.toDataURL());
+    };
+    img.onerror = () => callback(dataUrl);
+    img.src = dataUrl;
+  }
+  /**
    * Tiles the uploaded image 4 times (2x2 grid) to fill the A4 ratio canvas (height/width = 297/210).
    */
   static tile4Times(dataUrl: string, callback: (tiledDataUrl: string) => void) {

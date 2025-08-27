@@ -30,6 +30,9 @@ function BoxGenerator() {
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
+  // Rotation selectors (0, 90, 180, 270 degrees) per image
+  const [outsideRotation, setOutsideRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [insideRotation, setInsideRotation] = useState<0 | 90 | 180 | 270>(0);
   // Change this constant in code to control the initial zoom programmatically
   const DEFAULT_VIEWER_ZOOM = 1.0;
   // 1x1 transparent PNG used as placeholder when one image is missing for mapping
@@ -170,18 +173,27 @@ function BoxGenerator() {
   const insideEditorRef = useRef<PolygonEditorHandle>(null);
 
   // Transform image according to selected mode
-  const transformImage = (dataUrl: string, mode: 'none' | 'scale' | 'tile' | 'tile4' | 'tile8', callback: (result: string) => void) => {
-    if (mode === 'none') {
-      callback(dataUrl);
-    } else if (mode === 'scale') {
-      ImageTransform.scaleToA4Ratio(dataUrl, callback);
-    } else if (mode === 'tile') {
-      ImageTransform.tileToA4Ratio(dataUrl, callback);
-    } else if (mode === 'tile4') {
-      ImageTransform.tile4Times(dataUrl, callback);
-    } else if (mode === 'tile8') {
-      ImageTransform.tile8Times(dataUrl, callback);
-    }
+  const transformImage = (
+    dataUrl: string,
+    mode: 'none' | 'scale' | 'tile' | 'tile4' | 'tile8',
+    rotation: 0 | 90 | 180 | 270,
+    callback: (result: string) => void
+  ) => {
+    // First rotate (if needed), then apply tiling/scaling mode
+    const afterRotate = (rotated: string) => {
+      if (mode === 'none') {
+        callback(rotated);
+      } else if (mode === 'scale') {
+        ImageTransform.scaleToA4Ratio(rotated, callback);
+      } else if (mode === 'tile') {
+        ImageTransform.tileToA4Ratio(rotated, callback);
+      } else if (mode === 'tile4') {
+        ImageTransform.tile4Times(rotated, callback);
+      } else if (mode === 'tile8') {
+        ImageTransform.tile8Times(rotated, callback);
+      }
+    };
+    ImageTransform.rotateDegrees(dataUrl, rotation, afterRotate);
   };
 
   // Debounced auto-build when polygon editors or images change. PolygonEditor will call onChange with new JSON.
@@ -197,18 +209,18 @@ function BoxGenerator() {
   // Set and transform outside image
   const setOutsideImg = (dataUrl: string) => {
     setOutsideImgRaw(dataUrl);
-    transformImage(dataUrl, transformMode, setOutsideImgTransformed);
+    transformImage(dataUrl, transformMode, outsideRotation, setOutsideImgTransformed);
   };
   const setInsideImg = (dataUrl: string) => {
     setInsideImgRaw(dataUrl);
-    transformImage(dataUrl, transformMode, setInsideImgTransformed);
+    transformImage(dataUrl, transformMode, insideRotation, setInsideImgTransformed);
   };
 
   // Re-transform images when mode changes
   useEffect(() => {
-    if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, setOutsideImgTransformed);
-    if (insideImgRaw) transformImage(insideImgRaw, transformMode, setInsideImgTransformed);
-  }, [transformMode, outsideImgRaw, insideImgRaw]);
+    if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, outsideRotation, setOutsideImgTransformed);
+    if (insideImgRaw) transformImage(insideImgRaw, transformMode, insideRotation, setInsideImgTransformed);
+  }, [transformMode, outsideRotation, insideRotation, outsideImgRaw, insideImgRaw]);
 
   // Rebuild cube textures when transformed images change (debounced)
   useEffect(() => {
@@ -631,6 +643,24 @@ function BoxGenerator() {
                     <option value="tile">Tile (Fill A4)</option>
                     <option value="tile4">Tile 4x (2x2)</option>
                     <option value="tile8">Tile 8x (4x2)</option>
+                  </select>
+                </div>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                  <span style={{ color: '#fff' }}>Outside rotation:</span>
+                  <select value={outsideRotation} onChange={e => setOutsideRotation(Number(e.target.value) as 0 | 90 | 180 | 270)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                    <option value={0}>0°</option>
+                    <option value={90}>90°</option>
+                    <option value={180}>180°</option>
+                    <option value={270}>270°</option>
+                  </select>
+                </div>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                  <span style={{ color: '#fff' }}>Inside rotation:</span>
+                  <select value={insideRotation} onChange={e => setInsideRotation(Number(e.target.value) as 0 | 90 | 180 | 270)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                    <option value={0}>0°</option>
+                    <option value={90}>90°</option>
+                    <option value={180}>180°</option>
+                    <option value={270}>270°</option>
                   </select>
                 </div>
                 <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
