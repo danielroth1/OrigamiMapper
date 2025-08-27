@@ -477,10 +477,8 @@ function BoxGenerator() {
       if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
       if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
       // restore editor JSONs if editors are mounted later; use a small timeout to allow refs to attach
-      setTimeout(() => {
-        try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch (e) { }
-        try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch (e) { }
-      }, 50);
+      try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch (e) { }
+      try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch (e) { }
     } catch (err) {
       console.warn('Failed to load autosave:', err);
     }
@@ -539,10 +537,8 @@ function BoxGenerator() {
             ...parsed,
             input_polygons: (parsed.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
           };
-          setTimeout(() => {
-            try { if (outsideParsed && outsideEditorRef.current) outsideEditorRef.current.setFromJson(outsideParsed); } catch (e) { }
-            try { if (insideParsed && insideEditorRef.current) insideEditorRef.current.setFromJson(insideParsed); } catch (e) { }
-          }, 50);
+          try { if (outsideParsed && outsideEditorRef.current) outsideEditorRef.current.setFromJson(outsideParsed); } catch (e) { }
+          try { if (insideParsed && insideEditorRef.current) insideEditorRef.current.setFromJson(insideParsed); } catch (e) { }
         } catch (e) { console.warn('box.json parse error', e); }
       }
       // images
