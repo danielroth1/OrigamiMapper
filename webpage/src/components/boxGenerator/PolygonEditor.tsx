@@ -28,14 +28,48 @@ interface PolygonEditorProps {
 }
 
 const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
-  // Track Shift key globally
-  const shiftPressedRef = useRef(false);
+  // Track modifier keys to reflect pressed state on the UI buttons.
+  const [shiftKeyDown, setShiftKeyDown] = useState(false);
+  const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
+  // Manual toggle states for the left toolbar buttons. These control the visual "pressed"
+  // appearance but do NOT override the requirement that actual rotate/scale interactions
+  // only happen when the user holds Ctrl/Meta (rotate) or Shift (scale).
+  const [rotateManual, setRotateManual] = useState(false);
+  const [scaleManual, setScaleManual] = useState(false);
+
+  // Refs that mirror the manual toggle states so event handlers (which are created once)
+  // can read the latest values without recreating the whole scene/handlers.
+  const rotateManualRef = useRef(rotateManual);
+  const scaleManualRef = useRef(scaleManual);
+  useEffect(() => { rotateManualRef.current = rotateManual; }, [rotateManual]);
+  useEffect(() => { scaleManualRef.current = scaleManual; }, [scaleManual]);
+
   useEffect(() => {
+    // When modifier keys are pressed or released, keep the manual toggle state
+    // and the modifier key state in sync so there's no distinction between them.
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') shiftPressedRef.current = true;
+      if (e.key === 'Shift') {
+        // setShiftKeyDown(true);
+        // enable scale when Shift is pressed
+        setScaleManual(false);
+        setRotateManual(false);
+      }
+      if (e.key === 'Control' || e.key === 'Meta') {
+        // setCtrlKeyDown(true);
+        // enable rotate when Ctrl/Meta is pressed
+        setRotateManual(false);
+        setScaleManual(false);
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') shiftPressedRef.current = false;
+      if (e.key === 'Shift') {
+        setShiftKeyDown(false);
+        setScaleManual(false);
+      }
+      if (e.key === 'Control' || e.key === 'Meta') {
+        setCtrlKeyDown(false);
+        setRotateManual(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -205,53 +239,53 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const currentSelectedBBox = getCombinedBBox(selectedIdsRef.current);
-      // Decide mode
-      let mode: TransformMode = 'idle';
-      if (e.shiftKey) mode = 'scale';
-      else if (e.ctrlKey || e.metaKey) mode = 'rotate';
+  // Decide mode (consider manual toggles as well)
+  let mode: TransformMode = 'idle';
+  if (e.shiftKey || scaleManualRef.current) mode = 'scale';
+  else if (e.ctrlKey || e.metaKey || rotateManualRef.current) mode = 'rotate';
       else {
         // Prioritize selected bbox
         if (currentSelectedBBox && pointInBBox(x, y, currentSelectedBBox)) {
           mode = 'move';
         } else {
-            // Find any polygon(s) containing point (bbox test)
-            const hits = polygonsRef.current.filter(p => pointInBBox(x, y, getPolygonBBox(p)));
-            if (hits.length) {
-              // Build ordered unique group prefixes (so polygons that are parts of the same group
-              // are cycled together).
-              const prefixes: string[] = [];
-              for (const p of hits) {
-                const prefix = p.id.split('_')[0];
-                if (!prefixes.includes(prefix)) prefixes.push(prefix);
-              }
-              // If multiple candidates, cycle between them when the user repeatedly clicks the same spot
-              const MAX_DIST_PX = 6; // max movement between clicks to be considered the same spot
-              const MAX_DELAY_MS = 1000; // max time between clicks to continue cycling
-              let nextIndex = 0;
-              const now = Date.now();
-              const prev = clickCycleRef.current;
-              const sameSpot = prev && Math.hypot(prev.x - x, prev.y - y) <= MAX_DIST_PX && (now - prev.lastTime) <= MAX_DELAY_MS;
-              const sameCandidates = prev && prev.candidates.length === prefixes.length && prev.candidates.every((v, i) => v === prefixes[i]);
-              if (prev && sameSpot && sameCandidates) {
-                nextIndex = (prev.index + 1) % prefixes.length;
-              } else {
-                nextIndex = 0;
-              }
-              clickCycleRef.current = { x, y, candidates: prefixes, index: nextIndex, lastTime: now };
-              const chosenPrefix = prefixes[nextIndex];
-              const groupIds = new Set(getGroupIds(chosenPrefix));
-              setSelectedIds(groupIds);
-              mode = 'move';
+          // Find any polygon(s) containing point (bbox test)
+          const hits = polygonsRef.current.filter(p => pointInBBox(x, y, getPolygonBBox(p)));
+          if (hits.length) {
+            // Build ordered unique group prefixes (so polygons that are parts of the same group
+            // are cycled together).
+            const prefixes: string[] = [];
+            for (const p of hits) {
+              const prefix = p.id.split('_')[0];
+              if (!prefixes.includes(prefix)) prefixes.push(prefix);
+            }
+            // If multiple candidates, cycle between them when the user repeatedly clicks the same spot
+            const MAX_DIST_PX = 6; // max movement between clicks to be considered the same spot
+            const MAX_DELAY_MS = 1000; // max time between clicks to continue cycling
+            let nextIndex = 0;
+            const now = Date.now();
+            const prev = clickCycleRef.current;
+            const sameSpot = prev && Math.hypot(prev.x - x, prev.y - y) <= MAX_DIST_PX && (now - prev.lastTime) <= MAX_DELAY_MS;
+            const sameCandidates = prev && prev.candidates.length === prefixes.length && prev.candidates.every((v, i) => v === prefixes[i]);
+            if (prev && sameSpot && sameCandidates) {
+              nextIndex = (prev.index + 1) % prefixes.length;
             } else {
-              // Clear any pending click-cycle when clicking empty space
-              clickCycleRef.current = null;
-              // Start selection rectangle
-              mode = 'select';
-              const startRect = { x, y, w: 0, h: 0 };
-              setSelectionRect(startRect);
-              selectionRectRef.current = startRect;
-              // Unselect polygons when clicking empty area
-              setSelectedIds(new Set());
+              nextIndex = 0;
+            }
+            clickCycleRef.current = { x, y, candidates: prefixes, index: nextIndex, lastTime: now };
+            const chosenPrefix = prefixes[nextIndex];
+            const groupIds = new Set(getGroupIds(chosenPrefix));
+            setSelectedIds(groupIds);
+            mode = 'move';
+          } else {
+            // Clear any pending click-cycle when clicking empty space
+            clickCycleRef.current = null;
+            // Start selection rectangle
+            mode = 'select';
+            const startRect = { x, y, w: 0, h: 0 };
+            setSelectionRect(startRect);
+            selectionRectRef.current = startRect;
+            // Unselect polygons when clicking empty area
+            setSelectedIds(new Set());
           }
         }
       }
@@ -291,10 +325,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
       // Allow dynamic mode switching while dragging
       if (state.mode !== 'select') {
-        let desiredMode: TransformMode = state.mode;
-        if (e.shiftKey) desiredMode = 'scale';
-        else if (e.ctrlKey || e.metaKey) desiredMode = 'rotate';
-        else desiredMode = 'move';
+  let desiredMode: TransformMode = state.mode;
+  if (e.shiftKey || scaleManualRef.current) desiredMode = 'scale';
+  else if (e.ctrlKey || e.metaKey || rotateManualRef.current) desiredMode = 'rotate';
+  else desiredMode = 'move';
         if (desiredMode !== state.mode) {
           // Reset reference snapshot when switching modes
           const selectedSnapshot = polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
@@ -490,7 +524,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         // Also emit a CustomEvent for external listeners (optional)
         try {
           window.dispatchEvent(new CustomEvent('polygonEditor:outsave', { detail: { json, label } }));
-        } catch {}
+        } catch { }
       }
     };
     canvasEl.addEventListener('mousedown', handleMouseDown);
@@ -533,9 +567,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         (bgImageMeshRef.current.geometry as THREE.BufferGeometry).dispose();
         bgImageMeshRef.current = null;
       }
-  const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
-  mat.map = null;
-  mat.needsUpdate = true;
+      const mat = a4PlaneRef.current.material as THREE.MeshBasicMaterial;
+      mat.map = null;
+      mat.needsUpdate = true;
       return;
     }
     if (backgroundImg) {
@@ -657,7 +691,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     return () => { };
   }, [polygons, selectedIds]);
 
-// New scaling algorithm:
+  // New scaling algorithm:
   // 1. Compute pixel-space bbox of all polygons (using original image pixel coords).
   // 2. Non-uniformly scale bbox to A4 aspect (210:297) by setting width->210, height->297 units.
   // 3. Uniformly scale those A4 units so bbox fits inside background image and touches at least one side (width or height).
@@ -681,7 +715,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     const A4H = 297;
     // After non-uniform scaling, bbox is A4W x A4H units. Uniform scale to fit image.
     const uniform = Math.min(imgW / A4W, imgH / A4H);
-    
+
     // Anchor at (0,0) top-left. (Optional centering could be added later.)
     // Convert to canvas-normalized coordinates. Because background image is stretched to canvas,
     // we map by proportion of image dimensions: normalizedX = finalPixelX / imgW, normalizedY = finalPixelY / imgH.
@@ -821,93 +855,198 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       {backgroundImg && (
         <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
       )}
-      <div
-        ref={mountRef}
-        style={{
-          maxWidth: '180px',
-          position: 'relative',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        {selectionRect && (
-          <div style={{
-            position: 'absolute',
-            left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
-            top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
-            width: Math.abs(selectionRect.w),
-            height: Math.abs(selectionRect.h),
-            border: '1px dashed #ff8800',
-            background: 'rgba(255,136,0,0.1)',
-            pointerEvents: 'none'
-          }} />
-        )}
-        {!backgroundImg && (
-          <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
-          </div>
-        )}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em' }}>
+        {/* Left toolbar with rotate/scale toggles */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3em', alignItems: 'center', paddingTop: '6px' }}>
+          {/* Revert button (moved from bottom): small toolbar button at top-left */}
+          {backgroundImg && (
+            <button
+              type="button"
+              onClick={() => { if (canRevert) handleRevert(); }}
+              title="Revert"
+              aria-disabled={!canRevert}
+              style={{
+                fontSize: '1.0em',
+                padding: '0.25em 0.35em',
+                borderRadius: '6px',
+                background: canRevert ? '#000' : '#333',
+                border: 'none',
+                cursor: canRevert ? 'pointer' : 'not-allowed',
+                opacity: canRevert ? 1 : 0.5,
+                color: '#fff',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <IoCaretBackSharp style={{ color: '#fff', fontSize: '1.1em' }} />
+            </button>
+          )}
+          {/* Rotate button: visual pressed when ctrl/meta down or manually toggled, only if polygons selected */}
+          {backgroundImg && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedIds.size) return;
+                setRotateManual(prev => {
+                  const next = !prev;
+                  if (next) {
+                    // enforce mutual exclusion
+                    setScaleManual(false);
+                    setShiftKeyDown(false);
+                  }
+                  return next;
+                });
+              }}
+              title="Rotate mode (hold Ctrl / ⌘ while dragging to rotate)"
+              aria-disabled={selectedIds.size === 0}
+              aria-pressed={selectedIds.size ? (rotateManual || ctrlKeyDown) : false}
+              style={{
+                fontSize: '1.0em',
+                padding: '0.25em 0.35em',
+                borderRadius: '6px',
+                background: (selectedIds.size && (rotateManual || ctrlKeyDown)) ? '#333' : '#000',
+                border: 'none',
+                cursor: selectedIds.size ? 'pointer' : 'not-allowed',
+                opacity: selectedIds.size ? 1 : 0.5,
+                color: '#fff',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {/* simple rotate SVG */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 12a9 9 0 1 0-2.6 6.05" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M21 3v6h-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+          {/* Scale button: visual pressed when shift down or manually toggled */}
+          {backgroundImg && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedIds.size) return;
+                setScaleManual(prev => {
+                  const next = !prev;
+                  if (next) {
+                    // enforce mutual exclusion
+                    setRotateManual(false);
+                    setCtrlKeyDown(false);
+                  }
+                  return next;
+                });
+              }}
+              title="Scale mode (hold Shift while dragging to scale)"
+              aria-disabled={selectedIds.size === 0}
+              aria-pressed={selectedIds.size ? (scaleManual || shiftKeyDown) : false}
+              style={{
+                fontSize: '1.0em',
+                padding: '0.25em 0.35em',
+                borderRadius: '6px',
+                background: (selectedIds.size && (scaleManual || shiftKeyDown)) ? '#333' : '#000',
+                border: 'none',
+                cursor: selectedIds.size ? 'pointer' : 'not-allowed',
+                opacity: selectedIds.size ? 1 : 0.5,
+                color: '#fff',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {/* simple scale SVG (diagonal arrows) */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 21v-4a1 1 0 0 1 1-1h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M21 3v4a1 1 0 0 1-1 1h-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M14 10l7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <div
+          ref={mountRef}
+          style={{
+            maxWidth: '180px',
+            position: 'relative',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {selectionRect && (
+            <div style={{
+              position: 'absolute',
+              left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
+              top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
+              width: Math.abs(selectionRect.w),
+              height: Math.abs(selectionRect.h),
+              border: '1px dashed #ff8800',
+              background: 'rgba(255,136,0,0.1)',
+              pointerEvents: 'none'
+            }} />
+          )}
+          {!backgroundImg && (
+            <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
+            </div>
+          )}
+        </div>
       </div>
       {backgroundImg && (
-      <div style={{
-        marginTop: '0.5em',
-        display: 'flex',
-        gap: '0.3em',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,image/*"
-          style={{ display: 'none' }}
-          onChange={handleImport}
-        />
-  <button
-          type="button"
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={() => fileInputRef.current?.click()}
-          title="Import JSON or Image"
-        ><IoFolderOpen style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-        <button
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={handleExport}
-          title="Export JSON"
-        ><IoDownload style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-        <button
-          type="button"
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={() => {
-            if (typeof onDelete !== 'function') return;
-            const ok = window.confirm('Delete image? This cannot be undone.');
-            if (ok) onDelete();
-          }}
-          title="Delete image"
-        ><IoTrash style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-        <button
-          type="button"
-          disabled={!canRevert}
-          style={{
-            fontSize: '1.2em',
-            padding: '0.3em 0.5em',
-            borderRadius: '5px',
-            background: canRevert ? '#000' : '#333',
-            border: 'none',
-            cursor: canRevert ? 'pointer' : 'not-allowed'
-          }}
-          onClick={handleRevert}
-          title="Revert"
-        ><IoCaretBackSharp style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-        <button
-          type="button"
-          style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-          onClick={handleReset}
-          title="Reset"
-        ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
-  </div>
-  )}
+        <div style={{
+          marginTop: '0.5em',
+          display: 'flex',
+          gap: '0.3em',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,image/*"
+            style={{ display: 'none' }}
+            onChange={handleImport}
+          />
+          <button
+            type="button"
+            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+            onClick={() => fileInputRef.current?.click()}
+            title="Import JSON or Image"
+          ><IoFolderOpen style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          <button
+            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+            onClick={handleExport}
+            title="Export JSON"
+          ><IoDownload style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          <button
+            type="button"
+            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+            onClick={() => {
+              if (typeof onDelete !== 'function') return;
+              const ok = window.confirm('Delete image? This cannot be undone.');
+              if (ok) onDelete();
+            }}
+            title="Delete image"
+          ><IoTrash style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          {/* reverted: Revert button moved to left toolbar */}
+          <button
+            type="button"
+            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+            onClick={handleReset}
+            title="Reset"
+          ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+        </div>
+      )}
     </div>
   );
 });
