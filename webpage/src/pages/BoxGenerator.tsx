@@ -782,6 +782,8 @@ function BoxGenerator() {
               data={getEditorData(false)}
               label='Outside image'
               backgroundImg={outsideImgTransformed}
+              rotation={outsideRotation}
+              onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
               onUploadImage={setOutsideImg}
               onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
             />
@@ -792,6 +794,8 @@ function BoxGenerator() {
               data={getEditorData(true)}
               label='Inside image'
               backgroundImg={insideImgTransformed}
+              rotation={insideRotation}
+              onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
               onUploadImage={setInsideImg}
               onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
             />
@@ -828,24 +832,7 @@ function BoxGenerator() {
                     <option value="tile8">Tile 8x (4x2)</option>
                   </select>
                 </div>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
-                  <span style={{ color: '#fff' }}>Outside rotation:</span>
-                  <select value={outsideRotation} onChange={e => setOutsideRotation(Number(e.target.value) as 0 | 90 | 180 | 270)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
-                    <option value={0}>0°</option>
-                    <option value={90}>90°</option>
-                    <option value={180}>180°</option>
-                    <option value={270}>270°</option>
-                  </select>
-                </div>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
-                  <span style={{ color: '#fff' }}>Inside rotation:</span>
-                  <select value={insideRotation} onChange={e => setInsideRotation(Number(e.target.value) as 0 | 90 | 180 | 270)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
-                    <option value={0}>0°</option>
-                    <option value={90}>90°</option>
-                    <option value={180}>180°</option>
-                    <option value={270}>270°</option>
-                  </select>
-                </div>
+                {/* Rotation selectors moved into each PolygonEditor sidebar */}
                 <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Output DPI:</span>
                   <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>

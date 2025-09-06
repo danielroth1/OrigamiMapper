@@ -17,6 +17,10 @@ interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
   backgroundImg?: string;
   label: string;
+  // rotation in degrees for the background image preview and transform helpers
+  rotation?: 0 | 90 | 180 | 270;
+  // callback invoked when user changes rotation via the editor UI
+  onRotationChange?: (rotation: 0 | 90 | 180 | 270) => void;
   // optional callback invoked when polygons or background image change
   onChange?: (json: OrigamiMapperTypes.TemplateJson) => void;
   // optional callback invoked when an autosave should occur (only on mouse up after a change)
@@ -27,7 +31,7 @@ interface PolygonEditorProps {
   onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, rotation, onRotationChange, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
   const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
@@ -239,10 +243,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const currentSelectedBBox = getCombinedBBox(selectedIdsRef.current);
-  // Decide mode (consider manual toggles as well)
-  let mode: TransformMode = 'idle';
-  if (e.shiftKey || scaleManualRef.current) mode = 'scale';
-  else if (e.ctrlKey || e.metaKey || rotateManualRef.current) mode = 'rotate';
+      // Decide mode (consider manual toggles as well)
+      let mode: TransformMode = 'idle';
+      if (e.shiftKey || scaleManualRef.current) mode = 'scale';
+      else if (e.ctrlKey || e.metaKey || rotateManualRef.current) mode = 'rotate';
       else {
         // Prioritize selected bbox
         if (currentSelectedBBox && pointInBBox(x, y, currentSelectedBBox)) {
@@ -325,10 +329,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
       // Allow dynamic mode switching while dragging
       if (state.mode !== 'select') {
-  let desiredMode: TransformMode = state.mode;
-  if (e.shiftKey || scaleManualRef.current) desiredMode = 'scale';
-  else if (e.ctrlKey || e.metaKey || rotateManualRef.current) desiredMode = 'rotate';
-  else desiredMode = 'move';
+        let desiredMode: TransformMode = state.mode;
+        if (e.shiftKey || scaleManualRef.current) desiredMode = 'scale';
+        else if (e.ctrlKey || e.metaKey || rotateManualRef.current) desiredMode = 'rotate';
+        else desiredMode = 'move';
         if (desiredMode !== state.mode) {
           // Reset reference snapshot when switching modes
           const selectedSnapshot = polygonsRef.current.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
@@ -799,6 +803,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     }
   }), [data, polygons]);
 
+  // Rotation is handled by the parent via transformed background image; no CSS rotation here.
+
   const handleExport = () => {
     const output = { ...data, input_polygons: polygons };
     const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
@@ -853,7 +859,37 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   return (
     <div style={{ textAlign: 'center', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {backgroundImg && (
-        <div style={{ color: '#fff', fontSize: '1em', marginBottom: '0.3em' }}>{label}</div>
+        <div style={{ width: '100%', position: 'relative', marginBottom: '0.3em', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
+          <div style={{ display: 'flex', gap: '6px', padding: '2px', alignSelf: 'flex-end', marginTop: '6px', marginRight: '6px' }}>
+            <button
+              type="button"
+              title="Rotate counter-clockwise 90°"
+              onClick={() => {
+                if (typeof onRotationChange !== 'function') return;
+                const cur = rotation ?? 0;
+                const next = ((cur + 270) % 360) as 0 | 90 | 180 | 270;
+                onRotationChange(next);
+              }}
+              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(-90deg)' }} />
+            </button>
+            <button
+              type="button"
+              title="Rotate clockwise 90°"
+              onClick={() => {
+                if (typeof onRotationChange !== 'function') return;
+                const cur = rotation ?? 0;
+                const next = ((cur + 90) % 360) as 0 | 90 | 180 | 270;
+                onRotationChange(next);
+              }}
+              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(90deg)' }} />
+            </button>
+          </div>
+        </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em' }}>
         {/* Left toolbar with rotate/scale toggles */}
@@ -881,7 +917,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 justifyContent: 'center'
               }}
             >
-              <IoCaretBackSharp style={{ color: '#fff', fontSize: '1.1em' }} />
+              <IoCaretBackSharp color="#fff" size={18} />
             </button>
           )}
           {/* Rotate button: visual pressed when ctrl/meta down or manually toggled, only if polygons selected */}
@@ -970,6 +1006,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               </svg>
             </button>
           )}
+
         </div>
 
         <div
@@ -1022,12 +1059,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
             onClick={() => fileInputRef.current?.click()}
             title="Import JSON or Image"
-          ><IoFolderOpen style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          ><IoFolderOpen color="#fff" size={20} /></button>
           <button
             style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
             onClick={handleExport}
             title="Export JSON"
-          ><IoDownload style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          ><IoDownload color="#fff" size={20} /></button>
           <button
             type="button"
             style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
@@ -1037,14 +1074,14 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               if (ok) onDelete();
             }}
             title="Delete image"
-          ><IoTrash style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          ><IoTrash color="#fff" size={20} /></button>
           {/* reverted: Revert button moved to left toolbar */}
           <button
             type="button"
             style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
             onClick={handleReset}
             title="Reset"
-          ><IoRefreshCircle style={{ color: '#fff', fontSize: '1.5em', verticalAlign: 'middle' }} /></button>
+          ><IoRefreshCircle color="#fff" size={20} /></button>
         </div>
       )}
     </div>
