@@ -87,6 +87,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   };
   const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
   useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
+  // Used to cycle through overlapping polygons when clicking repeatedly in the same spot
+  const clickCycleRef = useRef<null | { x: number; y: number; candidates: string[]; index: number; lastTime: number }>(null);
   const groupsRef = useRef<Map<string, THREE.Group>>(new Map());
   const polygonsRef = useRef(polygons);
   const selectedIdsRef = useRef(selectedIds);
@@ -212,21 +214,44 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         if (currentSelectedBBox && pointInBBox(x, y, currentSelectedBBox)) {
           mode = 'move';
         } else {
-          // Find any polygon containing point (bbox test)
-          const hitPoly = polygonsRef.current.find(p => pointInBBox(x, y, getPolygonBBox(p)));
-          if (hitPoly) {
-            // Select its group
-            const groupIds = new Set(getGroupIds(hitPoly.id));
-            setSelectedIds(groupIds);
-            mode = 'move';
-          } else {
-            // Start selection rectangle
-            mode = 'select';
-            const startRect = { x, y, w: 0, h: 0 };
-            setSelectionRect(startRect);
-            selectionRectRef.current = startRect;
-            // Unselect polygons when clicking empty area
-            setSelectedIds(new Set());
+            // Find any polygon(s) containing point (bbox test)
+            const hits = polygonsRef.current.filter(p => pointInBBox(x, y, getPolygonBBox(p)));
+            if (hits.length) {
+              // Build ordered unique group prefixes (so polygons that are parts of the same group
+              // are cycled together).
+              const prefixes: string[] = [];
+              for (const p of hits) {
+                const prefix = p.id.split('_')[0];
+                if (!prefixes.includes(prefix)) prefixes.push(prefix);
+              }
+              // If multiple candidates, cycle between them when the user repeatedly clicks the same spot
+              const MAX_DIST_PX = 6; // max movement between clicks to be considered the same spot
+              const MAX_DELAY_MS = 1000; // max time between clicks to continue cycling
+              let nextIndex = 0;
+              const now = Date.now();
+              const prev = clickCycleRef.current;
+              const sameSpot = prev && Math.hypot(prev.x - x, prev.y - y) <= MAX_DIST_PX && (now - prev.lastTime) <= MAX_DELAY_MS;
+              const sameCandidates = prev && prev.candidates.length === prefixes.length && prev.candidates.every((v, i) => v === prefixes[i]);
+              if (prev && sameSpot && sameCandidates) {
+                nextIndex = (prev.index + 1) % prefixes.length;
+              } else {
+                nextIndex = 0;
+              }
+              clickCycleRef.current = { x, y, candidates: prefixes, index: nextIndex, lastTime: now };
+              const chosenPrefix = prefixes[nextIndex];
+              const groupIds = new Set(getGroupIds(chosenPrefix));
+              setSelectedIds(groupIds);
+              mode = 'move';
+            } else {
+              // Clear any pending click-cycle when clicking empty space
+              clickCycleRef.current = null;
+              // Start selection rectangle
+              mode = 'select';
+              const startRect = { x, y, w: 0, h: 0 };
+              setSelectionRect(startRect);
+              selectionRectRef.current = startRect;
+              // Unselect polygons when clicking empty area
+              setSelectedIds(new Set());
           }
         }
       }
