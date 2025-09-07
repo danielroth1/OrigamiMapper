@@ -626,7 +626,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [width, height]);
+  }, [width, height, maxCanvasSize]);
 
   // Load background image (no canvas resize) and convert polygon coordinates from image space -> canvas space once.
   useEffect(() => {
