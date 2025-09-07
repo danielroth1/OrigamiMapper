@@ -587,8 +587,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           let h = img.naturalHeight;
           const scale = Math.min(
             maxCanvasSize.w / w,
-            maxCanvasSize.h / h,
-            1 // don't upscale
+            maxCanvasSize.h / h
           );
           w *= scale; h *= scale;
           if (Math.abs(w - width) > 0.5 || Math.abs(h - height) > 0.5) {
@@ -913,7 +912,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   // decrease canvas size by 10%, clamp to reasonable bounds
                   // decrease max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
                   setMaxCanvasSize(prev => {
-                    const factor = 0.9;
+                    const factor = 0.75;
                     const nw = Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor));
                     const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
                     const nextMax = { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
@@ -936,7 +935,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   // increase canvas size by 10%, clamp to MAX_CANVAS_* constants
                   // increase max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
                   setMaxCanvasSize(prev => {
-                    const factor = 1.1;
+                    const factor = 1 / 0.75;
                     const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.w * factor));
                     const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
                     const nextMax = { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
@@ -1075,7 +1074,6 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             ref={mountRef}
             style={{
               gridRow: '2', gridColumn: '2',
-              maxWidth: '180px',
               position: 'relative',
               margin: '0 auto',
               display: 'flex',

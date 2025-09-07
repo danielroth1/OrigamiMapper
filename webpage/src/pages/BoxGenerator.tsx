@@ -773,32 +773,36 @@ function BoxGenerator() {
             </div>
           </div>
 
-          {/* 2D Editors side by side */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-            <PolygonEditor
-              ref={outsideEditorRef}
-              onChange={json => scheduleBuild(json.input_polygons, undefined)}
-              onOutsave={() => { void saveAutosave(); }}
-              data={getEditorData(false)}
-              label='Outside image'
-              backgroundImg={outsideImgTransformed}
-              rotation={outsideRotation}
-              onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-              onUploadImage={setOutsideImg}
-              onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
-            />
-            <PolygonEditor
-              ref={insideEditorRef}
-              onChange={json => scheduleBuild(undefined, json.input_polygons)}
-              onOutsave={() => { void saveAutosave(); }}
-              data={getEditorData(true)}
-              label='Inside image'
-              backgroundImg={insideImgTransformed}
-              rotation={insideRotation}
-              onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-              onUploadImage={setInsideImg}
-              onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
-            />
+          {/* 2D Editors side by side - wrap to column when space is constrained */}
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+            <div style={{ minWidth: 300 }}>
+              <PolygonEditor
+                ref={outsideEditorRef}
+                onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                onOutsave={() => { void saveAutosave(); }}
+                data={getEditorData(false)}
+                label='Outside image'
+                backgroundImg={outsideImgTransformed}
+                rotation={outsideRotation}
+                onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
+                onUploadImage={setOutsideImg}
+                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
+              />
+            </div>
+            <div style={{ minWidth: 300 }}>
+              <PolygonEditor
+                ref={insideEditorRef}
+                onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                onOutsave={() => { void saveAutosave(); }}
+                data={getEditorData(true)}
+                label='Inside image'
+                backgroundImg={insideImgTransformed}
+                rotation={insideRotation}
+                onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
+                onUploadImage={setInsideImg}
+                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
+              />
+            </div>
           </div>
           {/* Shared info text below both editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
