@@ -871,7 +871,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         </div>
       )}
       {/* Title */}
-      <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
+      {backgroundImg && (
+        <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
+      )}
       {/* Main Grid */}
       {backgroundImg && (
         <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', gridTemplateRows: 'auto auto auto' }}>
