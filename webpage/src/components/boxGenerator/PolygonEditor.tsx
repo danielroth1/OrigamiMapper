@@ -40,13 +40,17 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   // only happen when the user holds Ctrl/Meta (rotate) or Shift (scale).
   const [rotateManual, setRotateManual] = useState(false);
   const [scaleManual, setScaleManual] = useState(false);
+  // Snap-rotation toggle: when true, rotations snap to 12.5° increments while dragging
+  const [snapRotation, setSnapRotation] = useState(false);
 
   // Refs that mirror the manual toggle states so event handlers (which are created once)
   // can read the latest values without recreating the whole scene/handlers.
   const rotateManualRef = useRef(rotateManual);
   const scaleManualRef = useRef(scaleManual);
+  const snapRotationRef = useRef(snapRotation);
   useEffect(() => { rotateManualRef.current = rotateManual; }, [rotateManual]);
   useEffect(() => { scaleManualRef.current = scaleManual; }, [scaleManual]);
+  useEffect(() => { snapRotationRef.current = snapRotation; }, [snapRotation]);
 
   useEffect(() => {
     // When modifier keys are pressed or released, keep the manual toggle state
@@ -160,6 +164,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     pendingClickInsideSelection?: boolean;
     rotationAccum?: number; // total accumulated delta during a rotate drag
     originalRotations?: Map<string, number>; // starting rotation per polygon id
+    // last snapped total rotation (radians) applied during this drag; used when snapRotation is enabled
+    lastSnappedRotation?: number;
   }
   const transformStateRef = useRef<TransformState | null>(null);
 
@@ -315,6 +321,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         pendingClickInsideSelection: mode === 'move' && currentSelectedBBox != null && pointInBBox(x, y, currentSelectedBBox),
         rotationAccum: 0,
         originalRotations: new Map(polygonsRef.current.map(p => [p.id, p.rotation || 0]))
+        , lastSnappedRotation: 0
       };
     };
     const handleMouseMove = (e: MouseEvent) => {
@@ -433,18 +440,31 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         let deltaAngle = currAngle - prevAngle;
         if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
         else if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
-        const cosA = Math.cos(deltaAngle);
-        const sinA = Math.sin(deltaAngle);
         state.rotationAccum = (state.rotationAccum || 0) + deltaAngle;
+        // If snap-rotation is enabled, compute snapped cumulative rotation and apply incremental delta
+        const snapEnabled = snapRotationRef.current;
+        let appliedDelta = deltaAngle;
+        if (snapEnabled) {
+          const total = (state.rotationAccum || 0);
+          // snap step is 11.25 degrees = 11.25 * PI/180 radians
+          const step = (11.25 * Math.PI) / 180;
+          // compute nearest multiple
+          const snappedTotal = Math.round(total / step) * step;
+          const last = state.lastSnappedRotation || 0;
+          appliedDelta = snappedTotal - last;
+          state.lastSnappedRotation = snappedTotal;
+        }
         const updated = polygonsRef.current.map(p => {
           if (!selectedIdsRef.current.has(p.id)) return p;
+          const c = Math.cos(appliedDelta);
+          const s = Math.sin(appliedDelta);
           const verts = p.vertices.map(([vx, vy]) => {
             const px = vx * width;
             const py = vy * height;
             const ox = px - centerPixel.x;
             const oy = py - centerPixel.y;
-            const rx = ox * cosA - oy * sinA;
-            const ry = ox * sinA + oy * cosA;
+            const rx = ox * c - oy * s;
+            const ry = ox * s + oy * c;
             const npx = rx + centerPixel.x;
             const npy = ry + centerPixel.y;
             return [npx / width, npy / height] as [number, number];
@@ -534,8 +554,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               let delta = angAfter - angBefore;
               if (delta > Math.PI) delta -= 2 * Math.PI;
               else if (delta < -Math.PI) delta += 2 * Math.PI;
-              const baseRot = state.originalRotations?.get(p.id) ?? (orig.rotation || 0);
-              const newRot = baseRot + delta;
+              let newRot = (state.originalRotations?.get(p.id) ?? (orig.rotation || 0)) + delta;
+              // If snapRotation was enabled during this drag, snap the final rotation metadata to the same grid
+              if (snapRotationRef.current) {
+                const step = (12.5 * Math.PI) / 180;
+                newRot = Math.round(newRot / step) * step;
+              }
               return { ...p, rotation: newRot };
             });
             finalPolygons = reconciled;
@@ -545,6 +569,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           if (state.pendingClickInsideSelection) {
             setSelectedIds(new Set());
           }
+          state.lastSnappedRotation = 0;
         }
       }
       setSelectionRect(null);
@@ -1097,7 +1122,35 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-
+              {/* Snap rotation toggle: when enabled, rotations snap to 12.5° increments while dragging */}
+              <button
+                type="button"
+                onClick={() => { setSnapRotation(prev => !prev); }}
+                title="Snap rotation to 12.5° steps while rotating"
+                aria-pressed={snapRotation}
+                style={{
+                  fontSize: '1.0em',
+                  padding: '0.25em 0.35em',
+                  borderRadius: '6px',
+                  background: snapRotation ? '#333' : '#000',
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: 1,
+                  color: '#fff',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {/* small degree/grid icon */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1.5" />
+                  <path d="M12 3v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M12 12h6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
             </div>
           </div>
           {/* Right bar */}
