@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import ImageUpload from './ImageUpload';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline } from 'react-icons/io5';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoRefreshCircleOutline, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -1085,11 +1085,9 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   justifyContent: 'center'
                 }}
               >
-                {/* simple rotate SVG */}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 12a9 9 0 1 0-2.6 6.05" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 3v6h-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <span style={{ position: 'relative', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IoRefreshCircle size={20} />
+                </span>
               </button>
               {/* Scale button: visual pressed when shift down or manually toggled */}
               <button
@@ -1125,13 +1123,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   justifyContent: 'center'
                 }}
               >
-                {/* simple scale SVG (diagonal arrows) */}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 21v-4a1 1 0 0 1 1-1h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M21 3v4a1 1 0 0 1-1 1h-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M14 10l7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <span style={{ position: 'relative', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IoResizeOutline size={20} />
+                  <IoGridOutline size={10} style={{ position: 'absolute', right: -2, bottom: -2, opacity: 0.85 }} />
+                </span>
               </button>
               {/* Snap rotation toggle: when enabled, rotations snap to 11.25° increments while dragging */}
               <button
