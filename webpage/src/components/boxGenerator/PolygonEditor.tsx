@@ -164,9 +164,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const transformStateRef = useRef<TransformState | null>(null);
 
   // Max canvas bounds (original A4 derived size). Actual canvas will fit inside while matching background image aspect ratio.
-  const MAX_CANVAS_WIDTH = 180;
-  const MAX_CANVAS_HEIGHT = (297 / 210) * 180;
-  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: MAX_CANVAS_WIDTH, h: MAX_CANVAS_HEIGHT });
+  const INIT_MAX_CANVAS_WIDTH = 180;
+  const INIT_MAX_CANVAS_HEIGHT = (297 / 210) * 180;
+  const MIN_MAX_CANVAS = 50; // don't let the max canvas drop below this
+  const ABSOLUTE_MAX_CANVAS = 2000; // absolute upper cap for safety
+  const [maxCanvasSize, setMaxCanvasSize] = useState<{ w: number; h: number }>({ w: INIT_MAX_CANVAS_WIDTH, h: INIT_MAX_CANVAS_HEIGHT });
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: INIT_MAX_CANVAS_WIDTH, h: INIT_MAX_CANVAS_HEIGHT });
   const width = canvasSize.w;
   const height = canvasSize.h;
   const initialHistoryPushedRef = useRef(false);
@@ -583,8 +586,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           let w = img.naturalWidth;
           let h = img.naturalHeight;
           const scale = Math.min(
-            MAX_CANVAS_WIDTH / w,
-            MAX_CANVAS_HEIGHT / h,
+            maxCanvasSize.w / w,
+            maxCanvasSize.h / h,
             1 // don't upscale
           );
           w *= scale; h *= scale;
@@ -624,7 +627,11 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         bgImageMeshRef.current = mesh;
       });
     }
-  }, [backgroundImg, width, height]);
+  // Force an update even if the polygon contents didn't change by creating a new
+  // array reference. This ensures effects and handlers that depend on `polygons`
+  // will run when the background/image or canvas size changes.
+  setPolygons(prev => [...prev]);
+  }, [backgroundImg, width, height, maxCanvasSize]);
 
   // Update polygon meshes/groups and drag controls when polygons change
   useEffect(() => {
@@ -887,6 +894,54 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >
               <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(90deg)' }} />
+            </button>
+            {/* Zoom out / Zoom in buttons (next to rotate CCW) */}
+            <button
+              type="button"
+              title="Zoom out"
+              onClick={() => {
+                // decrease canvas size by 10%, clamp to reasonable bounds
+                // decrease max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                setMaxCanvasSize(prev => {
+                  const factor = 0.9;
+                  const nw = Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor));
+                  const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
+                  const nextMax = { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
+                  return nextMax;
+                });
+              }}
+              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              {/* magnifying glass with minus */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              title="Zoom in"
+              onClick={() => {
+                // increase canvas size by 10%, clamp to MAX_CANVAS_* constants
+                // increase max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                setMaxCanvasSize(prev => {
+                  const factor = 1.1;
+                  const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.w * factor));
+                  const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
+                  const nextMax = { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
+                  return nextMax;
+                });
+              }}
+              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              {/* magnifying glass with plus */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="11" y1="8" x2="11" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
         </div>
