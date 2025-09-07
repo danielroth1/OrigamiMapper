@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import ImageUpload from './ImageUpload';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoRefreshCircleOutline, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline } from 'react-icons/io5';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -17,6 +17,9 @@ interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
   backgroundImg?: string;
   label: string;
+  // When true, reset() applies an initial 90° CCW rotation and then translates
+  // the combined polygon bbox so its top-left is at (0,0). No scaling.
+  applyResetTransform?: boolean;
   // rotation in degrees for the background image preview and transform helpers
   rotation?: 0 | 90 | 180 | 270;
   // callback invoked when user changes rotation via the editor UI
@@ -31,7 +34,7 @@ interface PolygonEditorProps {
   onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, rotation, onRotationChange, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
   const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
@@ -846,17 +849,67 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
   const resetPolygons = (base: OrigamiMapperTypes.Polygon[], width: number, height: number): OrigamiMapperTypes.Polygon[] => {
     if (!base.length) return base;
+
     let converted = scalePolygonsA4(base, width, height);
-    converted = scalePolygonsToCanvas(converted, width, height);
-    // If this editor is for outside polygons, mark initial rotation metadata as 90deg (pi/2) without changing vertices
-    const isOutside = label.toLowerCase().includes('outside');
-    converted = converted.map(p => {
-      if (isOutside && !p.id.includes('i')) {
-        return { ...p, rotation: Math.PI / 2 };
-      }
-      return { ...p, rotation: p.rotation || 0 };
-    });
-    return converted;
+    base = scalePolygonsToCanvas(converted, width, height);
+    // If applyResetTransform is enabled, rotate all polygons 90° CCW (visual)
+    // around the canvas center, then translate so combined bbox top-left is at (0,0).
+    // No scaling.
+    if (applyResetTransform) {
+      // 1) Convert normalized -> absolute pixels
+      const absPolys = base.map(p => ({
+        ...p,
+        vertices: p.vertices.map(([vx, vy]) => [vx * width, vy * height] as [number, number])
+      }));
+      // 2) Rotate around canvas center by -90° (visual CCW in y-down screen space)
+      const cx = width / 2;
+      const cy = height / 2;
+      const rad = -Math.PI / 2; // negative for visual CCW in screen coords
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const rotPolys = absPolys.map(p => ({
+        ...p,
+        vertices: p.vertices.map(([px, py]) => {
+          const ox = px - cx;
+          const oy = py - cy;
+          const rx = ox * cos - oy * sin;
+          const ry = ox * sin + oy * cos;
+          const npx = rx + cx;
+          const npy = ry + cy;
+          return [npx, npy] as [number, number];
+        })
+      }));
+      // 3) Find combined bbox and translate to align top-left to (0,0)
+      let minX = Infinity, minY = Infinity;
+      rotPolys.forEach(p => p.vertices.forEach(([px, py]) => { if (px < minX) minX = px; if (py < minY) minY = py; }));
+      const tx = isFinite(minX) ? -minX : 0;
+      const ty = isFinite(minY) ? -minY : 0;
+      const translated = rotPolys.map(p => ({
+        ...p,
+        vertices: p.vertices.map(([px, py]) => [px + tx, py + ty] as [number, number])
+      }));
+      // 4) Scale uniformly to contain: make bbox width==canvas width OR height==canvas height (whichever is smaller)
+      let maxX = -Infinity, maxY = -Infinity;
+      translated.forEach(p => p.vertices.forEach(([px, py]) => { if (px > maxX) maxX = px; if (py > maxY) maxY = py; }));
+      const bboxW = Math.max(1e-6, maxX - 0); // minX is 0 after translation
+      const bboxH = Math.max(1e-6, maxY - 0); // minY is 0 after translation
+      const s = Math.min(width / bboxW, height / bboxH);
+      const scaled = translated.map(p => ({
+        ...p,
+        vertices: p.vertices.map(([px, py]) => [px * s, py * s] as [number, number])
+      }));
+      // 5) Convert back to normalized
+      const norm = scaled.map(p => ({
+        ...p,
+        rotation: p.rotation || 0,
+        vertices: p.vertices.map(([px, py]) => [px / width, py / height] as [number, number])
+      }));
+      return norm;
+    }
+
+    // Default behavior: original scaling pipeline
+
+    return converted.map(p => ({ ...p, rotation: p.rotation || 0 }));
   };
 
   // Expose getCurrentJson to parent via ref

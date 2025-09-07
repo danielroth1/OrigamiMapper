@@ -176,8 +176,8 @@ function BoxGenerator() {
   const insideEditorRef = useRef<PolygonEditorHandle>(null);
 
   const getEditorData = (isInside: boolean) => ({
-  ...boxData,
-  offset: (Array.isArray(boxData.offset) ? (boxData.offset.slice(0, 2) as [number, number]) : ([0, 0] as [number, number])),
+    ...boxData,
+    offset: (Array.isArray(boxData.offset) ? (boxData.offset.slice(0, 2) as [number, number]) : ([0, 0] as [number, number])),
     input_polygons: (boxData.input_polygons ?? []).filter(p => isInside ? p.id.includes('i') : !p.id.includes('i')).map(p => ({
       ...p,
       vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
@@ -492,8 +492,8 @@ function BoxGenerator() {
       const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : boxData;
       const combinedJson = {
         ...outsideJson,
-        input_polygons: [ ...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? []) ],
-        output_polygons: [ ...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? []) ]
+        input_polygons: [...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? [])],
+        output_polygons: [...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? [])]
       };
 
       const zip = new JSZip();
@@ -778,6 +778,7 @@ function BoxGenerator() {
             <div style={{ minWidth: 300 }}>
               <PolygonEditor
                 ref={outsideEditorRef}
+                applyResetTransform={true}
                 onChange={json => scheduleBuild(json.input_polygons, undefined)}
                 onOutsave={() => { void saveAutosave(); }}
                 data={getEditorData(false)}
@@ -792,6 +793,7 @@ function BoxGenerator() {
             <div style={{ minWidth: 300 }}>
               <PolygonEditor
                 ref={insideEditorRef}
+                applyResetTransform={false}
                 onChange={json => scheduleBuild(undefined, json.input_polygons)}
                 onOutsave={() => { void saveAutosave(); }}
                 data={getEditorData(true)}
