@@ -627,10 +627,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         bgImageMeshRef.current = mesh;
       });
     }
-  // Force an update even if the polygon contents didn't change by creating a new
-  // array reference. This ensures effects and handlers that depend on `polygons`
-  // will run when the background/image or canvas size changes.
-  setPolygons(prev => [...prev]);
+    // Force an update even if the polygon contents didn't change by creating a new
+    // array reference. This ensures effects and handlers that depend on `polygons`
+    // will run when the background/image or canvas size changes.
+    setPolygons(prev => [...prev]);
   }, [backgroundImg, width, height, maxCanvasSize]);
 
   // Update polygon meshes/groups and drag controls when polygons change
@@ -865,280 +865,285 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
 
   return (
     <div style={{ textAlign: 'center', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Placeholder if no image present */}
+      {!backgroundImg && (
+        <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
+        </div>
+      )}
+      {/* Title */}
+      <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
+      {/* Main Grid */}
       {backgroundImg && (
-        <div style={{ width: '100%', position: 'relative', marginBottom: '0.3em', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
-          <div style={{ display: 'flex', gap: '6px', padding: '2px', alignSelf: 'flex-end', marginTop: '6px', marginRight: '6px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', gridTemplateRows: 'auto auto auto' }}>
+          {/* Top bar */}
+          <div style={{ gridRow: '1', gridColumn: '2', marginBottom: '0.3em', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', gap: '6px', padding: '2px', alignSelf: 'flex-end', marginTop: '6px', marginRight: '6px' }}>
+              <button
+                type="button"
+                title="Rotate counter-clockwise 90°"
+                onClick={() => {
+                  if (typeof onRotationChange !== 'function') return;
+                  const cur = rotation ?? 0;
+                  const next = ((cur + 270) % 360) as 0 | 90 | 180 | 270;
+                  onRotationChange(next);
+                }}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(-90deg)' }} />
+              </button>
+              <button
+                type="button"
+                title="Rotate clockwise 90°"
+                onClick={() => {
+                  if (typeof onRotationChange !== 'function') return;
+                  const cur = rotation ?? 0;
+                  const next = ((cur + 90) % 360) as 0 | 90 | 180 | 270;
+                  onRotationChange(next);
+                }}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(90deg)' }} />
+              </button>
+              {/* Zoom out / Zoom in buttons (next to rotate CCW) */}
+              <button
+                type="button"
+                title="Zoom out"
+                onClick={() => {
+                  // decrease canvas size by 10%, clamp to reasonable bounds
+                  // decrease max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                  setMaxCanvasSize(prev => {
+                    const factor = 0.9;
+                    const nw = Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor));
+                    const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
+                    const nextMax = { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
+                    return nextMax;
+                  });
+                }}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                {/* magnifying glass with minus */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                title="Zoom in"
+                onClick={() => {
+                  // increase canvas size by 10%, clamp to MAX_CANVAS_* constants
+                  // increase max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                  setMaxCanvasSize(prev => {
+                    const factor = 1.1;
+                    const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.w * factor));
+                    const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
+                    const nextMax = { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
+                    return nextMax;
+                  });
+                }}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                {/* magnifying glass with plus */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="11" y1="8" x2="11" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          {/* Left Bar */}
+          <div style={{ gridRow: '2', gridColumn: '1', display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em' }}>
+            {/* Left toolbar with rotate/scale toggles */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3em', alignItems: 'center', paddingTop: '6px' }}>
+              {/* Revert button (moved from bottom): small toolbar button at top-left */}
+              <button
+                type="button"
+                onClick={() => { if (canRevert) handleRevert(); }}
+                title="Revert"
+                aria-disabled={!canRevert}
+                style={{
+                  fontSize: '1.0em',
+                  padding: '0.25em 0.35em',
+                  borderRadius: '6px',
+                  background: canRevert ? '#000' : '#333',
+                  border: 'none',
+                  cursor: canRevert ? 'pointer' : 'not-allowed',
+                  opacity: canRevert ? 1 : 0.5,
+                  color: '#fff',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <IoCaretBackSharp color="#fff" size={18} />
+              </button>
+              {/* Rotate button: visual pressed when ctrl/meta down or manually toggled, only if polygons selected */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selectedIds.size) return;
+                  setRotateManual(prev => {
+                    const next = !prev;
+                    if (next) {
+                      // enforce mutual exclusion
+                      setScaleManual(false);
+                      setShiftKeyDown(false);
+                    }
+                    return next;
+                  });
+                }}
+                title="Rotate mode (hold Ctrl / ⌘ while dragging to rotate)"
+                aria-disabled={selectedIds.size === 0}
+                aria-pressed={selectedIds.size ? (rotateManual || ctrlKeyDown) : false}
+                style={{
+                  fontSize: '1.0em',
+                  padding: '0.25em 0.35em',
+                  borderRadius: '6px',
+                  background: (selectedIds.size && (rotateManual || ctrlKeyDown)) ? '#333' : '#000',
+                  border: 'none',
+                  cursor: selectedIds.size ? 'pointer' : 'not-allowed',
+                  opacity: selectedIds.size ? 1 : 0.5,
+                  color: '#fff',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {/* simple rotate SVG */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 12a9 9 0 1 0-2.6 6.05" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 3v6h-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {/* Scale button: visual pressed when shift down or manually toggled */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selectedIds.size) return;
+                  setScaleManual(prev => {
+                    const next = !prev;
+                    if (next) {
+                      // enforce mutual exclusion
+                      setRotateManual(false);
+                      setCtrlKeyDown(false);
+                    }
+                    return next;
+                  });
+                }}
+                title="Scale mode (hold Shift while dragging to scale)"
+                aria-disabled={selectedIds.size === 0}
+                aria-pressed={selectedIds.size ? (scaleManual || shiftKeyDown) : false}
+                style={{
+                  fontSize: '1.0em',
+                  padding: '0.25em 0.35em',
+                  borderRadius: '6px',
+                  background: (selectedIds.size && (scaleManual || shiftKeyDown)) ? '#333' : '#000',
+                  border: 'none',
+                  cursor: selectedIds.size ? 'pointer' : 'not-allowed',
+                  opacity: selectedIds.size ? 1 : 0.5,
+                  color: '#fff',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {/* simple scale SVG (diagonal arrows) */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 21v-4a1 1 0 0 1 1-1h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 3v4a1 1 0 0 1-1 1h-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M14 10l7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+            </div>
+          </div>
+          {/* Right bar */}
+          <div style={{ gridRow: '2', gridColumn: '3' }}></div>
+          {/* Canvas */}
+          <div
+            ref={mountRef}
+            style={{
+              gridRow: '2', gridColumn: '2',
+              maxWidth: '180px',
+              position: 'relative',
+              margin: '0 auto',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {selectionRect && (
+              <div style={{
+                position: 'absolute',
+                left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
+                top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
+                width: Math.abs(selectionRect.w),
+                height: Math.abs(selectionRect.h),
+                border: '1px dashed #ff8800',
+                background: 'rgba(255,136,0,0.1)',
+                pointerEvents: 'none'
+              }} />
+            )}
+          </div>
+          {/* Bottom bar */}
+          <div style={{
+            gridRow: '3', gridColumn: '2',
+            marginTop: '0.5em',
+            display: 'flex',
+            gap: '0.3em',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,image/*"
+              style={{ display: 'none' }}
+              onChange={handleImport}
+            />
             <button
               type="button"
-              title="Rotate counter-clockwise 90°"
-              onClick={() => {
-                if (typeof onRotationChange !== 'function') return;
-                const cur = rotation ?? 0;
-                const next = ((cur + 270) % 360) as 0 | 90 | 180 | 270;
-                onRotationChange(next);
-              }}
-              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-            >
-              <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(-90deg)' }} />
-            </button>
+              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+              onClick={() => fileInputRef.current?.click()}
+              title="Import JSON or Image"
+            ><IoFolderOpen color="#fff" size={20} /></button>
+            <button
+              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+              onClick={handleExport}
+              title="Export JSON"
+            ><IoDownload color="#fff" size={20} /></button>
             <button
               type="button"
-              title="Rotate clockwise 90°"
+              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
               onClick={() => {
-                if (typeof onRotationChange !== 'function') return;
-                const cur = rotation ?? 0;
-                const next = ((cur + 90) % 360) as 0 | 90 | 180 | 270;
-                onRotationChange(next);
+                if (typeof onDelete !== 'function') return;
+                const ok = window.confirm('Delete image? This cannot be undone.');
+                if (ok) onDelete();
               }}
-              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-            >
-              <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(90deg)' }} />
-            </button>
-            {/* Zoom out / Zoom in buttons (next to rotate CCW) */}
+              title="Delete image"
+            ><IoTrash color="#fff" size={20} /></button>
+            {/* reverted: Revert button moved to left toolbar */}
             <button
               type="button"
-              title="Zoom out"
-              onClick={() => {
-                // decrease canvas size by 10%, clamp to reasonable bounds
-                // decrease max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
-                setMaxCanvasSize(prev => {
-                  const factor = 0.9;
-                  const nw = Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor));
-                  const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
-                  const nextMax = { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
-                  return nextMax;
-                });
-              }}
-              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-            >
-              {/* magnifying glass with minus */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              title="Zoom in"
-              onClick={() => {
-                // increase canvas size by 10%, clamp to MAX_CANVAS_* constants
-                // increase max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
-                setMaxCanvasSize(prev => {
-                  const factor = 1.1;
-                  const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.w * factor));
-                  const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
-                  const nextMax = { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
-                  return nextMax;
-                });
-              }}
-              style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-            >
-              {/* magnifying glass with plus */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="11" y1="8" x2="11" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                <line x1="8" y1="11" x2="14" y2="11" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                <path d="M21 21l-3-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+              onClick={handleReset}
+              title="Reset"
+            ><IoRefreshCircle color="#fff" size={20} /></button>
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em' }}>
-        {/* Left toolbar with rotate/scale toggles */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3em', alignItems: 'center', paddingTop: '6px' }}>
-          {/* Revert button (moved from bottom): small toolbar button at top-left */}
-          {backgroundImg && (
-            <button
-              type="button"
-              onClick={() => { if (canRevert) handleRevert(); }}
-              title="Revert"
-              aria-disabled={!canRevert}
-              style={{
-                fontSize: '1.0em',
-                padding: '0.25em 0.35em',
-                borderRadius: '6px',
-                background: canRevert ? '#000' : '#333',
-                border: 'none',
-                cursor: canRevert ? 'pointer' : 'not-allowed',
-                opacity: canRevert ? 1 : 0.5,
-                color: '#fff',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <IoCaretBackSharp color="#fff" size={18} />
-            </button>
-          )}
-          {/* Rotate button: visual pressed when ctrl/meta down or manually toggled, only if polygons selected */}
-          {backgroundImg && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedIds.size) return;
-                setRotateManual(prev => {
-                  const next = !prev;
-                  if (next) {
-                    // enforce mutual exclusion
-                    setScaleManual(false);
-                    setShiftKeyDown(false);
-                  }
-                  return next;
-                });
-              }}
-              title="Rotate mode (hold Ctrl / ⌘ while dragging to rotate)"
-              aria-disabled={selectedIds.size === 0}
-              aria-pressed={selectedIds.size ? (rotateManual || ctrlKeyDown) : false}
-              style={{
-                fontSize: '1.0em',
-                padding: '0.25em 0.35em',
-                borderRadius: '6px',
-                background: (selectedIds.size && (rotateManual || ctrlKeyDown)) ? '#333' : '#000',
-                border: 'none',
-                cursor: selectedIds.size ? 'pointer' : 'not-allowed',
-                opacity: selectedIds.size ? 1 : 0.5,
-                color: '#fff',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {/* simple rotate SVG */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 12a9 9 0 1 0-2.6 6.05" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M21 3v6h-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-          {/* Scale button: visual pressed when shift down or manually toggled */}
-          {backgroundImg && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedIds.size) return;
-                setScaleManual(prev => {
-                  const next = !prev;
-                  if (next) {
-                    // enforce mutual exclusion
-                    setRotateManual(false);
-                    setCtrlKeyDown(false);
-                  }
-                  return next;
-                });
-              }}
-              title="Scale mode (hold Shift while dragging to scale)"
-              aria-disabled={selectedIds.size === 0}
-              aria-pressed={selectedIds.size ? (scaleManual || shiftKeyDown) : false}
-              style={{
-                fontSize: '1.0em',
-                padding: '0.25em 0.35em',
-                borderRadius: '6px',
-                background: (selectedIds.size && (scaleManual || shiftKeyDown)) ? '#333' : '#000',
-                border: 'none',
-                cursor: selectedIds.size ? 'pointer' : 'not-allowed',
-                opacity: selectedIds.size ? 1 : 0.5,
-                color: '#fff',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {/* simple scale SVG (diagonal arrows) */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 21v-4a1 1 0 0 1 1-1h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M21 3v4a1 1 0 0 1-1 1h-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M14 10l7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
 
-        </div>
-
-        <div
-          ref={mountRef}
-          style={{
-            maxWidth: '180px',
-            position: 'relative',
-            margin: '0 auto',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          {selectionRect && (
-            <div style={{
-              position: 'absolute',
-              left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
-              top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
-              width: Math.abs(selectionRect.w),
-              height: Math.abs(selectionRect.h),
-              border: '1px dashed #ff8800',
-              background: 'rgba(255,136,0,0.1)',
-              pointerEvents: 'none'
-            }} />
-          )}
-          {!backgroundImg && (
-            <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
-            </div>
-          )}
-        </div>
-      </div>
-      {backgroundImg && (
-        <div style={{
-          marginTop: '0.5em',
-          display: 'flex',
-          gap: '0.3em',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,image/*"
-            style={{ display: 'none' }}
-            onChange={handleImport}
-          />
-          <button
-            type="button"
-            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-            onClick={() => fileInputRef.current?.click()}
-            title="Import JSON or Image"
-          ><IoFolderOpen color="#fff" size={20} /></button>
-          <button
-            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-            onClick={handleExport}
-            title="Export JSON"
-          ><IoDownload color="#fff" size={20} /></button>
-          <button
-            type="button"
-            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-            onClick={() => {
-              if (typeof onDelete !== 'function') return;
-              const ok = window.confirm('Delete image? This cannot be undone.');
-              if (ok) onDelete();
-            }}
-            title="Delete image"
-          ><IoTrash color="#fff" size={20} /></button>
-          {/* reverted: Revert button moved to left toolbar */}
-          <button
-            type="button"
-            style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-            onClick={handleReset}
-            title="Reset"
-          ><IoRefreshCircle color="#fff" size={20} /></button>
-        </div>
-      )}
     </div>
   );
 });
