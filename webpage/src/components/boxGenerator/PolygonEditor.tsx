@@ -455,10 +455,42 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       }
       state.lastX = x; state.lastY = y;
     };
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
       const state = transformStateRef.current;
       let finalPolygons = polygonsRef.current;
       let changed = false;
+      // If Ctrl/Meta was held and user didn't actually rotate (no accumulated rotation),
+      // treat this as a Ctrl-click toggle: if a polygon (triangle) is under the cursor,
+      // toggle its group membership in the selection set and bail out early.
+      try {
+        if (state && (e?.ctrlKey || e?.metaKey) && state.mode === 'rotate' && ((state.rotationAccum || 0) === 0)) {
+          const rect = canvasEl.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          // Find polygons whose bbox contains the point
+          const hits = polygonsRef.current.filter(p => pointInBBox(x, y, getPolygonBBox(p)));
+          if (hits.length) {
+            const prefix = hits[0].id.split('_')[0];
+            const groupIds = new Set(getGroupIds(prefix));
+            const newSel = new Set<string>(selectedIdsRef.current);
+            // If the whole group is already selected, remove it; otherwise add it.
+            let allPresent = true;
+            groupIds.forEach(id => { if (!newSel.has(id)) allPresent = false; });
+            if (allPresent) {
+              groupIds.forEach(id => newSel.delete(id));
+            } else {
+              groupIds.forEach(id => newSel.add(id));
+            }
+            setSelectedIds(newSel);
+            // Clear transient state and selection rect
+            setSelectionRect(null);
+            transformStateRef.current = null;
+            return;
+          }
+        }
+      } catch (err) {
+        // swallow any errors from hit-testing and continue to normal mouseup behavior
+      }
       if (state) {
         if (state.mode === 'select') {
           // selection already applied during drag
