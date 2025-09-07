@@ -53,13 +53,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     // and the modifier key state in sync so there's no distinction between them.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') {
-        // setShiftKeyDown(true);
+        setShiftKeyDown(true);
         // enable scale when Shift is pressed
         setScaleManual(false);
         setRotateManual(false);
       }
       if (e.key === 'Control' || e.key === 'Meta') {
-        // setCtrlKeyDown(true);
+        setCtrlKeyDown(true);
         // enable rotate when Ctrl/Meta is pressed
         setRotateManual(false);
         setScaleManual(false);
@@ -1001,7 +1001,6 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 }}
                 title="Rotate mode (hold Ctrl / ⌘ while dragging to rotate)"
                 aria-disabled={selectedIds.size === 0}
-                aria-pressed={selectedIds.size ? (rotateManual || ctrlKeyDown) : false}
                 style={{
                   fontSize: '1.0em',
                   padding: '0.25em 0.35em',
