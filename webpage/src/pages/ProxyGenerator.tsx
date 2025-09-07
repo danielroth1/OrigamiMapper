@@ -25,6 +25,8 @@ const initialCardData = {
   imageFit: 'cover', // cover | contain | fill
   imageTransform: 'none', // none | rotate90 | rotate180 | rotate270 | flipH | flipV
   name: 'Electro Rat',
+  // keep a separate copy of the regular (non-mana) name so we can restore it
+  normalName: 'Electro Rat',
   manaCost: '3',
   typeLine: 'Creature — Plague Rat',
   power: 4,
@@ -36,7 +38,7 @@ const initialCardData = {
   setCode: 'PTG',
   language: 'EN',
   artist: 'Jonas Roth',
-  copyright: `© ${currentYear} Jonas Roth`,
+  copyright: `©${currentYear} Jonas Roth`,
   showPT: true,
   showMana: true,
   useCustomTitle: false,
@@ -76,6 +78,28 @@ const ProxyGenerator: React.FC = () => {
       ));
     }
   }, [cardData, cardColor, templateType, manaSelects, currentCardIdx]);
+
+  // When the selected template/style changes, adjust the visible card title/name.
+  // - Switching to 'Mana/Token': if the user is not using a custom title, set a sensible default ('Mana')
+  // - Switching away from 'Mana/Token': restore the saved `normalName` if present
+  React.useEffect(() => {
+    setCardData(prev => {
+      if (templateType === 'Mana/Token') {
+        if (prev.useCustomTitle) return prev; // don't override a custom title
+        // Save current non-mana name so we can restore it later when switching back
+        const savedNormal = prev.normalName || prev.name;
+        // If already a mana-like name, keep it; otherwise default to 'Mana'
+        const manaDefaults = new Set(['Mana', 'Energy', 'Token', 'Treasure', 'Clue', 'Food']);
+        const currentIsManaLike = typeof prev.name === 'string' && manaDefaults.has(prev.name);
+        return { ...prev, normalName: savedNormal, name: currentIsManaLike ? prev.name : 'Mana' };
+      }
+      // switching back to PTG (or other) -> restore the saved `normalName` if available
+      if (prev.normalName) {
+        return { ...prev, name: prev.normalName };
+      }
+      return prev;
+    });
+  }, [templateType]);
 
   const handleLoadCard = (card: { data: typeof initialCardData, color: string, template: string, mana: string[] }, idx: number) => {
     if (currentCardIdx === idx) {
@@ -149,7 +173,15 @@ const ProxyGenerator: React.FC = () => {
     const target = e.target as any;
     const { name, type } = target;
     const newValue = type === 'checkbox' ? !!target.checked : target.value;
-    setCardData(prev => ({ ...prev, [name]: newValue }));
+    setCardData(prev => {
+      const updated: any = { ...prev, [name]: newValue };
+      // Keep a separate normalName for non-mana templates so we can restore it
+      if (name === 'name' && templateType !== 'Mana/Token') {
+        updated.normalName = newValue;
+      }
+      // If user toggles useCustomTitle on/off, do not clobber name here; the template-effect useEffect handles defaults
+      return updated;
+    });
   };
 
   const handleManaSelect = (index: number, value: string) => {
