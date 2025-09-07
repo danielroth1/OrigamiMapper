@@ -151,11 +151,39 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       position: 'relative',
       zIndex: 2
     }}>
-      {cardData.rulesText}
-      {cardData.flavorText && (
-        <div className="card-flavor-text" style={{ fontStyle: 'italic', marginTop: '0.5em', color: frame.flavorTextColor || '#444' }}>
-          {cardData.flavorText}
-        </div>
+      {cardData.pwEnabled === true ? (
+        (() => {
+          const pairs = [1,2,3].map(i => ({ stat: cardData[`pwStat${i}`] ?? '', desc: cardData[`pwDesc${i}`] || '' }));
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
+              {pairs.map((p, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.8em', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: '2.8em',
+                    height: '2.8em',
+                    border: `1px solid ${frame.powerToughnessBorder}`,
+                    background: frame.powerToughnessBg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    color: frame.powerToughnessTextColor || '#000'
+                  }}>{p.stat}</div>
+                  <div style={{ flex: 1, fontSize: '0.85em', color: frame.textBoxText }}>{p.desc}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })()
+      ) : (
+        <>
+          {cardData.rulesText}
+          {cardData.flavorText && (
+            <div className="card-flavor-text" style={{ fontStyle: 'italic', marginTop: '0.5em', color: frame.flavorTextColor || '#444' }}>
+              {cardData.flavorText}
+            </div>
+          )}
+        </>
       )}
     </div>
     <div style={{
@@ -172,7 +200,22 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>
       <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
     </div>
-    {cardData.showPT !== false && (
+    {cardData.pwEnabled === true ? (
+      <div style={{
+        position: 'absolute',
+        bottom: '0.4em',
+        right: '0.4em',
+        border: `1px solid ${frame.powerToughnessBorder}`,
+        background: frame.powerToughnessBg,
+        padding: '0 0.2em',
+        fontWeight: 'bold',
+        fontSize: '0.9em',
+        color: frame.powerToughnessTextColor || '#000',
+        zIndex: 3
+      }}>
+        {cardData.pwLife ?? ''}
+      </div>
+    ) : (cardData.showPT !== false && (
       <div style={{
         position: 'absolute',
         bottom: '0.4em',
@@ -187,7 +230,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       }}>
         {cardData.power}/{cardData.toughness}
       </div>
-    )}
+    ))}
     <div style={{
       position: 'absolute',
       bottom: '0.4em',

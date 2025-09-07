@@ -82,13 +82,116 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
             checked={props.cardData.showPT !== false}
             onChange={props.onChange}
             style={{ marginRight: '0.5em' }}
+            disabled={props.cardData.pwEnabled === true}
           />
           Power / Toughness enabled
         </label>
         <label>Power:</label>
-        <input type="number" name="power" value={props.cardData.power} onChange={props.onChange} style={{ width: '60px' }} disabled={props.cardData.showPT === false} />
+        <input
+          type="number"
+          name="power"
+          value={props.cardData.power}
+          onChange={props.onChange}
+          style={{ width: '60px' }}
+          disabled={props.cardData.showPT === false || props.cardData.pwEnabled === true}
+        />
         <label>Toughness:</label>
-        <input type="number" name="toughness" value={props.cardData.toughness} onChange={props.onChange} style={{ width: '60px' }} disabled={props.cardData.showPT === false} />
+        <input
+          type="number"
+          name="toughness"
+          value={props.cardData.toughness}
+          onChange={props.onChange}
+          style={{ width: '60px' }}
+          disabled={props.cardData.showPT === false || props.cardData.pwEnabled === true}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: '1em', alignItems: 'flex-start' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+          <input
+            type="checkbox"
+            name="pwEnabled"
+            checked={props.cardData.pwEnabled === true}
+            onChange={props.onChange}
+            style={{ marginRight: '0.5em' }}
+          />
+          Planeswalker Stats
+        </label>
+        <div style={{ display: 'flex', gap: '0.75em', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25em', alignItems: 'flex-start' }}>
+            <label style={{ fontSize: '0.85em' }}>Life:</label>
+            <input
+              type="number"
+              name="pwLife"
+              value={props.cardData.pwLife ?? 0}
+              onChange={props.onChange}
+              style={{ width: '80px' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25em' }}>
+            <input
+              type="text"
+              name="pwStat1"
+              maxLength={3}
+              value={props.cardData.pwStat1 ?? '+1'}
+              onChange={props.onChange}
+              style={{ width: '60px' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+            <textarea
+              name="pwDesc1"
+              rows={2}
+              maxLength={400}
+              placeholder="20-50 words"
+              value={props.cardData.pwDesc1 ?? 'Create a 1/1 black Zombie creature token with deathtouch.'}
+              onChange={props.onChange}
+              style={{ width: '220px', resize: 'vertical' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25em' }}>
+            <input
+              type="text"
+              name="pwStat2"
+              maxLength={3}
+              value={props.cardData.pwStat2 ?? '-2'}
+              onChange={props.onChange}
+              style={{ width: '60px' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+            <textarea
+              name="pwDesc2"
+              rows={2}
+              maxLength={400}
+              placeholder="20-50 words"
+              value={props.cardData.pwDesc2 ?? 'Up to one target creature gets -X/-X until your next turn, where X is the number of Zombies you control.'}
+              onChange={props.onChange}
+              style={{ width: '220px', resize: 'vertical' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25em' }}>
+            <input
+              type="text"
+              name="pwStat3"
+              maxLength={3}
+              value={props.cardData.pwStat3 ?? '-7'}
+              onChange={props.onChange}
+              style={{ width: '60px' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+            <textarea
+              name="pwDesc3"
+              rows={2}
+              maxLength={400}
+              placeholder="20-50 words"
+              value={props.cardData.pwDesc3 ?? 'Exile all creature cards from graveyards. For each card exiled this way, create a 2/2 black Zombie creature token.'}
+              onChange={props.onChange}
+              style={{ width: '220px', resize: 'vertical' }}
+              disabled={!props.cardData.pwEnabled}
+            />
+          </div>
+        </div>
       </div>
       <div>
         <label>Rules Text:</label>
