@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import ImageUpload from './ImageUpload';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash } from 'react-icons/io5';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -40,8 +40,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   // only happen when the user holds Ctrl/Meta (rotate) or Shift (scale).
   const [rotateManual, setRotateManual] = useState(false);
   const [scaleManual, setScaleManual] = useState(false);
-  // Snap-rotation toggle: when true, rotations snap to 12.5° increments while dragging
-  const [snapRotation, setSnapRotation] = useState(false);
+  // Snap-rotation toggle: when true, rotations snap to 11.25° increments while dragging
+  const [snapRotation, setSnapRotation] = useState(true);
 
   // Refs that mirror the manual toggle states so event handlers (which are created once)
   // can read the latest values without recreating the whole scene/handlers.
@@ -433,7 +433,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         });
         setPolygons(updated);
       } else if (state.mode === 'rotate') {
-        // Relative cumulative rotation: rotate current vertices by incremental delta
+        // Compute accumulated rotation from this drag
         const centerPixel = { x: state.bboxCenter.x, y: state.bboxCenter.y };
         const prevAngle = Math.atan2(state.lastY - centerPixel.y, state.lastX - centerPixel.x);
         const currAngle = Math.atan2(y - centerPixel.y, x - centerPixel.x);
@@ -441,24 +441,20 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
         else if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
         state.rotationAccum = (state.rotationAccum || 0) + deltaAngle;
-        // If snap-rotation is enabled, compute snapped cumulative rotation and apply incremental delta
+
         const snapEnabled = snapRotationRef.current;
-        let appliedDelta = deltaAngle;
-        if (snapEnabled) {
-          const total = (state.rotationAccum || 0);
-          // snap step is 11.25 degrees = 11.25 * PI/180 radians
-          const step = (11.25 * Math.PI) / 180;
-          // compute nearest multiple
-          const snappedTotal = Math.round(total / step) * step;
-          const last = state.lastSnappedRotation || 0;
-          appliedDelta = snappedTotal - last;
-          state.lastSnappedRotation = snappedTotal;
-        }
+        const step = (11.25 * Math.PI) / 180; // 11.25°
+        const origMap = new Map(state.originalPolygons.map(p => [p.id, p]));
         const updated = polygonsRef.current.map(p => {
           if (!selectedIdsRef.current.has(p.id)) return p;
-          const c = Math.cos(appliedDelta);
-          const s = Math.sin(appliedDelta);
-          const verts = p.vertices.map(([vx, vy]) => {
+          const orig = origMap.get(p.id) || p;
+          const baseRot = state.originalRotations?.get(p.id) ?? (orig.rotation || 0);
+          const total = baseRot + (state.rotationAccum || 0);
+          const snappedTotal = snapEnabled ? Math.round(total / step) * step : total;
+          const applyDelta = snappedTotal - baseRot;
+          const c = Math.cos(applyDelta);
+          const s = Math.sin(applyDelta);
+          const verts = orig.vertices.map(([vx, vy]) => {
             const px = vx * width;
             const py = vy * height;
             const ox = px - centerPixel.x;
@@ -543,24 +539,39 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             const reconciled = polygonsRef.current.map(p => {
               if (!selectedIdsRef.current.has(p.id)) return p;
               const orig = origMap.get(p.id);
-              if (!orig || !orig.vertices.length || !p.vertices.length) return p;
-              // Use first vertex as representative for angle calculation (consistent with how rotation was applied)
+              if (!orig || !orig.vertices.length) return p;
+              const baseRot = state.originalRotations?.get(p.id) ?? (orig.rotation || 0);
+              // Estimate delta via first vertex orientation change
               const ox = orig.vertices[0][0] * width;
               const oy = orig.vertices[0][1] * height;
               const nx = p.vertices[0][0] * width;
               const ny = p.vertices[0][1] * height;
-              const angBefore = Math.atan2(oy - center.y, ox - center.x);
-              const angAfter = Math.atan2(ny - center.y, nx - center.x);
+              let angBefore = Math.atan2(oy - center.y, ox - center.x);
+              let angAfter = Math.atan2(ny - center.y, nx - center.x);
               let delta = angAfter - angBefore;
               if (delta > Math.PI) delta -= 2 * Math.PI;
               else if (delta < -Math.PI) delta += 2 * Math.PI;
-              let newRot = (state.originalRotations?.get(p.id) ?? (orig.rotation || 0)) + delta;
-              // If snapRotation was enabled during this drag, snap the final rotation metadata to the same grid
+              let total = baseRot + delta;
               if (snapRotationRef.current) {
-                const step = (12.5 * Math.PI) / 180;
-                newRot = Math.round(newRot / step) * step;
+                const step = (11.25 * Math.PI) / 180;
+                total = Math.round(total / step) * step;
               }
-              return { ...p, rotation: newRot };
+              // Recompute vertices from original using the snapped absolute rotation
+              const applyDelta = total - baseRot;
+              const c = Math.cos(applyDelta);
+              const s = Math.sin(applyDelta);
+              const verts = orig.vertices.map(([vx, vy]) => {
+                const px = vx * width;
+                const py = vy * height;
+                const ox2 = px - center.x;
+                const oy2 = py - center.y;
+                const rx = ox2 * c - oy2 * s;
+                const ry = ox2 * s + oy2 * c;
+                const npx = rx + center.x;
+                const npy = ry + center.y;
+                return [npx / width, npy / height] as [number, number];
+              });
+              return { ...p, rotation: total, vertices: verts };
             });
             finalPolygons = reconciled;
             setPolygons(reconciled);
@@ -1122,11 +1133,11 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   <path d="M10 14L3 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              {/* Snap rotation toggle: when enabled, rotations snap to 12.5° increments while dragging */}
+              {/* Snap rotation toggle: when enabled, rotations snap to 11.25° increments while dragging */}
               <button
                 type="button"
                 onClick={() => { setSnapRotation(prev => !prev); }}
-                title="Snap rotation to 12.5° steps while rotating"
+                title="Snap rotation to 11.25° steps while rotating"
                 aria-pressed={snapRotation}
                 style={{
                   fontSize: '1.0em',
@@ -1144,12 +1155,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   justifyContent: 'center'
                 }}
               >
-                {/* small degree/grid icon */}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1.5" />
-                  <path d="M12 3v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M12 12h6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                <span style={{ position: 'relative', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IoMagnetOutline size={20} />
+                  <IoRefreshCircle size={10} style={{ position: 'absolute', right: -2, bottom: -2, opacity: 0.85 }} />
+                </span>
               </button>
             </div>
           </div>
