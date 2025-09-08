@@ -61,8 +61,12 @@ function drawPolygons(
 ) {
   ctx.lineWidth = lineWidth;
   ctx.strokeStyle = color;
+  // Draw triangles first, then other polygons so others overwrite triangles
+  const triangles = polygons.filter(p => p.vertices && p.vertices.length === 3);
+  const others = polygons.filter(p => !p.vertices || p.vertices.length !== 3);
+  const ordered = [...triangles, ...others];
 
-  polygons.forEach(poly => {
+  ordered.forEach(poly => {
     const absPoints = poly.absolute(width, height);
     const offsetPoints = absPoints.map(([x, y]) => [x + offset[0], y + offset[1]]);
 
@@ -276,7 +280,13 @@ function mapPolygonPixels(
 }
 
 // Main function to run the mapping
-export async function runMappingJS(outsideImageData: string, insideImageData: string, templateJsonData: string, dpi: number = 300): Promise<{ [key: string]: string }> {
+export async function runMappingJS(
+  outsideImageData: string,
+  insideImageData: string,
+  templateJsonData: string,
+  dpi: number = 300,
+  triangleOffsetFrac: number = 0.02
+): Promise<{ [key: string]: string }> {
   // dpi: number (200, 300, 600). Default 300 for backward compatibility.
   const template = JSON.parse(templateJsonData);
   const { offset, inputPolys, outputPolys } = loadJson(template);
@@ -304,6 +314,48 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     ctx.drawImage(img, 0, 0); // original pixels only
     return canvas;
   }).filter((c): c is HTMLCanvasElement => c !== null);
+
+  // Expand triangles (3-vertex polygons) on the INPUT side in world space, then convert back to [0..1]
+  // Offset is a fixed distance of 0.02 * max(width, height) per image
+  const expandTrianglesInPlace = (
+    polys: Polygon2D[],
+    getDims: (p: Polygon2D) => [number, number],
+    offsetFrac: number
+  ) => {
+    polys.forEach(p => {
+      if (!p.vertices || p.vertices.length !== 3) return;
+      const [w, h] = getDims(p);
+      if (!w || !h) return;
+      const abs = p.absolute(w, h);
+      const cx = (abs[0][0] + abs[1][0] + abs[2][0]) / 3;
+      const cy = (abs[0][1] + abs[1][1] + abs[2][1]) / 3;
+      const offs = offsetFrac * Math.max(w, h);
+      // Compute a uniform scale factor so average radius increases by offs
+      const r0a = Math.hypot(abs[0][0] - cx, abs[0][1] - cy);
+      const r0b = Math.hypot(abs[1][0] - cx, abs[1][1] - cy);
+      const r0c = Math.hypot(abs[2][0] - cx, abs[2][1] - cy);
+      const ravg = (r0a + r0b + r0c) / 3;
+      const factor = ravg > 0 ? (ravg + offs) / ravg : 1;
+      const grown = abs.map(([x, y]) => {
+        const dx = x - cx; const dy = y - cy;
+        const gx = cx + dx * factor;
+        const gy = cy + dy * factor;
+        return [gx / w, gy / h] as [number, number];
+      });
+      p.vertices = grown;
+    });
+  };
+
+  // Apply input expansion before we render intermediate mapping overlays
+  expandTrianglesInPlace(
+    inputPolys,
+    (p) => {
+      const idx = Math.max(0, Math.min(inputCanvases.length - 1, p.imageIdx || 0));
+      const c = inputCanvases[idx];
+      return [c.width, c.height];
+    },
+    Math.max(0, triangleOffsetFrac)
+  );
   const intermCanvases: HTMLCanvasElement[] = [];
   for (let idx = 0; idx < 2; idx++) {
     const base = inputCanvases[idx];
@@ -353,15 +405,32 @@ export async function runMappingJS(outsideImageData: string, insideImageData: st
     return c;
   });
 
+  // Expand triangles (3-vertex polygons) on the OUTPUT side in world space (A4 page dims)
+  expandTrianglesInPlace(
+    outputPolys,
+    () => [A4_W, A4_H],
+    Math.max(0, triangleOffsetFrac)
+  );
+
   // Dicts
   const inputPolyDict = Object.fromEntries(inputPolys.map(p => [p.id, p]));
   const outputPolyDict = Object.fromEntries(outputPolys.map(p => [p.id, p]));
 
-  // Map polygons (each page uses its own native size)
-  Object.keys(inputPolyDict).forEach(id => {
-    if (!(id in outputPolyDict)) return;
+  // Order polygons so that quads (4 vertices) are processed first, then triangles (3 vertices), then others
+  const idsOrdered = Object.keys(inputPolyDict)
+    .filter(id => id in outputPolyDict)
+    .sort((a, b) => {
+      const va = outputPolyDict[a]?.vertices?.length || 0;
+      const vb = outputPolyDict[b]?.vertices?.length || 0;
+      const rank = (v: number) => (v === 3 ? 0 : (v === 4 ? 1 : 2));
+      return rank(va) - rank(vb);
+    });
+
+  // Map polygons (each page uses its own native size) in the requested order
+  idsOrdered.forEach(id => {
     const srcPoly = inputPolyDict[id];
     const dstPoly = outputPolyDict[id];
+    if (!srcPoly || !dstPoly) return;
     const srcCanvas = inputCanvases[srcPoly.imageIdx];
     const dstCanvas = outputCanvases[dstPoly.imageIdx];
     mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);

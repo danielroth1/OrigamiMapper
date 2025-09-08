@@ -25,6 +25,7 @@ function BoxGenerator() {
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [outputDpi, setOutputDpi] = useState<number>(300);
   const [scalePercent, setScalePercent] = useState(0); // percent (0..100+): amount to reduce the printed box on each side
+  const [triangleOffsetPct, setTriangleOffsetPct] = useState(2); // percent (0..100): triangle growth offset relative to max(width,height)
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -299,7 +300,7 @@ function BoxGenerator() {
       };
       const leftImg = outsideImgTransformed || makeWhiteDataUrl();
       const rightImg = insideImgTransformed || makeWhiteDataUrl();
-      dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi);
+  dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
       // mapping done
       if (showProgress) {
         // mapping progress stays within 0..50 so PDF generation can continue from 50..100
@@ -452,6 +453,7 @@ function BoxGenerator() {
         insideJson,
         transformMode,
         scalePercent,
+  triangleOffsetPct,
         outputDpi,
         withFoldLines,
         withCutLines
@@ -472,7 +474,8 @@ function BoxGenerator() {
       setOutsideImg(outDataUrl ?? "");
       setInsideImg(inDataUrl ?? "");
       if (rec.transformMode) setTransformMode(rec.transformMode);
-      if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
+  if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
+  if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
       if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
       if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
       if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
@@ -567,7 +570,7 @@ function BoxGenerator() {
     autosaveTimer.current = window.setTimeout(() => { void saveAutosave(); }, 600);
     return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outsideImgRaw, insideImgRaw, transformMode, scalePercent, outputDpi, withFoldLines, withCutLines]);
+  }, [outsideImgRaw, insideImgRaw, transformMode, scalePercent, triangleOffsetPct, outputDpi, withFoldLines, withCutLines]);
 
   // Load autosave on mount
   useEffect(() => { void loadAutosave(); }, []);
@@ -898,6 +901,29 @@ function BoxGenerator() {
                       }}
                       title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
                       aria-label={"Reduce the box size by percentage"}
+                      style={{ width: '85%' }}
+                    />
+                  </div>
+                  {/* Triangle growth slider */}
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                    <div
+                      title={"Increase the size of triangles by this percentage of the page/image max dimension. Applied to both input and output triangles."}
+                      style={{ color: '#fff', fontSize: '0.9em' }}
+                    >
+                      Triangle growth: {triangleOffsetPct}%
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={0.5}
+                      value={triangleOffsetPct}
+                      onChange={e => {
+                        const v = Math.max(0, Number(e.target.value));
+                        setTriangleOffsetPct(v);
+                      }}
+                      title={"Increase triangle size by a fixed offset of this percentage times max(width,height)."}
+                      aria-label={"Triangle growth percent"}
                       style={{ width: '85%' }}
                     />
                   </div>
