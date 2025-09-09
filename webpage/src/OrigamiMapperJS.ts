@@ -178,7 +178,8 @@ function mapPolygonPixels(
   srcPoly: PolygonLike,
   dstCanvas: CanvasLike,
   dstPoly: PolygonLike,
-  offset: [number, number] = [0, 0]
+  offset: [number, number] = [0, 0],
+  excludeRects: { x0: number; y0: number; x1: number; y1: number; }[] = []
 ): CanvasLike {
   const srcW = srcCanvas.width;
   const srcH = srcCanvas.height;
@@ -242,6 +243,16 @@ function mapPolygonPixels(
         const lambda2 = invA10 * bx + invA11 * by;
         const lambda3 = 1 - lambda1 - lambda2;
         if (lambda1 < 0 || lambda1 > 1 || lambda2 < 0 || lambda2 > 1 || lambda3 < 0 || lambda3 > 1) continue;
+        // Skip pixels inside any excluded rectangle (used to avoid drawing within other triangles)
+        if (excludeRects && excludeRects.length) {
+          let blocked = false;
+          for (let j = 0; j < excludeRects.length; j++) {
+            const r = excludeRects[j];
+            if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) { blocked = true; break; }
+          }
+          if (blocked) continue;
+        }
+
         // Map to source coordinates
         const srcX = lambda1 * srcTri[0][0] + lambda2 * srcTri[1][0] + lambda3 * srcTri[2][0];
         const srcY = lambda1 * srcTri[0][1] + lambda2 * srcTri[1][1] + lambda3 * srcTri[2][1];
@@ -290,6 +301,13 @@ export async function runMappingJS(
   // dpi: number (200, 300, 600). Default 300 for backward compatibility.
   const template = JSON.parse(templateJsonData);
   const { offset, inputPolys, outputPolys } = loadJson(template);
+  // Preserve original (non-expanded) output triangles to build exclusion rectangles in A4 space
+  const outputPolysOriginal = outputPolys.map(p => new Polygon2D(
+    p.id,
+    p.vertices.map(v => [v[0], v[1]] as [number, number]),
+    p.imageIdx,
+    p.rotation
+  ));
 
   const loadImage = (dataUrl: string): Promise<HTMLImageElement> =>
     new Promise(resolve => {
@@ -412,6 +430,21 @@ export async function runMappingJS(
     Math.max(0, triangleOffsetFrac)
   );
 
+  // Build exclusion rectangles (axis-aligned bounding boxes) for all original triangles per page
+  const triExcludeByPage: { [page: number]: { id: string; x0: number; y0: number; x1: number; y1: number; }[] } = { 0: [], 1: [] };
+  outputPolysOriginal.forEach(p => {
+    if (!p.vertices || p.vertices.length !== 3) return;
+    const abs = p.absolute(A4_W, A4_H);
+    const xs = [abs[0][0], abs[1][0], abs[2][0]];
+    const ys = [abs[0][1], abs[1][1], abs[2][1]];
+    const x0 = Math.floor(Math.min(xs[0], xs[1], xs[2]));
+    const y0 = Math.floor(Math.min(ys[0], ys[1], ys[2]));
+    const x1 = Math.ceil(Math.max(xs[0], xs[1], xs[2]));
+    const y1 = Math.ceil(Math.max(ys[0], ys[1], ys[2]));
+    const page = Math.max(0, Math.min(1, p.imageIdx || 0));
+    triExcludeByPage[page].push({ id: p.id, x0, y0, x1, y1 });
+  });
+
   // Dicts
   const inputPolyDict = Object.fromEntries(inputPolys.map(p => [p.id, p]));
   const outputPolyDict = Object.fromEntries(outputPolys.map(p => [p.id, p]));
@@ -433,7 +466,13 @@ export async function runMappingJS(
     if (!srcPoly || !dstPoly) return;
     const srcCanvas = inputCanvases[srcPoly.imageIdx];
     const dstCanvas = outputCanvases[dstPoly.imageIdx];
-    mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset);
+    // For triangles, exclude other original triangle bounding boxes on the same page
+    let excludeRects: { x0: number; y0: number; x1: number; y1: number; }[] = [];
+    if (dstPoly.vertices && dstPoly.vertices.length === 3) {
+      const list = triExcludeByPage[Math.max(0, Math.min(1, dstPoly.imageIdx || 0))] || [];
+      excludeRects = list.filter(r => r.id !== id).map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 }));
+    }
+    mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset, excludeRects);
   });
 
   // Output canvases are already A4, so no additional scaling step is required.
