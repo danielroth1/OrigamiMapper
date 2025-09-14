@@ -662,7 +662,7 @@ function BoxGenerator() {
                   // rotate 180deg around center and draw with transparency
                   cx.translate(cw / 2, ch / 2);
                   cx.rotate(Math.PI);
-                  cx.globalAlpha = 0.6;
+                  cx.globalAlpha = 1;
                   cx.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
                   cx.globalAlpha = 1;
                   const rotatedDataUrl = c.toDataURL('image/png');
