@@ -534,31 +534,51 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           }
           // Issue is that quick mouse movements somehow caused rotation indices being different than state.rotationAccum.
           // Persist and reconcile rotation metadata if rotate occurred.
-          // Compute exact per-polygon rotation delta by comparing a representative vertex's angle
-          // before/after around the rotation center and set Polygon.rotation accordingly.
+          // Robustly compute per-polygon delta with atan2(cross, dot), resolve 180° sign via drag,
+          // and choose the 2π-equivalent closest to the accumulated drag before snapping.
           if (state.mode === 'rotate') {
             const center = state.bboxCenter;
             const origMap = new Map(state.originalPolygons.map(p => [p.id, p]));
+            const accum = state.rotationAccum || 0;
+            const TWO_PI = Math.PI * 2;
+            const step = (11.25 * Math.PI) / 180; // 11.25°
             const reconciled = polygonsRef.current.map(p => {
               if (!selectedIdsRef.current.has(p.id)) return p;
               const orig = origMap.get(p.id);
               if (!orig || !orig.vertices.length) return p;
               const baseRot = state.originalRotations?.get(p.id) ?? (orig.rotation || 0);
-              // Estimate delta via first vertex orientation change
-              const ox = orig.vertices[0][0] * width;
-              const oy = orig.vertices[0][1] * height;
-              const nx = p.vertices[0][0] * width;
-              const ny = p.vertices[0][1] * height;
-              let angBefore = Math.atan2(oy - center.y, ox - center.x);
-              let angAfter = Math.atan2(ny - center.y, nx - center.x);
-              let delta = angAfter - angBefore;
-              if (delta > Math.PI) delta -= 2 * Math.PI;
-              else if (delta < -Math.PI) delta += 2 * Math.PI;
+
+              // Vector from center to first vertex (before & after)
+              const ox0 = orig.vertices[0][0] * width - center.x;
+              const oy0 = orig.vertices[0][1] * height - center.y;
+              const nx0 = p.vertices[0][0] * width - center.x;
+              const ny0 = p.vertices[0][1] * height - center.y;
+
+              const normO = Math.hypot(ox0, oy0);
+              const normN = Math.hypot(nx0, ny0);
+              let delta: number;
+              if (normO < 1e-6 || normN < 1e-6) {
+                // Degenerate case (vertex at center) – fall back to drag accumulation
+                delta = accum;
+              } else {
+                const dot = ox0 * nx0 + oy0 * ny0;
+                const cross = ox0 * ny0 - oy0 * nx0;
+                delta = Math.atan2(cross, dot);
+                // Near-exact 180°: atan2(≈0, -1) yields ±π; pick sign to match drag
+                if (Math.abs(Math.abs(delta) - Math.PI) < 1e-3) {
+                  const sign = accum >= 0 ? 1 : -1;
+                  delta = sign * Math.PI;
+                }
+                // Pick equivalent angle closest to accumulated drag
+                const k = Math.round((accum - delta) / TWO_PI);
+                delta += k * TWO_PI;
+              }
+
               let total = baseRot + delta;
               if (snapRotationRef.current) {
-                const step = (11.25 * Math.PI) / 180;
                 total = Math.round(total / step) * step;
               }
+
               // Recompute vertices from original using the snapped absolute rotation
               const applyDelta = total - baseRot;
               const c = Math.cos(applyDelta);
@@ -579,6 +599,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             finalPolygons = reconciled;
             setPolygons(reconciled);
           }
+          // Persist rotation metadata if rotate occurred
+          // if (state.mode === 'rotate' && state.rotationAccum && Math.abs(state.rotationAccum) > 1e-6) {
+          //   const rotDelta = state.rotationAccum;
+          //   const updated = polygonsRef.current.map(p => selectedIdsRef.current.has(p.id)
+          //     ? { ...p, rotation: ((state.originalRotations?.get(p.id) || 0) + rotDelta) }
+          //     : p);
+          //   finalPolygons = updated;
+          //   setPolygons(updated);
+          // }
           // If it was just a click inside existing selection without movement, unselect (toggle off)
           if (state.pendingClickInsideSelection) {
             setSelectedIds(new Set());
