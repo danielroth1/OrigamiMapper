@@ -1151,6 +1151,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 }}
                 title="Rotate mode (hold Ctrl / ⌘ while dragging to rotate)"
                 aria-disabled={selectedIds.size === 0}
+                aria-pressed={selectedIds.size ? (rotateManual || ctrlKeyDown) : false}
                 style={{
                   fontSize: '1.0em',
                   padding: '0.25em 0.35em',
