@@ -1,13 +1,49 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState, useRef, useEffect } from 'react';
 
 interface PokeManaProps {
   cardData: any;
   frame: any;
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
+  onImageOffsetChange?: (x: number, y: number) => void;
 }
 
-const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, manaSelects, manaIcons }, ref) => (
+const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, manaSelects, manaIcons, onImageOffsetChange }, ref) => {
+  const [offset, setOffset] = useState<{x:number,y:number}>({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  const draggingRef = useRef({ dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 });
+
+  useEffect(() => {
+    setOffset({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  }, [cardData.imageOffsetX, cardData.imageOffsetY]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
+    if ('button' in e && e.button !== 0) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    draggingRef.current.dragging = true;
+    draggingRef.current.startX = e.clientX;
+    draggingRef.current.startY = e.clientY;
+    draggingRef.current.startOffsetX = offset.x;
+    draggingRef.current.startOffsetY = offset.y;
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!draggingRef.current.dragging) return;
+    const dx = e.clientX - draggingRef.current.startX;
+    const dy = e.clientY - draggingRef.current.startY;
+    setOffset({ x: draggingRef.current.startOffsetX + dx, y: draggingRef.current.startOffsetY + dy });
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!draggingRef.current.dragging) return;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    draggingRef.current.dragging = false;
+    if (typeof onImageOffsetChange === 'function') onImageOffsetChange(offset.x, offset.y);
+  };
+
+  const cursorStyle = draggingRef.current.dragging ? 'grabbing' : 'grab';
+
+  return (
   <div
     ref={ref}
     style={{
@@ -99,19 +135,28 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
             width: '100%',
             height: '100%',
             objectFit: (cardData.imageFit || 'contain') as any,
-            // Apply simple CSS transforms (rotation/flips)
+            // Apply CSS transforms: translate (pan) + rotation/flips
             transform: (() => {
+              const parts: string[] = [];
+              parts.push(`translate(${offset.x}px, ${offset.y}px)`);
               switch (cardData.imageTransform) {
-                case 'rotate90': return 'rotate(90deg)';
-                case 'rotate180': return 'rotate(180deg)';
-                case 'rotate270': return 'rotate(270deg)';
-                case 'flipH': return 'scaleX(-1)';
-                case 'flipV': return 'scaleY(-1)';
-                default: return undefined;
+                case 'rotate90': parts.push('rotate(90deg)'); break;
+                case 'rotate180': parts.push('rotate(180deg)'); break;
+                case 'rotate270': parts.push('rotate(270deg)'); break;
+                case 'flipH': parts.push('scaleX(-1)'); break;
+                case 'flipV': parts.push('scaleY(-1)'); break;
+                default: break;
               }
+              return parts.join(' ');
             })(),
-            display: 'block'
+            display: 'block',
+            cursor: cursorStyle,
+            touchAction: 'none'
           }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         />
       ) : cardData.box ? (
         <span style={{ color: frame.manaCostText, fontSize: '2.5em', fontWeight: 'bold', textTransform: 'uppercase' }}>{cardData.box}</span>
@@ -200,6 +245,7 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       </div>
     )}
     </div>
-));
+  );
+});
 
 export default PokeMana;

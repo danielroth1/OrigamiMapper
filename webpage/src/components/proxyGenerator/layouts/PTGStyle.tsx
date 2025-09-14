@@ -1,33 +1,94 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState, useRef, useEffect } from 'react';
 
 interface PTGStyleProps {
   cardData: any;
   frame: any;
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
+  onImageOffsetChange?: (x: number, y: number) => void;
 }
 
-const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
+const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({ 
   cardData,
   frame,
   manaSelects,
-  manaIcons
-}, ref) => (
-  <div
+  manaIcons,
+  onImageOffsetChange
+}, ref) => {
+  const [offset, setOffset] = useState<{x:number,y:number}>({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  const draggingRef = useRef({ dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 });
+
+  useEffect(() => {
+    // Sync local offset if cardData changes externally
+    setOffset({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  }, [cardData.imageOffsetX, cardData.imageOffsetY]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
+    // Only left button
+    if ('button' in e && e.button !== 0) return;
+    const target = e.currentTarget as Element;
+    try { target.setPointerCapture(e.pointerId); } catch {}
+    draggingRef.current.dragging = true;
+    draggingRef.current.startX = e.clientX;
+    draggingRef.current.startY = e.clientY;
+    draggingRef.current.startOffsetX = offset.x;
+    draggingRef.current.startOffsetY = offset.y;
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!draggingRef.current.dragging) return;
+    const dx = e.clientX - draggingRef.current.startX;
+    const dy = e.clientY - draggingRef.current.startY;
+    const next = { x: draggingRef.current.startOffsetX + dx, y: draggingRef.current.startOffsetY + dy };
+    setOffset(next);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!draggingRef.current.dragging) return;
+    const target = e.currentTarget as Element;
+    try { target.releasePointerCapture(e.pointerId); } catch {}
+    draggingRef.current.dragging = false;
+    // persist if handler provided
+    if (typeof onImageOffsetChange === 'function') onImageOffsetChange(offset.x, offset.y);
+  };
+
+  const cursorStyle = draggingRef.current.dragging ? 'grabbing' : 'grab';
+  // Compute some derived style bits outside JSX to avoid inline IIFEs in JSX
+  const outerBorderStyle = (() => {
+    const outer = frame.outerBorder;
+    if (outer) return `2px solid ${outer}`;
+    const cf = frame.cardFrame;
+    if (typeof cf === 'string' && cf.trim().startsWith('#')) return `2px solid ${cf}`;
+    return undefined;
+  })();
+
+  const imageTransform = (() => {
+    const parts: string[] = [];
+    parts.push(`translate(${offset.x}px, ${offset.y}px)`);
+    switch (cardData.imageTransform) {
+      case 'rotate90': parts.push('rotate(90deg)'); break;
+      case 'rotate180': parts.push('rotate(180deg)'); break;
+      case 'rotate270': parts.push('rotate(270deg)'); break;
+      case 'flipH': parts.push('scaleX(-1)'); break;
+      case 'flipV': parts.push('scaleY(-1)'); break;
+      default: break;
+    }
+    return parts.join(' ');
+  })();
+
+  const pwPairs = [1,2,3].map(i => ({ stat: cardData[`pwStat${i}`] ?? '', desc: cardData[`pwDesc${i}`] || '' }));
+
+  return (
+    <div
     ref={ref}
     style={{
       margin: '0 auto',
       width: '300px',
       height: '420px',
       background: frame.cardFrame,
-  // Prefer an explicit outerBorder. Only fall back to cardFrame when it's a solid color (hex).
-  border: (() => {
-    const outer = frame.outerBorder;
-    if (outer) return `2px solid ${outer}`;
-    const cf = frame.cardFrame;
-    if (typeof cf === 'string' && cf.trim().startsWith('#')) return `2px solid ${cf}`;
-    return undefined;
-  })(),
+      // Prefer an explicit outerBorder. Only fall back to cardFrame when it's a solid color (hex).
+      border: outerBorderStyle,
       borderRadius: '12px',
       boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
       overflow: 'hidden',
@@ -114,19 +175,16 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             width: '100%',
             height: '100%',
             objectFit: (cardData.imageFit || 'cover') as any,
-            // Apply simple CSS transforms (rotation/flips)
-            transform: (() => {
-              switch (cardData.imageTransform) {
-                case 'rotate90': return 'rotate(90deg)';
-                case 'rotate180': return 'rotate(180deg)';
-                case 'rotate270': return 'rotate(270deg)';
-                case 'flipH': return 'scaleX(-1)';
-                case 'flipV': return 'scaleY(-1)';
-                default: return undefined;
-              }
-            })(),
-            boxShadow: '0 2px 8px #0004'
+            // Apply CSS transforms: translate (pan) + rotation/flips
+        transform: imageTransform,
+            boxShadow: '0 2px 8px #0004',
+            cursor: cursorStyle,
+            touchAction: 'none'
           }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         />
       ) : null}
     </div>
@@ -152,29 +210,24 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       zIndex: 2
     }}>
       {cardData.pwEnabled === true ? (
-        (() => {
-          const pairs = [1,2,3].map(i => ({ stat: cardData[`pwStat${i}`] ?? '', desc: cardData[`pwDesc${i}`] || '' }));
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
-              {pairs.map((p, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '0.8em', alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: '2.8em',
-                    height: '2.8em',
-                    border: `1px solid ${frame.powerToughnessBorder}`,
-                    background: frame.powerToughnessBg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    color: frame.powerToughnessTextColor || '#000'
-                  }}>{p.stat}</div>
-                  <div style={{ flex: 1, fontSize: '0.85em', color: frame.textBoxText }}>{p.desc}</div>
-                </div>
-              ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
+          {pwPairs.map((p, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: '0.8em', alignItems: 'flex-start' }}>
+              <div style={{
+                width: '2.8em',
+                height: '2.8em',
+                border: `1px solid ${frame.powerToughnessBorder}`,
+                background: frame.powerToughnessBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                color: frame.powerToughnessTextColor || '#000'
+              }}>{p.stat}</div>
+              <div style={{ flex: 1, fontSize: '0.85em', color: frame.textBoxText }}>{p.desc}</div>
             </div>
-          );
-        })()
+          ))}
+        </div>
       ) : (
         <>
           {cardData.rulesText}
@@ -200,7 +253,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>
       <span>{cardData.collectorNo} • {cardData.rarity} • {cardData.setCode} • {cardData.language}</span>
     </div>
-    {cardData.pwEnabled === true ? (
+  {cardData.pwEnabled === true ? (
       <div style={{
         position: 'absolute',
         bottom: '0.4em',
@@ -239,7 +292,8 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       color: frame.copyrightText,
       zIndex: 3
     }}>{cardData.copyright}</div>
-  </div>
-));
+    </div>
+  );
+});
 
 export default PTGStyle;
