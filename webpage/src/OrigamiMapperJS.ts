@@ -333,26 +333,30 @@ export async function runMappingJS(
     return canvas;
   }).filter((c): c is HTMLCanvasElement => c !== null);
 
-  // Expand triangles (3-vertex polygons) on the INPUT side in world space, then convert back to [0..1]
-  // Offset is a fixed distance of 0.02 * max(width, height) per image
+  // Expand triangles (3-vertex) and quads (4-vertex) on the INPUT side in world space, then convert back to [0..1]
+  // Offset is a fixed distance of 0.02 * max(width, height) per image (or slider override)
   const expandTrianglesInPlace = (
     polys: Polygon2D[],
     getDims: (p: Polygon2D) => [number, number],
     offsetFrac: number
   ) => {
     polys.forEach(p => {
-      if (!p.vertices || p.vertices.length !== 3) return;
+      const n = p.vertices?.length ?? 0;
+      if (n !== 3 && n !== 4) return;
       const [w, h] = getDims(p);
       if (!w || !h) return;
       const abs = p.absolute(w, h);
-      const cx = (abs[0][0] + abs[1][0] + abs[2][0]) / 3;
-      const cy = (abs[0][1] + abs[1][1] + abs[2][1]) / 3;
+      // Centroid over all vertices (3 or 4)
+      let cx = 0, cy = 0;
+      for (let i = 0; i < n; i++) { cx += abs[i][0]; cy += abs[i][1]; }
+      cx /= n; cy /= n;
       const offs = offsetFrac * Math.max(w, h);
       // Compute a uniform scale factor so average radius increases by offs
-      const r0a = Math.hypot(abs[0][0] - cx, abs[0][1] - cy);
-      const r0b = Math.hypot(abs[1][0] - cx, abs[1][1] - cy);
-      const r0c = Math.hypot(abs[2][0] - cx, abs[2][1] - cy);
-      const ravg = (r0a + r0b + r0c) / 3;
+      let ravg = 0;
+      for (let i = 0; i < n; i++) {
+        ravg += Math.hypot(abs[i][0] - cx, abs[i][1] - cy);
+      }
+      ravg /= n;
       const factor = ravg > 0 ? (ravg + offs) / ravg : 1;
       const grown = abs.map(([x, y]) => {
         const dx = x - cx; const dy = y - cy;
@@ -423,26 +427,27 @@ export async function runMappingJS(
     return c;
   });
 
-  // Expand triangles (3-vertex polygons) on the OUTPUT side in world space (A4 page dims)
+  // Expand triangles and quads on the OUTPUT side in world space (A4 page dims)
   expandTrianglesInPlace(
     outputPolys,
     () => [A4_W, A4_H],
     Math.max(0, triangleOffsetFrac)
   );
 
-  // Build exclusion rectangles (axis-aligned bounding boxes) for all original triangles per page
-  const triExcludeByPage: { [page: number]: { id: string; x0: number; y0: number; x1: number; y1: number; }[] } = { 0: [], 1: [] };
+  // Build exclusion rectangles (AABB) for original triangles and quads per page (pre-expansion)
+  const polyExcludeByPage: { [page: number]: { id: string; x0: number; y0: number; x1: number; y1: number; verts: number; }[] } = { 0: [], 1: [] };
   outputPolysOriginal.forEach(p => {
-    if (!p.vertices || p.vertices.length !== 3) return;
+    const n = p.vertices?.length ?? 0;
+    if (n !== 3 && n !== 4) return;
     const abs = p.absolute(A4_W, A4_H);
-    const xs = [abs[0][0], abs[1][0], abs[2][0]];
-    const ys = [abs[0][1], abs[1][1], abs[2][1]];
-    const x0 = Math.floor(Math.min(xs[0], xs[1], xs[2]));
-    const y0 = Math.floor(Math.min(ys[0], ys[1], ys[2]));
-    const x1 = Math.ceil(Math.max(xs[0], xs[1], xs[2]));
-    const y1 = Math.ceil(Math.max(ys[0], ys[1], ys[2]));
+    const xs = abs.map(pt => pt[0]);
+    const ys = abs.map(pt => pt[1]);
+    const x0 = Math.floor(Math.min(...xs));
+    const y0 = Math.floor(Math.min(...ys));
+    const x1 = Math.ceil(Math.max(...xs));
+    const y1 = Math.ceil(Math.max(...ys));
     const page = Math.max(0, Math.min(1, p.imageIdx || 0));
-    triExcludeByPage[page].push({ id: p.id, x0, y0, x1, y1 });
+    polyExcludeByPage[page].push({ id: p.id, x0, y0, x1, y1, verts: n });
   });
 
   // Dicts
@@ -468,8 +473,13 @@ export async function runMappingJS(
     const dstCanvas = outputCanvases[dstPoly.imageIdx];
     // For triangles, exclude other original triangle bounding boxes on the same page
     let excludeRects: { x0: number; y0: number; x1: number; y1: number; }[] = [];
+    const pageIdx = Math.max(0, Math.min(1, dstPoly.imageIdx || 0));
     if (dstPoly.vertices && dstPoly.vertices.length === 3) {
-      const list = triExcludeByPage[Math.max(0, Math.min(1, dstPoly.imageIdx || 0))] || [];
+      const list = (polyExcludeByPage[pageIdx] || []).filter(r => r.verts === 3);
+      excludeRects = list.filter(r => r.id !== id).map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 }));
+    } else if (dstPoly.vertices && dstPoly.vertices.length === 4) {
+      // For quads, exclude both triangles and other quads on the same page
+      const list = polyExcludeByPage[pageIdx] || [];
       excludeRects = list.filter(r => r.id !== id).map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 }));
     }
     mapPolygonPixels(srcCanvas, srcPoly, dstCanvas, dstPoly, offset, excludeRects);
