@@ -6,15 +6,18 @@ interface PokeManaProps {
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
   onImageOffsetChange?: (x: number, y: number) => void;
+  onImageZoomChange?: (zoom: number) => void;
 }
 
-const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, manaSelects, manaIcons, onImageOffsetChange }, ref) => {
+const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, manaSelects, manaIcons, onImageOffsetChange, onImageZoomChange }, ref) => {
   const [offset, setOffset] = useState<{x:number,y:number}>({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  const [zoom, setZoom] = useState<number>(cardData.imageZoom ?? 1);
   const draggingRef = useRef({ dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 });
 
   useEffect(() => {
     setOffset({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
-  }, [cardData.imageOffsetX, cardData.imageOffsetY]);
+    setZoom(cardData.imageZoom ?? 1);
+  }, [cardData.imageOffsetX, cardData.imageOffsetY, cardData.imageZoom]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
     if ('button' in e && e.button !== 0) return;
@@ -42,6 +45,28 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
   };
 
   const cursorStyle = draggingRef.current.dragging ? 'grabbing' : 'grab';
+
+  const clamp = (v:number, a:number, b:number) => Math.max(a, Math.min(b, v));
+
+  const artRef = useRef<HTMLDivElement | null>(null);
+
+  // Attach a native wheel listener with passive: false to reliably prevent page scrolling
+  React.useEffect(() => {
+    const el = artRef.current;
+    if (!el) return;
+    const handler = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const delta = -ev.deltaY;
+      const factor = delta > 0 ? 1.08 : 0.92;
+      setZoom(prev => {
+        const next = clamp(+(prev * factor).toFixed(4), 0.2, 3);
+        if (typeof onImageZoomChange === 'function') onImageZoomChange(next);
+        return next;
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [onImageZoomChange]);
 
   return (
   <div
@@ -114,7 +139,7 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
     </div>
 
     {/* Main art or icon area (footer excluded) */}
-    <div style={{
+  <div ref={artRef} style={{
       flex: '1 1 auto',
       display: 'flex',
       justifyContent: 'center',
@@ -128,27 +153,29 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
       overflow: 'hidden'
     }}>
       {cardData.image ? (
-        <img
+        (() => {
+          const parts: string[] = [];
+          parts.push(`translate(${offset.x}px, ${offset.y}px)`);
+          parts.push(`scale(${zoom})`);
+          switch (cardData.imageTransform) {
+            case 'rotate90': parts.push('rotate(90deg)'); break;
+            case 'rotate180': parts.push('rotate(180deg)'); break;
+            case 'rotate270': parts.push('rotate(270deg)'); break;
+            case 'flipH': parts.push('scaleX(-1)'); break;
+            case 'flipV': parts.push('scaleY(-1)'); break;
+            default: break;
+          }
+          const imageTransform = parts.join(' ');
+          return (
+            <img
           src={cardData.image}
           alt="Card art preview"
           style={{
             width: '100%',
             height: '100%',
             objectFit: (cardData.imageFit || 'contain') as any,
-            // Apply CSS transforms: translate (pan) + rotation/flips
-            transform: (() => {
-              const parts: string[] = [];
-              parts.push(`translate(${offset.x}px, ${offset.y}px)`);
-              switch (cardData.imageTransform) {
-                case 'rotate90': parts.push('rotate(90deg)'); break;
-                case 'rotate180': parts.push('rotate(180deg)'); break;
-                case 'rotate270': parts.push('rotate(270deg)'); break;
-                case 'flipH': parts.push('scaleX(-1)'); break;
-                case 'flipV': parts.push('scaleY(-1)'); break;
-                default: break;
-              }
-              return parts.join(' ');
-            })(),
+              // Apply CSS transforms: translate (pan) + scale + rotation/flips
+              transform: imageTransform,
             display: 'block',
             cursor: cursorStyle,
             touchAction: 'none'
@@ -158,6 +185,8 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         />
+          );
+        })()
       ) : cardData.box ? (
         <span style={{ color: frame.manaCostText, fontSize: '2.5em', fontWeight: 'bold', textTransform: 'uppercase' }}>{cardData.box}</span>
       ) : (

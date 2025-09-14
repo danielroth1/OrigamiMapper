@@ -444,6 +444,8 @@ const ProxyGenerator: React.FC = () => {
             manaSelects={manaSelects}
             manaIcons={manaIcons}
             template={templateType}
+            onImageOffsetChange={(x:number,y:number) => setCardData(prev => ({ ...prev, imageOffsetX: x, imageOffsetY: y }))}
+            onImageZoomChange={(z:number) => setCardData(prev => ({ ...prev, imageZoom: z }))}
           />
           <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
             <button

@@ -6,6 +6,7 @@ interface PTGStyleProps {
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
   onImageOffsetChange?: (x: number, y: number) => void;
+  onImageZoomChange?: (zoom: number) => void;
 }
 
 const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({ 
@@ -13,15 +14,21 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
   frame,
   manaSelects,
   manaIcons,
-  onImageOffsetChange
+  onImageOffsetChange,
+  onImageZoomChange
 }, ref) => {
   const [offset, setOffset] = useState<{x:number,y:number}>({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
+  const [zoom, setZoom] = useState<number>(cardData.imageZoom ?? 1);
   const draggingRef = useRef({ dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 });
 
   useEffect(() => {
     // Sync local offset if cardData changes externally
     setOffset({ x: cardData.imageOffsetX ?? 0, y: cardData.imageOffsetY ?? 0 });
   }, [cardData.imageOffsetX, cardData.imageOffsetY]);
+
+  useEffect(() => {
+    setZoom(cardData.imageZoom ?? 1);
+  }, [cardData.imageZoom]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
     // Only left button
@@ -63,9 +70,12 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     return undefined;
   })();
 
+  const clamp = (v:number, a:number, b:number) => Math.max(a, Math.min(b, v));
+
   const imageTransform = (() => {
     const parts: string[] = [];
     parts.push(`translate(${offset.x}px, ${offset.y}px)`);
+    parts.push(`scale(${zoom})`);
     switch (cardData.imageTransform) {
       case 'rotate90': parts.push('rotate(90deg)'); break;
       case 'rotate180': parts.push('rotate(180deg)'); break;
@@ -76,6 +86,24 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }
     return parts.join(' ');
   })();
+
+  const artRef = useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    const el = artRef.current;
+    if (!el) return;
+    const handler = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const delta = -ev.deltaY;
+      const factor = delta > 0 ? 1.08 : 0.92;
+      setZoom(prev => {
+        const next = clamp(+(prev * factor).toFixed(4), 0.2, 3);
+        if (typeof onImageZoomChange === 'function') onImageZoomChange(next);
+        return next;
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [onImageZoomChange]);
 
   const pwPairs = [1,2,3].map(i => ({ stat: cardData[`pwStat${i}`] ?? '', desc: cardData[`pwDesc${i}`] || '' }));
 
@@ -154,7 +182,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
         )}
       </span>
     </div>
-    <div style={{
+  <div ref={artRef} style={{
       width: '92%',
       height: '48%',
       margin: '0 auto',

@@ -8,6 +8,8 @@ interface CardPreviewProps {
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
   template: string; // template type for switchable layouts
+  onImageOffsetChange?: (x:number,y:number) => void;
+  onImageZoomChange?: (zoom:number) => void;
 }
 
 const CardPreview = forwardRef<HTMLDivElement, CardPreviewProps>((props, ref) => {
