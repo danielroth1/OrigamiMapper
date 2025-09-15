@@ -49,9 +49,9 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
           pattern="[0-9]{0,2}"
           title="0-99"
           inputMode="numeric"
-          style={{ minWidth: '40px' }}
+          
         />
-        {[0,1,2,3].map(i => (
+        {[0,1,2,3,4].map(i => (
           <select key={i} value={props.manaSelects[i]} onChange={e => props.onManaSelect(i, e.target.value)}>
             <option value="">--</option>
             <option value="R">Red</option>
@@ -218,11 +218,11 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
       <div className="ptg-text-inline">
         <div className="ptg-inline-field">
           <label htmlFor="rulesText">Rules Text:</label>
-          <textarea id="rulesText" name="rulesText" rows={2} value={props.cardData.rulesText} onChange={props.onChange} />
+          <textarea id="rulesText" name="rulesText" rows={4} value={props.cardData.rulesText} onChange={props.onChange} />
         </div>
         <div className="ptg-inline-field">
           <label htmlFor="flavorText">Flavor Text:</label>
-          <textarea id="flavorText" name="flavorText" rows={2} value={props.cardData.flavorText} onChange={props.onChange} />
+          <textarea id="flavorText" name="flavorText" rows={4} value={props.cardData.flavorText} onChange={props.onChange} />
         </div>
       </div>
 
@@ -247,12 +247,14 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
           <option>DE</option>
           <option>FR</option>
           <option>JP</option>
+          <option>CZ</option>
           <option>KZ</option>
           <option>UA</option>
           <option>RU</option>
           <option>CN</option>
           <option>ES</option>
           <option>PT</option>
+          <option>PL</option>
           <option>IT</option>
           <option>KO</option>
           <option>TK</option>

@@ -73,7 +73,7 @@ const ProxyGenerator: React.FC = () => {
   // Card color (frame) and template layout (style)
   const [cardColor, setCardColor] = useState('White2');
   const [templateType, setTemplateType] = useState('PTG Style');
-  const [manaSelects, setManaSelects] = useState(['', '', '', '']);
+  const [manaSelects, setManaSelects] = useState(['', '', '', '', '']);
   // savedCards entries now include color and template for switchable layouts
   const [savedCards, setSavedCards] = useState<Array<{ data: typeof initialCardData, color: string, template: string, mana: string[] }>>([]);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
@@ -148,7 +148,7 @@ const ProxyGenerator: React.FC = () => {
         setCardData(initialCardData);
         setCardColor('Black');
         setTemplateType('PTG Style');
-        setManaSelects(['', '', '', '']);
+  setManaSelects(['', '', '', '', '']);
         setCurrentCardIdx(null);
       }
       return newCards;
