@@ -167,7 +167,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
           Show Mana
         </label>
         <label>Mana Cost:</label>
-        <input type="text" name="manaCost" value={props.cardData.manaCost || ''} onChange={props.onChange} style={{ minWidth: '120px' }} disabled={props.cardData.showMana === false} />
+        <input type="text" name="manaCost" value={props.cardData.manaCost || ''} onChange={props.onChange} style={{ minWidth: '40px' }} disabled={props.cardData.showMana === false} />
         {[0,1,2,3].map(i => (
           <select key={i} style={{ minWidth: '50px' }} value={props.manaSelects[i]} onChange={e => props.onManaSelect(i, e.target.value)} disabled={props.cardData.showMana === false}>
             <option value="">--</option>

@@ -153,6 +153,22 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>
       <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', marginLeft: '0.5em', fontFamily: 'monospace', color: frame.manaCostText }}>
+        {cardData.manaCost && (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '1.25em',
+            height: '1.25em',
+            borderRadius: '50%',
+            background: frame.manaCostBg,
+            border: `1px solid ${frame.manaCostText}`,
+            fontSize: '1.05em',
+            fontWeight: 'bold',
+            color: frame.manaCostText,
+            lineHeight: 1
+          }}>{cardData.manaCost}</span>
+        )}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
           {manaSelects.map((symbol, i) => {
             if (!symbol) return null;
@@ -164,22 +180,6 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             );
           })}
         </span>
-        {cardData.manaCost && (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '1.4em',
-            height: '1.4em',
-            borderRadius: '50%',
-            background: frame.manaCostBg,
-            border: `2px solid ${frame.manaCostText}`,
-            fontSize: '1.1em',
-            fontWeight: 'bold',
-            color: frame.manaCostText,
-            lineHeight: 1
-          }}>{cardData.manaCost}</span>
-        )}
       </span>
     </div>
   <div ref={artRef} style={{

@@ -1,0 +1,252 @@
+/* Layout container */
+.ptg-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  /* Removed decorative container box (background, border, radius, blur, max-width, padding) per user request */
+  overflow-x: hidden;
+  /* Removed max-width + centering per user request to have boxes start at left edge */
+}
+
+/* Generic row */
+.ptg-row {
+  display: flex;
+  flex-wrap: wrap; /* allow wrapping on smaller screens */
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.ptg-row label {
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+
+/* Power/Toughness row forced single line */
+.ptg-pt-row { flex-wrap: nowrap; gap: 0.7rem; }
+.ptg-pt-row .ptg-pt-group { display: flex; align-items: center; gap: 0.35rem; }
+.ptg-pt-row .ptg-pt-group label { font-size: 0.8rem; }
+@media (max-width: 560px) { /* allow wrap on very small screens */
+  .ptg-pt-row { flex-wrap: wrap; }
+}
+
+/* Wider text inputs naturally fill space */
+.ptg-row input[type="text"],
+.ptg-row input[type="number"],
+.ptg-row select,
+.ptg-row textarea {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 100%;
+}
+
+/* Specific small fields */
+/* Adjusted to a sensible width so label + input alignment stays stable */
+.ptg-small-input {
+  flex: 0 0 60px;
+  width: 60px;
+  text-align: center;
+}
+
+/* Two-digit mana cost input */
+.ptg-mana-cost-input {
+  flex: 0 0 38px;
+  width: 38px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  padding: 0.25rem 0.25rem;
+}
+
+.ptg-very-small-input {
+  flex: 0 0 52px;
+  width: 52px;
+}
+
+.ptg-mana-selects select {
+  flex: 0 0 60px;
+  min-width: 50px;
+}
+
+/* Top bar grouping */
+.ptg-top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.ptg-color-template-group {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Planeswalker area */
+.ptg-pw-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.ptg-pw-abilities {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr; /* one ability per row */
+  width: 100%;
+  align-items: start;
+}
+
+.ptg-pw-ability {
+  display: flex;
+  flex-direction: row;
+  gap: 0.4rem;
+  align-items: flex-start;
+  min-width: 0; /* grid overflow guard */
+  flex-wrap: nowrap; /* keep cost input beside textarea */
+  width: 100%;
+}
+
+.ptg-pw-row { width: 100%; }
+
+.ptg-pw-ability input[type="text"],
+.ptg-pw-ability input[type="number"] {
+  flex: 0 0 46px;
+  width: 46px;
+  text-align: center;
+  padding: 0.25rem 0.25rem;
+}
+
+.ptg-pw-ability textarea {
+  flex: 1 1 auto;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 120px;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  padding: 0.3rem 0.45rem;
+  min-width: 140px; /* prevent collapsing under the stat input */
+}
+
+/* Textareas general */
+textarea {
+  font-family: inherit;
+  line-height: 1.25;
+}
+
+/* Make form controls visually cohesive */
+.ptg-config-form input,
+.ptg-config-form select,
+.ptg-config-form textarea {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: inherit;
+  padding: 0.25rem 0.45rem; /* more compact */
+  border-radius: 5px;
+  font-size: 0.85rem; /* slightly smaller */
+}
+
+/* Disabled (inactive) fields grayed out */
+.ptg-config-form :disabled {
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #9a9a9a !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ptg-config-form input:disabled::placeholder,
+.ptg-config-form textarea:disabled::placeholder {
+  color: #7a7a7a;
+}
+
+/* Compact rules & flavor text sections */
+.ptg-block-text textarea { /* legacy usage (may be deprecated) */
+  max-width: 260px;
+  width: 100%;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  padding: 0.25rem 0.4rem;
+  min-height: 28px;
+  resize: vertical;
+}
+
+/* Inline two-field text row (Rules + Flavor) */
+.ptg-text-inline { display: flex; gap: 1rem; align-items: flex-start; width: 100%; }
+.ptg-text-inline .ptg-inline-field { display: flex; align-items: center; gap: 0.4rem; flex: 1 1 0; min-width: 0; }
+.ptg-text-inline .ptg-inline-field label { font-size: 0.75rem; white-space: nowrap; }
+.ptg-text-inline .ptg-inline-field textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-height: 40px; /* slightly taller for readability */
+  font-size: 0.75rem;
+  line-height: 1.15;
+  padding: 0.32rem 0.45rem; /* a touch more vertical padding */
+  resize: vertical;
+}
+@media (max-width: 760px) {
+  .ptg-text-inline { flex-direction: column; gap: 0.6rem; }
+  .ptg-text-inline .ptg-inline-field { width: 100%; }
+}
+
+/* Side-by-side container for rules + flavor */
+.ptg-text-pair {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.ptg-text-pair .ptg-block-text {
+  flex: 1 1 300px;
+  max-width: 100%;
+}
+
+@media (max-width: 840px) {
+  .ptg-text-pair { flex-direction: column; gap: 0.75rem; }
+  .ptg-block-text textarea { max-width: 100%; }
+}
+
+/* Consistent reduced padding for tiny inputs */
+.ptg-row select.ptg-small-input,
+.ptg-row input.ptg-small-input,
+.ptg-row input.ptg-very-small-input {
+  padding: 0.25rem 0.4rem;
+}
+
+.ptg-config-form input:focus,
+.ptg-config-form select:focus,
+.ptg-config-form textarea:focus {
+  outline: 2px solid #5aa9ff55;
+  outline-offset: 1px;
+}
+
+/* Better spacing for grouped checkboxes */
+.ptg-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.9rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+  .ptg-config-form { padding: 0.6rem 0.75rem 1rem; }
+  .ptg-row { gap: 0.6rem; }
+  .ptg-top-bar { gap: 1rem; }
+  .ptg-color-template-group { gap: 0.6rem; }
+}
+
+/* Responsive breakpoints for Planeswalker abilities */
+/* Keep pw-abilities one per row across breakpoints */
+@media (max-width: 1000px) {
+  .ptg-pw-abilities { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .ptg-pw-abilities { grid-template-columns: 1fr; }
+}
