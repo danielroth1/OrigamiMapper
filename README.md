@@ -24,7 +24,7 @@ This project transforms the original Python-based command-line tool into a user-
 
 ## How to Use
 
-1.  **Visit the Website:** [Link to the deployed website]
+1.  **Visit the Website:** www.shopping-now.net/origami-mapper
 2.  **Upload Images:** Select and upload an "Outside Image" and an "Inside Image".
 3.  **Choose Transform:** Select an image transformation mode from the dropdown. The image previews will update automatically.
 4.  **Run Mapping:** Click the "Run Mapping" button to generate the final print-out templates.
