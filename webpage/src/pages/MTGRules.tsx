@@ -1,9 +1,101 @@
+import React, { useRef } from 'react';
 import Header from '../components/Header';
+import html2canvas from 'html2canvas';
+import { PDFDocument } from 'pdf-lib';
+import { IoCloudDownload, IoCloudDownloadOutline, IoCloudDownloadSharp, IoPrintSharp, IoShareSocial, IoShareSocialSharp } from 'react-icons/io5';
 
-const MTGRules: React.FC = () => (
+const MTGRules: React.FC = () => {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  const handlePrint = () => {
+    const el = contentRef.current;
+    if (!el) return;
+    const newWin = window.open('', '_blank', 'noopener,noreferrer');
+    if (!newWin) return;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Rules Booklet</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <style>body{margin:0;padding:20px;background:#121212;color:#f8f8f8;font-family:Georgia,serif;} img{max-width:100%;}</style>
+      </head><body>${el.innerHTML}</body></html>`;
+    newWin.document.open();
+    newWin.document.write(html);
+    newWin.document.close();
+    // Give the new window a brief moment to render before printing
+    setTimeout(() => {
+      try { newWin.focus(); newWin.print(); } catch (e) { /* ignore */ }
+      try { newWin.close(); } catch (e) { /* ignore */ }
+    }, 500);
+  };
+
+  const handleDownload = async () => {
+    const el = contentRef.current;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const dataUrl = canvas.toDataURL('image/png');
+      const imgBytes = await fetch(dataUrl).then(r => r.arrayBuffer());
+      const pdfDoc = await PDFDocument.create();
+      const pngImage = await pdfDoc.embedPng(imgBytes);
+      const pxToPt = (px: number) => (px * 72) / 96;
+      const page = pdfDoc.addPage([pxToPt(canvas.width), pxToPt(canvas.height)]);
+      page.drawImage(pngImage, {
+        x: 0,
+        y: 0,
+        width: pxToPt(canvas.width),
+        height: pxToPt(canvas.height),
+      });
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mtg_rules_booklet.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // fallback: download HTML
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Rules Booklet</title></head><body>${el.innerHTML}</body></html>`;
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mtg_rules_booklet.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareTitle = 'MTG Rules Booklet';
+    const shareText = 'Magic: The Gathering - Rules Booklet from OrigamiMapper';
+    // Prefer sharing the current page URL
+    const shareUrl = window.location.href;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: shareTitle, text: shareText, url: shareUrl });
+        return;
+      }
+    } catch (e) {
+      // fallthrough to fallback
+    }
+    // Fallback: copy link to clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Link copied to clipboard');
+    } catch (e) {
+      // last resort: open mail client
+      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText + '\n' + shareUrl)}`;
+    }
+  };
+
+  return (
   <div className="App">
     <Header />
-  <div className="mtg-rules-content" style={{
+    
+  <div ref={contentRef} className="mtg-rules-content" style={{
         maxWidth: '900px',
         margin: '2em auto',
         background: 'linear-gradient(135deg, #232526 0%, #414345 100%)',
@@ -182,10 +274,22 @@ const MTGRules: React.FC = () => (
           <li><strong>Hand:</strong> Cards you hold.</li>
         </ul>
         <hr />
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5em', marginTop: '0.6em' }}>
+            <button type="button" onClick={handlePrint} title="Print" style={{ background: '#222', color: '#fff', border: 'none', padding: '0.5em 0.8em', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
+              <IoPrintSharp /> Print
+            </button>
+            <button type="button" onClick={handleDownload} title="Download PDF" style={{ background: '#222', color: '#fff', border: 'none', padding: '0.5em 0.8em', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
+              <IoCloudDownloadSharp /> Download
+            </button>
+            <button type="button" onClick={handleShare} title="Share" style={{ background: '#222', color: '#fff', border: 'none', padding: '0.5em 0.8em', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
+              <IoShareSocialSharp /> Share
+            </button>
+          </div>
         <p><strong>Note:</strong> This booklet is a summary. For official rules, refer to the <a href="https://media.wizards.com/images/magic/resources/rules/EN_MTGM14_PrintedRulebook_LR.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9' }}>MTG Comprehensive Rules</a>.</p>
                   <div>Tolarian Community College</div><a href="https://www.youtube.com/watch?v=wif9ppH5JpI" target="_blank" rel="noopener noreferrer">MTG Learn How to Play</a>
       </div>
     </div>
   );
+};
 
 export default MTGRules;
