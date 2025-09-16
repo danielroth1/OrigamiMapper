@@ -163,8 +163,8 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             borderRadius: '50%',
             background: frame.manaCostBg,
             border: `1px solid ${frame.manaCostText}`,
-            fontSize: '1.05em',
-            fontWeight: 'bold',
+            fontSize: '1.15em',
+            fontWeight: 900,
             color: frame.manaCostText,
             lineHeight: 1
           }}>{cardData.manaCost}</span>
@@ -202,7 +202,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
           style={{
             width: '100%',
             height: '100%',
-            objectFit: (cardData.imageFit || 'cover') as any,
+            objectFit: (cardData.imageFit || 'contain') as any,
             // Apply CSS transforms: translate (pan) + rotation/flips
         transform: imageTransform,
             boxShadow: '0 2px 8px #0004',

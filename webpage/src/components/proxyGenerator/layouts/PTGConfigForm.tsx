@@ -1,5 +1,6 @@
 import React from 'react';
 import CardColorSelect from './CardColorSelect';
+import ImageUploadProxy from '../ImageUploadProxy';
 import './PTGConfigForm.css';
 
 interface PTGConfigFormProps {
@@ -11,6 +12,7 @@ interface PTGConfigFormProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onManaSelect: (index: number, value: string) => void;
   setCardStyle: (style: string) => void;
+  onImage: (dataUrl: string) => void;
 }
 
 const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
@@ -18,16 +20,19 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
     <form className="ptg-config-form">
       <div className="ptg-top-bar">
         <div className="ptg-color-template-group">
-          <CardColorSelect cardStyle={props.cardStyle} setCardStyle={props.setCardStyle} />
-          <label htmlFor="card-template-select">Card Style:</label>
-          <select
-            id="card-template-select"
-            value={props.templateType}
-            onChange={e => props.setTemplateType(e.target.value)}
-          >
-            <option value="PTG Style">PTG Style</option>
-            <option value="Mana/Token">Mana/Token/Energy</option>
-          </select>
+          <ImageUploadProxy label="Upload Card Image: " onImage={props.onImage} />
+          <div className="ptg-color-style-group">
+            <CardColorSelect cardStyle={props.cardStyle} setCardStyle={props.setCardStyle} />
+            <label htmlFor="card-template-select">Card Style:</label>
+            <select
+              id="card-template-select"
+              value={props.templateType}
+              onChange={e => props.setTemplateType(e.target.value)}
+            >
+              <option value="PTG Style">PTG Style</option>
+              <option value="Mana/Token">Mana/Token/Energy</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -65,9 +70,8 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
       </div>
 
       <div className="ptg-row">
-        <label htmlFor="imageFit">Art Image Fit:</label>
-        <select id="imageFit" name="imageFit" value={props.cardData.imageFit || 'cover'} onChange={props.onChange}>
-          <option value="cover">All of the space should be filled (cover)</option>
+        <label htmlFor="imageFit">Image Fit:</label>
+        <select id="imageFit" name="imageFit" value={props.cardData.imageFit || 'contain'} onChange={props.onChange}>
           <option value="contain">Fit (contain)</option>
           <option value="fill">Stretch (fill)</option>
         </select>

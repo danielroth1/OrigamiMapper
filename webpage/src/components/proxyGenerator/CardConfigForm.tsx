@@ -11,6 +11,7 @@ interface CardConfigFormProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   onManaSelect: (index: number, value: string) => void;
   setCardStyle: (style: string) => void;
+  onImage: (dataUrl: string) => void;
 }
 
 const CardConfigForm: React.FC<CardConfigFormProps> = (props) => {

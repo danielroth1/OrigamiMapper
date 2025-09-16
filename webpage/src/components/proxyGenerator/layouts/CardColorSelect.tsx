@@ -21,7 +21,6 @@ const CardColorSelect: React.FC<CardColorSelectProps> = ({ cardStyle, setCardSty
         <option value="Black2">Black2</option>
         <option value="Green">Green</option>
         <option value="White">White</option>
-        <option value="White2">White2 (B/W)</option>
         <option value="Red">Red</option>
         <option value="Red2">Red2 (Coffee)</option>
         <option value="Blue">Blue</option>

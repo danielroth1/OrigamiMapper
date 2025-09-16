@@ -95,6 +95,20 @@
   flex-wrap: wrap;
 }
 
+/* Keep card color + style on one row */
+.ptg-color-style-group {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* override CardColorSelect inline minWidth a bit smaller to allow room */
+.ptg-color-style-group select#card-color-select {
+  min-width: 92px !important;
+  padding: 0.28em !important;
+}
+
 /* Planeswalker area */
 .ptg-pw-wrapper {
   display: flex;

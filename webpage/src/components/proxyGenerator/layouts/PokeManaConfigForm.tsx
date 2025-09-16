@@ -121,12 +121,11 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
       </div>
       {/* Art image options for PokeMana, using same fields as PTG */}
       <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
-        <label htmlFor="pm-imageFit">Art Image Fit:</label>
-        <select id="pm-imageFit" name="imageFit" value={props.cardData.imageFit || 'contain'} onChange={props.onChange} style={{ minWidth: '140px' }}>
-          <option value="cover">All of the space should be filled (cover)</option>
-          <option value="contain">Fit (contain)</option>
-          <option value="fill">Stretch (fill)</option>
-        </select>
+        <label htmlFor="pm-imageFit">Image Fit:</label>
+          <select id="pm-imageFit" name="imageFit" value={props.cardData.imageFit || 'contain'} onChange={props.onChange} style={{ minWidth: '140px' }}>
+            <option value="contain">Fit (contain)</option>
+            <option value="fill">Stretch (fill)</option>
+          </select>
         <label htmlFor="pm-imageTransform">Transform:</label>
         <select id="pm-imageTransform" name="imageTransform" value={props.cardData.imageTransform || 'none'} onChange={props.onChange} style={{ minWidth: '140px' }}>
           <option value="none">None</option>

@@ -6,7 +6,6 @@ import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
 import CardConfigForm from '../components/proxyGenerator/CardConfigForm';
-import ImageUploadProxy from '../components/proxyGenerator/ImageUploadProxy';
 import blackFrame from '../cardStyles/black.json';
 import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
@@ -22,7 +21,7 @@ import yellowFrame from '../cardStyles/yellow.json';
 const currentYear = new Date().getFullYear();
 const initialCardData = {
   image: '',
-  imageFit: 'cover', // cover | contain | fill
+  imageFit: 'contain', // contain | fill
   imageTransform: 'none', // none | rotate90 | rotate180 | rotate270 | flipH | flipV
   name: 'Electro Rat',
   // keep a separate copy of the regular (non-mana) name so we can restore it
@@ -71,7 +70,7 @@ const frameDefs: Record<string, any> = {
 const ProxyGenerator: React.FC = () => {
   const [cardData, setCardData] = useState(initialCardData);
   // Card color (frame) and template layout (style)
-  const [cardColor, setCardColor] = useState('White2');
+  const [cardColor, setCardColor] = useState('Black');
   const [templateType, setTemplateType] = useState('PTG Style');
   const [manaSelects, setManaSelects] = useState(['', '', '', '', '']);
   // savedCards entries now include color and template for switchable layouts
@@ -228,7 +227,7 @@ const ProxyGenerator: React.FC = () => {
     tempDiv.id = 'export-temp';
 
     const resetStyle = document.createElement('style');
-    const exportFit = (cardData.imageFit || 'cover');
+  const exportFit = (cardData.imageFit || 'contain');
     resetStyle.textContent = `
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
       #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
@@ -250,6 +249,76 @@ const ProxyGenerator: React.FC = () => {
     );
 
     await new Promise(resolve => setTimeout(resolve, 220));
+
+    // Draw each <img> into a high-resolution canvas sized by the html2canvas export scale.
+    // This prevents pixelation when the browser would otherwise upscale the image at export time.
+    const replaceImgsWithCanvas = async () => {
+      const imgs = Array.from(tempDiv.querySelectorAll('img')) as HTMLImageElement[];
+      await Promise.all(imgs.map(img => new Promise<void>((resolve) => {
+        try {
+          const src = img.getAttribute('src') || '';
+          const rect = img.getBoundingClientRect();
+          // If rect is empty, fallback to parent's rect
+          const parentRect = (img.parentElement && img.parentElement.getBoundingClientRect()) || rect;
+          const cssW = parentRect.width || rect.width || 300;
+          const cssH = parentRect.height || rect.height || 200;
+          const canvas = document.createElement('canvas');
+          // Set canvas to high-resolution pixel dimensions for export
+          canvas.width = Math.max(1, Math.ceil(cssW * scale));
+          canvas.height = Math.max(1, Math.ceil(cssH * scale));
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
+          canvas.style.display = 'block';
+          // Preserve visual transforms on the element by copying transform to the canvas (css-level)
+          canvas.style.transform = (img.style.transform as string) || '';
+          canvas.style.transformOrigin = 'center center';
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { img.parentNode?.replaceChild(canvas, img); resolve(); return; }
+          ctx.imageSmoothingEnabled = true;
+          // Use high quality smoothing when drawing
+          (ctx as any).imageSmoothingQuality = 'high';
+          const loadImg = new Image();
+          // try to allow cross-origin images; if it's inline data:url it's fine
+          loadImg.crossOrigin = 'anonymous';
+          loadImg.onload = () => {
+            try {
+              // Draw the source image scaled to the canvas pixel size.
+              ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+            } catch (err) {
+              // fallback: fill transparent
+            }
+            img.parentNode?.replaceChild(canvas, img);
+            resolve();
+          };
+          loadImg.onerror = () => {
+            // If loading as Image fails, fall back to replacing with a simple div background (best-effort)
+            const wrapper = document.createElement('div');
+            wrapper.style.width = '100%';
+            wrapper.style.height = '100%';
+            wrapper.style.backgroundImage = `url("${src}")`;
+            wrapper.style.backgroundRepeat = 'no-repeat';
+            wrapper.style.backgroundPosition = 'center';
+            if (exportFit === 'contain') wrapper.style.backgroundSize = 'contain';
+            else if (exportFit === 'fill') wrapper.style.backgroundSize = '100% 100%';
+            else wrapper.style.backgroundSize = exportFit;
+            wrapper.style.display = 'block';
+            wrapper.style.margin = '0';
+            img.parentNode?.replaceChild(wrapper, img);
+            resolve();
+          };
+          loadImg.src = src;
+        } catch (e) {
+          // On any unexpected error, just continue
+          try { const wrapper = document.createElement('div'); wrapper.style.width='100%'; wrapper.style.height='100%'; img.parentNode?.replaceChild(wrapper, img); } catch {}
+          resolve();
+        }
+      })));
+    };
+    try {
+      await replaceImgsWithCanvas();
+    } catch (e) {
+      // ignore
+    }
 
     const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
     const rect = element.getBoundingClientRect();
@@ -328,7 +397,7 @@ const ProxyGenerator: React.FC = () => {
       // Use an id so we can override inline styles with !important when rendering for export
       tempDiv.id = 'export-temp';
       const resetStyle = document.createElement('style');
-      const exportFit = (savedCards[i].data as any).imageFit || 'cover';
+  const exportFit = (savedCards[i].data as any).imageFit || 'contain';
   resetStyle.textContent = `
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
       /* Remove top margin on the CardPreview root but don't override its inline width/height */
@@ -355,6 +424,55 @@ const ProxyGenerator: React.FC = () => {
       // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
       await new Promise(resolve => setTimeout(resolve, 120));
 
+      // Replace <img> elements with high-resolution canvases so the exported PNG is sharp
+      const replaceImgsWithCanvasMulti = async () => {
+        const imgs = Array.from(tempDiv.querySelectorAll('img')) as HTMLImageElement[];
+        await Promise.all(imgs.map(img => new Promise<void>((resolve) => {
+          try {
+            const src = img.getAttribute('src') || '';
+            const rect = img.getBoundingClientRect();
+            const parentRect = (img.parentElement && img.parentElement.getBoundingClientRect()) || rect;
+            const cssW = parentRect.width || rect.width || 300;
+            const cssH = parentRect.height || rect.height || 200;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.ceil(cssW * scale));
+            canvas.height = Math.max(1, Math.ceil(cssH * scale));
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.display = 'block';
+            canvas.style.transform = (img.style.transform as string) || '';
+            canvas.style.transformOrigin = 'center center';
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { img.parentNode?.replaceChild(canvas, img); resolve(); return; }
+            ctx.imageSmoothingEnabled = true;
+            (ctx as any).imageSmoothingQuality = 'high';
+            const loadImg = new Image();
+            loadImg.crossOrigin = 'anonymous';
+            loadImg.onload = () => {
+              try { ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height); } catch {}
+              img.parentNode?.replaceChild(canvas, img);
+              resolve();
+            };
+            loadImg.onerror = () => {
+              const wrapper = document.createElement('div');
+              wrapper.style.width = '100%';
+              wrapper.style.height = '100%';
+              wrapper.style.backgroundImage = `url("${src}")`;
+              wrapper.style.backgroundRepeat = 'no-repeat';
+              wrapper.style.backgroundPosition = 'center';
+              if (exportFit === 'contain') wrapper.style.backgroundSize = 'contain';
+              else if (exportFit === 'fill') wrapper.style.backgroundSize = '100% 100%';
+              else wrapper.style.backgroundSize = exportFit;
+              wrapper.style.display = 'block';
+              wrapper.style.margin = '0';
+              img.parentNode?.replaceChild(wrapper, img);
+              resolve();
+            };
+            loadImg.src = src;
+          } catch (e) { try { const wrapper = document.createElement('div'); wrapper.style.width='100%'; wrapper.style.height='100%'; img.parentNode?.replaceChild(wrapper, img); } catch {} resolve(); }
+        })));
+      };
+      try { await replaceImgsWithCanvasMulti(); } catch {}
       // Render the actual card element (first child) and measure it to avoid clipping
       const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
       const rect = element.getBoundingClientRect();
@@ -500,7 +618,6 @@ const ProxyGenerator: React.FC = () => {
               Remove Card
             </button>
           </div>
-          <ImageUploadProxy label="Upload Card Image: " onImage={handleImageUpload} />
           <CardConfigForm
             cardData={cardData}
             cardStyle={cardColor}
@@ -510,6 +627,7 @@ const ProxyGenerator: React.FC = () => {
             onManaSelect={handleManaSelect}
             setCardStyle={setCardColor}
             setTemplateType={setTemplateType}
+            onImage={handleImageUpload}
           />
         </div>
       </div>
