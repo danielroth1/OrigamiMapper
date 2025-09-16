@@ -22,6 +22,7 @@ const currentYear = new Date().getFullYear();
 const initialCardData = {
   image: '',
   imageFit: 'contain', // contain | fill
+  imageBgMode: 'auto',
   imageTransform: 'none', // none | rotate90 | rotate180 | rotate270 | flipH | flipV
   name: 'Electro Rat',
   // keep a separate copy of the regular (non-mana) name so we can restore it
@@ -183,6 +184,24 @@ const ProxyGenerator: React.FC = () => {
     const newValue = type === 'checkbox' ? !!target.checked : target.value;
     setCardData(prev => {
       const updated: any = { ...prev, [name]: newValue };
+      // If the user picks an explicit Image BG color, switch mode to manual
+      if (name === 'imageBg') {
+        updated.imageBgMode = 'manual';
+      }
+      // If user explicitly switched the mode to manual, try to restore a sensible color
+      if (name === 'imageBgMode' && newValue === 'manual') {
+        // prefer existing manual color
+        if (!updated.imageBg && (prev as any).imageBgAuto) {
+          // try to parse first rgb(...) from the stored auto gradient and convert to hex
+          const g = (prev as any).imageBgAuto || '';
+          const m = g.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (m) {
+            const r = parseInt(m[1], 10), gg = parseInt(m[2], 10), b = parseInt(m[3], 10);
+            const toHex = (n:number) => n.toString(16).padStart(2, '0');
+            updated.imageBg = `#${toHex(r)}${toHex(gg)}${toHex(b)}`;
+          }
+        }
+      }
       // Keep a separate normalName for non-mana templates so we can restore it
       if (name === 'name' && templateType !== 'Mana/Token') {
         updated.normalName = newValue;
@@ -201,7 +220,66 @@ const ProxyGenerator: React.FC = () => {
   };
 
   const handleImageUpload = (dataUrl: string) => {
-    setCardData(prev => ({ ...prev, image: dataUrl }));
+    // Immediately set image and switch to automatic background mode (the gradient will be computed)
+    setCardData(prev => ({ ...prev, image: dataUrl, imageBg: undefined, imageBgMode: 'auto', imageBgAuto: null }));
+    // Compute automatic background gradient from the uploaded image and set it on the card
+    // (runs asynchronously; we don't block the UI)
+    (async () => {
+      try {
+        const autoBg = await computeAutoBgFromDataUrl(dataUrl);
+        // update computed auto background if available
+        setCardData(prev => ({ ...prev, imageBgAuto: autoBg || null }));
+      } catch (e) {
+        // ignore
+      }
+    })();
+  };
+
+  // Compute automatic left/right 20% gradient from a data URL (returns CSS gradient or null)
+  const computeAutoBgFromDataUrl = async (dataUrl: string): Promise<string | null> => {
+    return new Promise<string | null>((resolve) => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const w = img.naturalWidth || img.width || 1;
+            const h = img.naturalHeight || img.height || 1;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, w);
+            canvas.height = Math.max(1, h);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { resolve(null); return; }
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const sampleWidth = Math.max(1, Math.round(canvas.width * 0.2));
+            const leftX = 0;
+            const rightX = Math.max(0, canvas.width - sampleWidth);
+            const ys = 0;
+            const sampleH = canvas.height;
+            const leftData = ctx.getImageData(leftX, ys, sampleWidth, sampleH).data;
+            const rightData = ctx.getImageData(rightX, ys, sampleWidth, sampleH).data;
+            const avgColor = (data: Uint8ClampedArray) => {
+              let r = 0, g = 0, b = 0, count = 0;
+              for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i+3];
+                if (alpha === 0) continue;
+                r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+              }
+              if (count === 0) return [255,255,255];
+              return [Math.round(r/count), Math.round(g/count), Math.round(b/count)];
+            };
+            const l = avgColor(leftData);
+            const r = avgColor(rightData);
+            const leftColor = `rgb(${l[0]}, ${l[1]}, ${l[2]})`;
+            const rightColor = `rgb(${r[0]}, ${r[1]}, ${r[2]})`;
+            const gradient = `linear-gradient(90deg, ${leftColor} 0%, ${leftColor} 20%, ${rightColor} 80%, ${rightColor} 100%)`;
+            resolve(gradient);
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      } catch (e) { resolve(null); }
+    });
   };
 
   const frame = useMemo(() => frameDefs[cardColor] || blackFrame, [cardColor]);
@@ -282,8 +360,34 @@ const ProxyGenerator: React.FC = () => {
           loadImg.crossOrigin = 'anonymous';
           loadImg.onload = () => {
             try {
-              // Draw the source image scaled to the canvas pixel size.
-              ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+              // Draw the source image respecting the chosen object-fit.
+              const iw = loadImg.naturalWidth || loadImg.width || canvas.width;
+              const ih = loadImg.naturalHeight || loadImg.height || canvas.height;
+              // Map selected imageFilter to a canvas filter string
+              const exportFilterValue = ((cardData as any).imageFilter || 'none');
+              let exportFilterCss = 'none';
+              switch (exportFilterValue) {
+                case 'grayscale': exportFilterCss = 'grayscale(100%)'; break;
+                case 'invert': exportFilterCss = 'invert(100%)'; break;
+                case 'saturate': exportFilterCss = 'saturate(180%)'; break;
+                default: exportFilterCss = 'none'; break;
+              }
+              try { ctx.filter = exportFilterCss; } catch {}
+              if (exportFit === 'contain') {
+                const scale = Math.min(canvas.width / iw, canvas.height / ih);
+                const dw = Math.round(iw * scale);
+                const dh = Math.round(ih * scale);
+                const dx = Math.round((canvas.width - dw) / 2);
+                const dy = Math.round((canvas.height - dh) / 2);
+                ctx.drawImage(loadImg, 0, 0, iw, ih, dx, dy, dw, dh);
+              } else if (exportFit === 'fill') {
+                // stretch to fill
+                ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+              } else {
+                // default: attempt to honor the fit value as a size string fallback
+                ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+              }
+              try { ctx.filter = 'none'; } catch {}
             } catch (err) {
               // fallback: fill transparent
             }
@@ -301,6 +405,14 @@ const ProxyGenerator: React.FC = () => {
             if (exportFit === 'contain') wrapper.style.backgroundSize = 'contain';
             else if (exportFit === 'fill') wrapper.style.backgroundSize = '100% 100%';
             else wrapper.style.backgroundSize = exportFit;
+            // Apply CSS filter to wrapper so fallback also respects selected filter
+            const exportFilterValue = (((cardData as any).imageFilter) || 'none');
+            switch (exportFilterValue) {
+              case 'grayscale': wrapper.style.filter = 'grayscale(100%)'; break;
+              case 'invert': wrapper.style.filter = 'invert(100%)'; break;
+              case 'saturate': wrapper.style.filter = 'saturate(180%)'; break;
+              default: wrapper.style.filter = 'none'; break;
+            }
             wrapper.style.display = 'block';
             wrapper.style.margin = '0';
             img.parentNode?.replaceChild(wrapper, img);
@@ -449,7 +561,33 @@ const ProxyGenerator: React.FC = () => {
             const loadImg = new Image();
             loadImg.crossOrigin = 'anonymous';
             loadImg.onload = () => {
-              try { ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height); } catch {}
+              try {
+                const iw = loadImg.naturalWidth || loadImg.width || canvas.width;
+                const ih = loadImg.naturalHeight || loadImg.height || canvas.height;
+                // Apply selected filter from the saved card data when drawing
+                const exportFilterValue = (((savedCards[i].data as any).imageFilter) || 'none');
+                let exportFilterCss = 'none';
+                switch (exportFilterValue) {
+                  case 'grayscale': exportFilterCss = 'grayscale(100%)'; break;
+                  case 'invert': exportFilterCss = 'invert(100%)'; break;
+                  case 'saturate': exportFilterCss = 'saturate(180%)'; break;
+                  default: exportFilterCss = 'none'; break;
+                }
+                try { ctx.filter = exportFilterCss; } catch {}
+                if (exportFit === 'contain') {
+                  const scale = Math.min(canvas.width / iw, canvas.height / ih);
+                  const dw = Math.round(iw * scale);
+                  const dh = Math.round(ih * scale);
+                  const dx = Math.round((canvas.width - dw) / 2);
+                  const dy = Math.round((canvas.height - dh) / 2);
+                  ctx.drawImage(loadImg, 0, 0, iw, ih, dx, dy, dw, dh);
+                } else if (exportFit === 'fill') {
+                  ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+                } else {
+                  ctx.drawImage(loadImg, 0, 0, canvas.width, canvas.height);
+                }
+                try { ctx.filter = 'none'; } catch {}
+              } catch (e) { /* ignore drawing errors */ }
               img.parentNode?.replaceChild(canvas, img);
               resolve();
             };
@@ -463,6 +601,14 @@ const ProxyGenerator: React.FC = () => {
               if (exportFit === 'contain') wrapper.style.backgroundSize = 'contain';
               else if (exportFit === 'fill') wrapper.style.backgroundSize = '100% 100%';
               else wrapper.style.backgroundSize = exportFit;
+              // Apply selected filter to the fallback wrapper
+              const exportFilterVal = (((savedCards[i].data as any).imageFilter) || 'none');
+              switch (exportFilterVal) {
+                case 'grayscale': wrapper.style.filter = 'grayscale(100%)'; break;
+                case 'invert': wrapper.style.filter = 'invert(100%)'; break;
+                case 'saturate': wrapper.style.filter = 'saturate(180%)'; break;
+                default: wrapper.style.filter = 'none'; break;
+              }
               wrapper.style.display = 'block';
               wrapper.style.margin = '0';
               img.parentNode?.replaceChild(wrapper, img);

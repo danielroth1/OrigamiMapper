@@ -32,8 +32,52 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
               <option value="PTG Style">PTG Style</option>
               <option value="Mana/Token">Mana/Token/Energy</option>
             </select>
-          </div>
+            <label htmlFor="imageBg">Image BG:</label>
+            <input
+              id="imageBg"
+              name="imageBg"
+              type="color"
+              value={props.cardData.imageBg || '#ffffff'}
+              onChange={props.onChange}
+              title="Pick a background color for the art area"
+              style={{ width: '2.0rem', height: '1.6rem', padding: 0, border: 'none', background: 'transparent' }}
+              disabled={props.cardData.imageBgMode === 'auto'}
+            />
+            <label htmlFor="imageBgMode">Image BG Mode:</label>
+            <select id="imageBgMode" name="imageBgMode" value={props.cardData.imageBgMode || 'manual'} onChange={props.onChange}>
+              <option value="manual">Manual</option>
+              <option value="auto">Automatic</option>
+            </select>
+            </div>
         </div>
+          {/* Image fit/transform controls directly under upload */}
+          <div style={{ marginLeft: '0.5em', display: 'flex', gap: '0.6em', alignItems: 'center' }}>
+            <label htmlFor="imageFit">Image Fit:</label>
+            <select id="imageFit" name="imageFit" value={props.cardData.imageFit || 'contain'} onChange={props.onChange}>
+              <option value="contain">Fit (contain)</option>
+              <option value="fill">Stretch (fill)</option>
+            </select>
+
+            <label htmlFor="imageFilter">Image Color Filter:</label>
+            <select id="imageFilter" name="imageFilter" value={props.cardData.imageFilter || 'none'} onChange={props.onChange}>
+              <option value="none">None</option>
+              <option value="grayscale">Grayscale</option>
+              <option value="invert">Invert</option>
+              <option value="saturate">Saturate</option>
+            </select>
+
+            
+
+            <label htmlFor="imageTransform">Transform:</label>
+            <select id="imageTransform" name="imageTransform" value={props.cardData.imageTransform || 'none'} onChange={props.onChange}>
+              <option value="none">None</option>
+              <option value="rotate90">Rotate 90°</option>
+              <option value="rotate180">Rotate 180°</option>
+              <option value="rotate270">Rotate 270°</option>
+              <option value="flipH">Flip Horizontal</option>
+              <option value="flipV">Flip Vertical</option>
+            </select>
+          </div>
       </div>
 
       <div className="ptg-row">
@@ -69,22 +113,7 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
         ))}
       </div>
 
-      <div className="ptg-row">
-        <label htmlFor="imageFit">Image Fit:</label>
-        <select id="imageFit" name="imageFit" value={props.cardData.imageFit || 'contain'} onChange={props.onChange}>
-          <option value="contain">Fit (contain)</option>
-          <option value="fill">Stretch (fill)</option>
-        </select>
-        <label htmlFor="imageTransform">Transform:</label>
-        <select id="imageTransform" name="imageTransform" value={props.cardData.imageTransform || 'none'} onChange={props.onChange}>
-          <option value="none">None</option>
-          <option value="rotate90">Rotate 90°</option>
-          <option value="rotate180">Rotate 180°</option>
-          <option value="rotate270">Rotate 270°</option>
-          <option value="flipH">Flip Horizontal</option>
-          <option value="flipV">Flip Vertical</option>
-        </select>
-      </div>
+      
 
       <div className="ptg-row">
         <label>Type Line:</label>

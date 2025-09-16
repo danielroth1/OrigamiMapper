@@ -20,7 +20,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
       <div style={{ display: 'flex', gap: '2em', alignItems: 'center', marginBottom: '1em', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
           <CardColorSelect cardStyle={props.cardStyle} setCardStyle={props.setCardStyle} />
-          <label htmlFor="card-template-select" style={{ marginLeft: '2em' }}>Card Style:</label>
+          <label htmlFor="card-template-select" style={{ marginLeft: '2em' }}> Card Style:</label>
           <select
             id="card-template-select"
             value={props.templateType}

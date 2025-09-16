@@ -87,7 +87,66 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     return parts.join(' ');
   })();
 
+  const imageFilter = (() => {
+    switch (cardData.imageFilter) {
+      case 'grayscale': return 'grayscale(100%)';
+      case 'invert': return 'invert(100%)';
+      case 'saturate': return 'saturate(180%)';
+      default: return 'none';
+    }
+  })();
+
   const artRef = useRef<HTMLDivElement | null>(null);
+  const [autoBg, setAutoBg] = useState<string | null>(null);
+  // When automatic background mode is selected, compute left/right average colors and build a gradient
+  React.useEffect(() => {
+    if (cardData.imageBgMode !== 'auto') { setAutoBg(null); return; }
+    // If the parent already computed an automatic background (on upload), prefer it
+    if ((cardData as any).imageBgAuto) { setAutoBg((cardData as any).imageBgAuto); return; }
+    if (!cardData.image) { setAutoBg(null); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, w);
+        canvas.height = Math.max(1, h);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { setAutoBg(null); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Sample left and right 20% vertical strips
+        const sampleWidth = Math.max(1, Math.round(canvas.width * 0.2));
+        const leftX = 0;
+        const rightX = Math.max(0, canvas.width - sampleWidth);
+        const ys = Math.round(canvas.height * 0.0);
+        const sampleH = canvas.height;
+        const leftData = ctx.getImageData(leftX, ys, sampleWidth, sampleH).data;
+        const rightData = ctx.getImageData(rightX, ys, sampleWidth, sampleH).data;
+        const avgColor = (data: Uint8ClampedArray) => {
+          let r = 0, g = 0, b = 0, a = 0, count = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i+3];
+            if (alpha === 0) continue; // ignore fully transparent
+            r += data[i]; g += data[i+1]; b += data[i+2]; a += alpha; count++;
+          }
+          if (count === 0) return [255,255,255];
+          return [Math.round(r/count), Math.round(g/count), Math.round(b/count)];
+        };
+        const l = avgColor(leftData);
+        const r = avgColor(rightData);
+        const leftColor = `rgb(${l[0]}, ${l[1]}, ${l[2]})`;
+        const rightColor = `rgb(${r[0]}, ${r[1]}, ${r[2]})`;
+        // build a linear gradient left->right
+        setAutoBg(`linear-gradient(90deg, ${leftColor} 0%, ${leftColor} 20%, ${rightColor} 80%, ${rightColor} 100%)`);
+      } catch (e) {
+        setAutoBg(null);
+      }
+    };
+    img.onerror = () => setAutoBg(null);
+    img.src = cardData.image;
+  }, [cardData.image, cardData.imageBgMode]);
   React.useEffect(() => {
     const el = artRef.current;
     if (!el) return;
@@ -192,11 +251,11 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: frame.artFallback,
+  background: autoBg || cardData.imageBg || frame.artFallback,
       border: frame.artBorder ? `1px solid ${frame.artBorder}` : undefined
     }}>
       {cardData.image ? (
-        <img
+          <img
           src={cardData.image}
           alt="Card art preview"
           style={{
@@ -205,6 +264,8 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             objectFit: (cardData.imageFit || 'contain') as any,
             // Apply CSS transforms: translate (pan) + rotation/flips
         transform: imageTransform,
+            // Apply color filter (grayscale/invert/saturate)
+            filter: imageFilter,
             boxShadow: '0 2px 8px #0004',
             cursor: cursorStyle,
             touchAction: 'none'

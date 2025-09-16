@@ -51,13 +51,14 @@
 
 /* Two-digit mana cost input */
 .ptg-mana-cost-input {
-  flex: 0 0 28px;
-  width: 28px;
-  min-width: 28px;
+  /* Narrower two-digit mana cost input to save horizontal space */
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
   text-align: center;
-  letter-spacing: 0.4px;
-  padding: 0.15rem 0.2rem;
-  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  padding: 0.08rem 0.12rem;
+  font-size: 0.82rem;
 }
 
 .ptg-very-small-input {
@@ -73,18 +74,18 @@
 }
 
 .ptg-mana-selects select {
-  flex: 0 0 46px;
-  min-width: 38px;
-  padding: 0.2rem 0.3rem;
+  flex: 0 0 40px; /* slightly narrower */
+  min-width: 34px;
+  padding: 0.16rem 0.22rem;
 }
 
 /* Top bar grouping */
 .ptg-top-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
-  justify-content: center;
-  align-items: center;
+  gap: 1.25rem;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 0.75rem;
 }
 
