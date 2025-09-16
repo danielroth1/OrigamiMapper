@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Header from '../components/Header';
 import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
-import { IoCloudDownload, IoCloudDownloadOutline, IoCloudDownloadSharp, IoPrintSharp, IoShareSocial, IoShareSocialSharp } from 'react-icons/io5';
+import { IoCloudDownloadOutline, IoPrintSharp, IoShareSocial } from 'react-icons/io5';
 
 const MTGRules: React.FC = () => {
   const contentRef = useRef<HTMLDivElement | null>(null);

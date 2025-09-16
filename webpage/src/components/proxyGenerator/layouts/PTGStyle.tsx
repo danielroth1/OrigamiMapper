@@ -70,6 +70,10 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     return undefined;
   })();
 
+  // Mana circle visual tweaks: prefer an explicit border color if provided by the frame
+  const manaBorderColor = frame.manaCostBorder || frame.manaCostText || '#ffffff';
+  const manaBorderWidth = typeof frame.manaCostBorderWidth === 'number' ? `${frame.manaCostBorderWidth}px` : (frame.manaCostBorderWidth || '2px');
+
   const clamp = (v:number, a:number, b:number) => Math.max(a, Math.min(b, v));
 
   const imageTransform = (() => {
@@ -217,11 +221,11 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '1.25em',
-            height: '1.25em',
+            width: '1.35em',
+            height: '1.35em',
             borderRadius: '50%',
             background: frame.manaCostBg,
-            border: `1px solid ${frame.manaCostText}`,
+            border: `${manaBorderWidth} solid ${manaBorderColor}`,
             fontSize: '1.15em',
             fontWeight: 900,
             color: frame.manaCostText,
