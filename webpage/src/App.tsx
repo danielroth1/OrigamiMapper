@@ -1,5 +1,5 @@
 import BoxGenerator from './pages/BoxGenerator';
-import ProxyGenerator from './pages/ProxyGenerator';
+import ProxyGenerator from './pages/ProxyGenerator.tsx';
 import MTGRules from './pages/MTGRules';
 import { Routes, Route } from 'react-router-dom';
 

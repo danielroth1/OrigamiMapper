@@ -52,9 +52,8 @@
 /* Two-digit mana cost input */
 .ptg-mana-cost-input {
   /* Narrower two-digit mana cost input to save horizontal space */
-  flex: 0 0 22px;
-  width: 22px;
-  min-width: 22px;
+  flex: 0 0 92px;
+  min-width: 42px;
   text-align: center;
   letter-spacing: 0.3px;
   padding: 0.08rem 0.12rem;
@@ -74,7 +73,7 @@
 }
 
 .ptg-mana-selects select {
-  flex: 0 0 40px; /* slightly narrower */
+  flex: 0 0 90px; /* slightly narrower */
   min-width: 34px;
   padding: 0.16rem 0.22rem;
 }

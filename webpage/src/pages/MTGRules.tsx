@@ -279,10 +279,10 @@ const MTGRules: React.FC = () => {
               <IoPrintSharp /> Print
             </button>
             <button type="button" onClick={handleDownload} title="Download PDF" style={{ background: '#222', color: '#fff', border: 'none', padding: '0.5em 0.8em', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
-              <IoCloudDownloadSharp /> Download
+              <IoCloudDownloadOutline /> Download
             </button>
             <button type="button" onClick={handleShare} title="Share" style={{ background: '#222', color: '#fff', border: 'none', padding: '0.5em 0.8em', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
-              <IoShareSocialSharp /> Share
+              <IoShareSocial /> Share
             </button>
           </div>
         <p><strong>Note:</strong> This booklet is a summary. For official rules, refer to the <a href="https://media.wizards.com/images/magic/resources/rules/EN_MTGM14_PrintedRulebook_LR.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9' }}>MTG Comprehensive Rules</a>.</p>
