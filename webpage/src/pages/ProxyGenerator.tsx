@@ -2,7 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { computeAutoBgFromDataUrl, mmToPt } from './BackgroundImageUtils';
-import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlame, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
+import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
+import { BsFire } from 'react-icons/bs';
 import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
@@ -170,7 +171,7 @@ const ProxyGenerator: React.FC = () => {
   };
 
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
-    R: (color) => <IoFlame style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+  R: (color) => <BsFire style={{ fontSize: '1.6em', color, verticalAlign: 'middle' }} />,
     U: (color) => <IoWater style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     G: (color) => <IoLeafSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     W: (color) => <IoSunny style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
@@ -240,6 +241,110 @@ const ProxyGenerator: React.FC = () => {
 
   const frame = useMemo(() => frameDefs[cardColor] || blackFrame, [cardColor]);
   const cardRef = useRef<HTMLDivElement>(null);
+  // Copy computed styles from a source element into a target element to preserve layout during export
+  const copyComputedStyles = (source: HTMLElement | null, target: HTMLElement | null) => {
+    if (!source || !target) return;
+    try {
+      const cs = window.getComputedStyle(source);
+      let cssText = '';
+      for (let i = 0; i < cs.length; i++) {
+        const prop = cs[i];
+        const val = cs.getPropertyValue(prop);
+        // Skip some properties that may interfere with sizing in the export container
+        if (prop === 'width' || prop === 'height' || prop === 'box-sizing') continue;
+        cssText += `${prop}: ${val}; `;
+      }
+      // Preserve any existing inline styles on the target
+      const existing = target.getAttribute('style') || '';
+      target.setAttribute('style', existing + cssText);
+      // Ensure the exported root has the same pixel dimensions so absolute anchors compute the same
+      const rect = source.getBoundingClientRect();
+      target.style.width = `${Math.ceil(rect.width)}px`;
+      target.style.height = `${Math.ceil(rect.height)}px`;
+      // Ensure position/ display are set
+      target.style.position = target.style.position || 'relative';
+      target.style.display = target.style.display || 'flex';
+    } catch (e) {
+      // ignore if copy fails
+    }
+  };
+
+  // Copy only the computed style properties relevant to the vertical right-side info element
+  const copyVerticalSideInfo = (source: HTMLElement | null, target: HTMLElement | null) => {
+    if (!source || !target) return;
+    try {
+      // Find the vertical element in the source by checking computed writing-mode
+      const srcCandidates = Array.from(source.querySelectorAll('*')) as HTMLElement[];
+      const srcVert = srcCandidates.find(el => {
+        try { return window.getComputedStyle(el).getPropertyValue('writing-mode').startsWith('vertical'); } catch { return false; }
+      });
+      if (!srcVert) return;
+
+      // Prefer to find a matching vertical element in the target by writing-mode first,
+      // falling back to text-content match if necessary.
+      const tgtCandidates = Array.from(target.querySelectorAll('*')) as HTMLElement[];
+      let tgt: HTMLElement | undefined = tgtCandidates.find(el => {
+        try { return window.getComputedStyle(el).getPropertyValue('writing-mode').startsWith('vertical'); } catch { return false; }
+      });
+      if (!tgt) {
+        const srcText = (srcVert.textContent || '').trim();
+        tgt = tgtCandidates.find(el => (el.textContent || '').trim() === srcText);
+      }
+      if (!tgt) return;
+
+      const cs = window.getComputedStyle(srcVert);
+      // Copy font and orientation properties to avoid reflow / glyph-direction differences
+      const fontProps = ['writing-mode','text-orientation','font-family','font-size','font-weight','font-style','line-height','letter-spacing','color','direction','white-space'];
+      fontProps.forEach(p => {
+        try {
+          const val = cs.getPropertyValue(p);
+          if (val) tgt.style.setProperty(p, val);
+        } catch (e) {}
+      });
+
+      // Compute bounding box of source element relative to the source root and apply
+      // scaled absolute positioning to the target so it sits exactly where the source did.
+      const srcRect = srcVert.getBoundingClientRect();
+      const srcRootRect = source.getBoundingClientRect();
+      const tgtRoot = target as HTMLElement;
+      const tgtRootRect = tgtRoot.getBoundingClientRect();
+      const relLeft = srcRect.left - srcRootRect.left;
+      const relTop = srcRect.top - srcRootRect.top;
+      const scaleX = tgtRootRect.width / srcRootRect.width || 1;
+      const scaleY = tgtRootRect.height / srcRootRect.height || 1;
+
+      // Ensure target is absolutely positioned within the export root
+      tgt.style.position = 'absolute';
+      // Set transform-origin to match source (copy if present)
+      try {
+        const origin = window.getComputedStyle(srcVert).getPropertyValue('transform-origin');
+        if (origin) tgt.style.transformOrigin = origin;
+      } catch {}
+
+      // Copy any transforms (rotation/flips) from the source so orientation remains identical
+      try {
+        const transform = window.getComputedStyle(srcVert).getPropertyValue('transform');
+        if (transform && transform !== 'none') tgt.style.setProperty('transform', transform);
+      } catch {}
+
+      // Apply scaled positioning and size
+      tgt.style.left = `${Math.round(relLeft * scaleX)}px`;
+      tgt.style.top = `${Math.round(relTop * scaleY)}px`;
+      tgt.style.width = `${Math.round(srcRect.width * scaleX)}px`;
+      tgt.style.height = `${Math.round(srcRect.height * scaleY)}px`;
+
+      // Also ensure a matching font-size/line-height in px to avoid invisible reflow due to
+      // differing root font-size or zoom during export
+      try {
+        const fontSize = cs.getPropertyValue('font-size');
+        if (fontSize) tgt.style.setProperty('font-size', fontSize);
+        const lh = cs.getPropertyValue('line-height');
+        if (lh) tgt.style.setProperty('line-height', lh);
+      } catch {}
+    } catch (e) {
+      // ignore
+    }
+  };
   // Export the currently shown card as a single PNG
   const handleExportSinglePNG = async () => {
     const tempDiv = document.createElement('div');
@@ -252,7 +357,9 @@ const ProxyGenerator: React.FC = () => {
     tempDiv.style.height = `${designCssHeight}px`;
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-9999px';
-    tempDiv.style.padding = '0';
+  // tiny non-zero padding + transparent border prevents margin collapse
+  tempDiv.style.padding = '0.01px';
+  tempDiv.style.border = '1px solid transparent';
     tempDiv.style.margin = '0';
     tempDiv.style.boxSizing = 'border-box';
     tempDiv.style.overflow = 'hidden';
@@ -262,11 +369,16 @@ const ProxyGenerator: React.FC = () => {
 
     const resetStyle = document.createElement('style');
   const exportFit = (cardData.imageFit || 'contain');
-    resetStyle.textContent = `
-      #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
-      #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
-      #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
-    `;
+   resetStyle.textContent = `
+    /* Reset spacing but preserve layout/display of the CardPreview root so its flex/grid
+      behavior and absolute children positioning are not broken for exported DOM. */
+    #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+    /* Ensure CardPreview root retains display:flex and position:relative so absolutely
+      positioned children (vertical side text) remain anchored as in the live preview. */
+    #export-temp > div:first-child { display: flex !important; position: relative !important; }
+    /* Only enforce image sizing and object-fit for accurate exports. */
+    #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
+   `;
     tempDiv.appendChild(resetStyle);
     document.body.appendChild(tempDiv);
 
@@ -283,6 +395,11 @@ const ProxyGenerator: React.FC = () => {
     );
 
     await new Promise(resolve => setTimeout(resolve, 220));
+
+    // Copy computed styles from the live preview into the export root so layout/absolute
+    // positioning (vertical side text) remains identical during html2canvas capture.
+    try { copyComputedStyles(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
+  try { copyVerticalSideInfo(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
 
     // Draw each <img> into a high-resolution canvas sized by the html2canvas export scale.
     // This prevents pixelation when the browser would otherwise upscale the image at export time.
@@ -455,7 +572,9 @@ const ProxyGenerator: React.FC = () => {
       // Ensure no extra margins/padding from child components and force full size
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.padding = '0';
+  // tiny non-zero padding + transparent border prevents margin collapse
+  tempDiv.style.padding = '0.01px';
+  tempDiv.style.border = '1px solid transparent';
       tempDiv.style.margin = '0';
       tempDiv.style.boxSizing = 'border-box';
       tempDiv.style.overflow = 'hidden';
@@ -467,11 +586,11 @@ const ProxyGenerator: React.FC = () => {
       const resetStyle = document.createElement('style');
   const exportFit = (savedCards[i].data as any).imageFit || 'contain';
   resetStyle.textContent = `
+      /* Reset spacing but preserve root layout so absolute/vertical elements keep position */
       #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
-      /* Remove top margin on the CardPreview root but don't override its inline width/height */
-      #export-temp > div { margin: 0 !important; display: block !important; overflow: hidden !important; }
-  /* Ensure art area images obey selected fit */
-  #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
+      #export-temp > div:first-child { display: flex !important; position: relative !important; }
+      /* Ensure art area images obey selected fit without forcing container display */
+      #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
     `;
       tempDiv.appendChild(resetStyle);
       document.body.appendChild(tempDiv);
@@ -491,6 +610,9 @@ const ProxyGenerator: React.FC = () => {
 
       // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
       await new Promise(resolve => setTimeout(resolve, 120));
+
+  try { copyComputedStyles(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
+  try { copyVerticalSideInfo(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
 
       // Replace <img> elements with high-resolution canvases so the exported PNG is sharp
       const replaceImgsWithCanvasMulti = async () => {

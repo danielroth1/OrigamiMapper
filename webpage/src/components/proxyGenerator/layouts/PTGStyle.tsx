@@ -265,7 +265,10 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
           style={{
             width: '100%',
             height: '100%',
-            objectFit: (cardData.imageFit || 'contain') as any,
+            // Avoid visible gutters when zooming out in 'contain' mode by using 'cover'
+            // when the user zooms below 1. This preserves ability to zoom while
+            // preventing the art area background from showing through.
+            objectFit: ((cardData.imageFit || 'contain') === 'contain' && zoom < 1) ? 'cover' : (cardData.imageFit || 'contain') as any,
             // Apply CSS transforms: translate (pan) + rotation/flips
         transform: imageTransform,
             // Apply color filter (grayscale/invert/saturate)
