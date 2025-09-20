@@ -8,12 +8,45 @@ interface SavedCardsSidebarProps {
   // Optional deck name from loaded project
   initialDeckName?: string;
   onLoadProject: (config: { deckName: string; savedCards: Array<{ data: any; color: string; template: string; mana: string[] }>; currentCardIdx: number | null }) => void;
+  onReorder?: (newSavedCards: Array<{ data: any; color: string; template: string; mana: string[] }>) => void;
 }
 
-const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoadCard, onExportAllPDF, currentCardIdx, initialDeckName, onLoadProject }) => {
+const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoadCard, onExportAllPDF, currentCardIdx, initialDeckName, onLoadProject, onReorder }) => {
   // Modal state for deck name input
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deckNameInput, setDeckNameInput] = useState('');
+
+  // Drag-and-drop state
+  const dragSrcIndex = useRef<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    dragSrcIndex.current = idx;
+    try { e.dataTransfer?.setData('text/plain', String(idx)); } catch {}
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    const src = dragSrcIndex.current ?? parseInt(e.dataTransfer.getData('text/plain') || '', 10);
+    if (isNaN(src) || src === idx) {
+      dragSrcIndex.current = null;
+      return;
+    }
+    const newArr = [...savedCards];
+    const [moved] = newArr.splice(src, 1);
+    newArr.splice(idx, 0, moved);
+    dragSrcIndex.current = null;
+    if (onReorder) onReorder(newArr);
+  };
+
+  const handleDragEnd = () => {
+    dragSrcIndex.current = null;
+  };
 
   const openSaveModal = () => {
     // Use loaded deck name with date suffix if available, else default
@@ -109,6 +142,11 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
             return (
               <li key={idx} style={{ marginBottom: '0.5em' }}>
                 <button
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onDragEnd={handleDragEnd}
                   style={{
                     width: '100%',
                     background: '#333',

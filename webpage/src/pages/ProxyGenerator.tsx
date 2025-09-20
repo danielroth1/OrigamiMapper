@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { computeAutoBgFromDataUrl, mmToPt } from './BackgroundImageUtils';
@@ -79,6 +79,71 @@ const ProxyGenerator: React.FC = () => {
   // savedCards entries now include color and template for switchable layouts
   const [savedCards, setSavedCards] = useState<Array<{ data: typeof initialCardData, color: string, template: string, mana: string[] }>>([]);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
+  // -------------------------
+  // Persistence (IndexedDB) for ProxyGenerator settings
+  // -------------------------
+  const DB_NAME = 'proxy-generator';
+  const STORE_NAME = 'settings';
+  const DB_VERSION = 1;
+  const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id' }); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const putItem = async (item: any) => {
+    const db = await openDB();
+    return new Promise<void>((res, rej) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const r = store.put(item);
+      r.onsuccess = () => res();
+      r.onerror = () => rej(r.error);
+    });
+  };
+  const getItem = async (id: string) => {
+    const db = await openDB();
+    return new Promise<any>((res, rej) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const r = store.get(id);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  };
+  // Autosave current state under id 'autosave'
+  const saveAutosave = async () => {
+    try {
+      const item = { id: 'autosave', updatedAt: Date.now(), cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx };
+      await putItem(item);
+    } catch (err) {
+      console.warn('Failed to save settings:', err);
+    }
+  };
+  // Load saved settings
+  const loadAutosave = async () => {
+    try {
+      const rec = await getItem('autosave');
+      if (!rec) return;
+      setCardData(rec.cardData);
+      setCardColor(rec.cardColor);
+      setTemplateType(rec.templateType);
+      setManaSelects(rec.manaSelects);
+      setSavedCards(rec.savedCards);
+      setCurrentCardIdx(rec.currentCardIdx);
+    } catch (err) {
+      console.warn('Failed to load settings:', err);
+    }
+  };
+  // Debounced autosave when relevant state changes
+  const autosaveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = window.setTimeout(() => { void saveAutosave(); }, 500);
+    return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current); };
+  }, [cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx]);
+  // Load on mount
+  useEffect(() => { void loadAutosave(); }, []);
   // Autosave: update selected card in savedCards whenever cardData, cardStyle, or manaSelects change
   React.useEffect(() => {
     if (currentCardIdx !== null && currentCardIdx >= 0 && currentCardIdx < savedCards.length) {
@@ -786,6 +851,19 @@ const ProxyGenerator: React.FC = () => {
           onExportAllPDF={handleExportAllPDF}
           currentCardIdx={currentCardIdx}
           onLoadProject={handleLoadProject}
+          onReorder={(newSaved) => {
+            // preserve the selected card if possible
+            const prevSelected = currentCardIdx;
+            setSavedCards(newSaved);
+            if (prevSelected === null) {
+              setCurrentCardIdx(null);
+            } else {
+              // try to find the previously selected card by reference equality
+              const prev = savedCards[prevSelected];
+              const newIdx = newSaved.findIndex(s => s === prev);
+              setCurrentCardIdx(newIdx === -1 ? null : newIdx);
+            }
+          }}
         />
         <div style={{ flex: 1 }}>
           <CardPreview
