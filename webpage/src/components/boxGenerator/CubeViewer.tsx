@@ -9,10 +9,22 @@ export type FaceKey = 'R'|'L'|'U'|'V'|'H'; // Right, Left, Bottom (U), Front (V)
 export type FaceTextures = Partial<Record<FaceKey, string>>;
 
 interface CubeViewerProps {
+  // Back-compat single-box props (treated as bottom box when dual not provided)
   outsideFaces?: FaceTextures;
   insideFaces?: FaceTextures;
+  // Dual-box props
+  bottomOutsideFaces?: FaceTextures;
+  bottomInsideFaces?: FaceTextures;
+  topOutsideFaces?: FaceTextures;
+  topInsideFaces?: FaceTextures;
+  // Geometry base size (unitless)
   width?: number;
   height?: number;
+  // Per-box scale for 3D preview only
+  bottomScale?: number;
+  topScale?: number;
+  // Open percentage (0..100). 0 = overlapping, 100 = 1.5 * max(box heights) apart.
+  openPercent?: number;
   initialZoom?: number; // 1 = default; >1 = zoomed in (closer)
 }
 
@@ -87,12 +99,38 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
   );
 }
 
-export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=1, initialZoom=1 }: CubeViewerProps) {
+export default function CubeViewer({
+  outsideFaces,
+  insideFaces,
+  bottomOutsideFaces,
+  bottomInsideFaces,
+  topOutsideFaces,
+  topInsideFaces,
+  width = 1,
+  height = 1,
+  bottomScale = 1,
+  topScale = 1,
+  openPercent = 0,
+  initialZoom = 1
+}: CubeViewerProps) {
   // base camera position (isometric-ish). We move camera closer by multiplying by 1/initialZoom.
   // initialZoom: 1 = default, 2 = twice as close, 0.5 = farther away
   const clampZoom = Math.max(0.2, initialZoom);
   const basePos = new THREE.Vector3(0.85, 0.85, 0.95);
   const camPos = basePos.clone().divideScalar(clampZoom);
+
+  // Determine which textures to use for bottom when only single-box props are provided
+  const bottomOut = bottomOutsideFaces ?? outsideFaces;
+  const bottomIn = bottomInsideFaces ?? insideFaces;
+  const topOut = topOutsideFaces;
+  const topIn = topInsideFaces;
+
+  // Compute vertical separation based on openPercent and scaled box heights
+  const clampedOpen = Math.max(0, Math.min(100, openPercent || 0));
+  const maxScaledH = Math.max(height * Math.max(0.01, bottomScale), height * Math.max(0.01, topScale));
+  const totalSep = (clampedOpen / 100) * (1.5 * maxScaledH);
+  const bottomY = -totalSep / 2;
+  const topY = totalSep / 2;
 
   return (
     <Canvas
@@ -103,7 +141,18 @@ export default function CubeViewer({ outsideFaces, insideFaces, width=1, height=
   {/* neutral, not-overpowering lights so textures read correctly */}
   <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
   <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
-      <TexturedOpenBox outsideFaces={outsideFaces} insideFaces={insideFaces} width={width} height={height} />
+      {/* Bottom box (or single box when top not provided) */}
+      {bottomOut || bottomIn ? (
+        <group position={[0, bottomY, 0]} scale={[bottomScale, bottomScale, bottomScale]}>
+          <TexturedOpenBox outsideFaces={bottomOut} insideFaces={bottomIn} width={width} height={height} />
+        </group>
+      ) : null}
+      {/* Top box (render only if provided) */}
+      {topOut || topIn ? (
+        <group position={[0, topY, 0]} scale={[topScale, topScale, topScale]}>
+          <TexturedOpenBox outsideFaces={topOut} insideFaces={topIn} width={width} height={height} />
+        </group>
+      ) : null}
   <OrbitControls enablePan={false} />
   {import.meta.env.DEV && <Stats />}
     </Canvas>

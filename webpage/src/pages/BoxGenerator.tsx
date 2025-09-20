@@ -31,8 +31,21 @@ function BoxGenerator() {
   const [pdfProgress, setPdfProgress] = useState(0);
   const [withFoldLines, setWithFoldLines] = useState(true);
   const [withCutLines, setWithCutLines] = useState(true);
+  // Bottom (existing) faces
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
+  // Top faces
+  const [topOutsideFaces, setTopOutsideFaces] = useState<FaceTextures>({});
+  const [topInsideFaces, setTopInsideFaces] = useState<FaceTextures>({});
+  // Which boxes exist
+  const [hasBottomBox, setHasBottomBox] = useState<boolean>(true);
+  const [hasTopBox, setHasTopBox] = useState<boolean>(false);
+  // 3D open percentage and per-box scales (percent like global Scale slider)
+  const [openPercent, setOpenPercent] = useState<number>(0);
+  const [bottomScalePercent, setBottomScalePercent] = useState<number>(scalePercent);
+  const [topScalePercent, setTopScalePercent] = useState<number>(scalePercent);
+  // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
+  const [mirrorDirection, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
   // Rotation selectors (0, 90, 180, 270 degrees) per image
   const [outsideRotation, setOutsideRotation] = useState<0 | 90 | 180 | 270>(0);
@@ -40,7 +53,7 @@ function BoxGenerator() {
   // Change this constant in code to control the initial zoom programmatically
   const DEFAULT_VIEWER_ZOOM = 1.0;
   // 1x1 transparent PNG used as placeholder when one image is missing for mapping
-  const BLANK_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+  // const BLANK_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
   // Build face textures from polygons + background images (async: waits for image load)
   const buildFaceTextures = async (polygons: OrigamiMapperTypes.Polygon[], imgDataUrl: string): Promise<FaceTextures> => {
@@ -163,20 +176,46 @@ function BoxGenerator() {
   };
 
   const handleBuildCubeTextures = (outsidePolys?: OrigamiMapperTypes.Polygon[], insidePolys?: OrigamiMapperTypes.Polygon[]) => {
-    // Use provided polygon lists when available (from editor onChange), otherwise query refs
+    // Bottom (legacy) build
     const outPolys = outsidePolys ?? outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
     const inPolys = insidePolys ?? insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-    // Build asynchronously and set states when textures are ready. This ensures textures update
-    // even if the image wasn't loaded when the build was scheduled.
     buildFaceTextures(outPolys, outsideImgTransformed).then(tex => setOutsideFaces(tex));
     buildFaceTextures(inPolys, insideImgTransformed).then(tex => setInsideFaces(tex));
+    // Top build (if editors exist)
+    const topOutPolys = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+    const topInPolys = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+    const topOutsideImg = topOutsideImgTransformed;
+    const topInsideImg = topInsideImgTransformed;
+    if (hasTopBox) {
+      buildFaceTextures(topOutPolys, topOutsideImg).then(tex => setTopOutsideFaces(tex));
+      buildFaceTextures(topInPolys, topInsideImg).then(tex => setTopInsideFaces(tex));
+    } else {
+      setTopOutsideFaces({});
+      setTopInsideFaces({});
+    }
   };
 
   // Refs for PolygonEditors
   const outsideEditorRef = useRef<PolygonEditorHandle>(null);
   const insideEditorRef = useRef<PolygonEditorHandle>(null);
+  const topOutsideEditorRef = useRef<PolygonEditorHandle>(null);
+  const topInsideEditorRef = useRef<PolygonEditorHandle>(null);
 
   const getEditorData = (isInside: boolean) => ({
+    ...boxData,
+    offset: (Array.isArray(boxData.offset) ? (boxData.offset.slice(0, 2) as [number, number]) : ([0, 0] as [number, number])),
+    input_polygons: (boxData.input_polygons ?? []).filter(p => isInside ? p.id.includes('i') : !p.id.includes('i')).map(p => ({
+      ...p,
+      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+    })),
+    output_polygons: (boxData.output_polygons ?? []).map(p => ({
+      ...p,
+      vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+    }))
+  });
+
+  // Separate helpers for top box use same template but can diverge later
+  const getTopEditorData = (isInside: boolean) => ({
     ...boxData,
     offset: (Array.isArray(boxData.offset) ? (boxData.offset.slice(0, 2) as [number, number]) : ([0, 0] as [number, number])),
     input_polygons: (boxData.input_polygons ?? []).filter(p => isInside ? p.id.includes('i') : !p.id.includes('i')).map(p => ({
@@ -232,17 +271,88 @@ function BoxGenerator() {
     setInsideImgRaw(dataUrl);
     transformImage(dataUrl, transformMode, insideRotation, setInsideImgTransformed);
   };
+  // Top image transforms
+  const [topOutsideImgRaw, setTopOutsideImgRaw] = useState('');
+  const [topInsideImgRaw, setTopInsideImgRaw] = useState('');
+  const [topOutsideImgTransformed, setTopOutsideImgTransformed] = useState('');
+  const [topInsideImgTransformed, setTopInsideImgTransformed] = useState('');
+  const [topOutsideRotation, setTopOutsideRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [topInsideRotation, setTopInsideRotation] = useState<0 | 90 | 180 | 270>(0);
+  const setTopOutsideImg = (dataUrl: string) => {
+    setTopOutsideImgRaw(dataUrl);
+    transformImage(dataUrl, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
+  };
+  const setTopInsideImg = (dataUrl: string) => {
+    setTopInsideImgRaw(dataUrl);
+    transformImage(dataUrl, transformMode, topInsideRotation, setTopInsideImgTransformed);
+  };
 
   // Re-transform images when mode changes
   useEffect(() => {
     if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, outsideRotation, setOutsideImgTransformed);
     if (insideImgRaw) transformImage(insideImgRaw, transformMode, insideRotation, setInsideImgTransformed);
-  }, [transformMode, outsideRotation, insideRotation, outsideImgRaw, insideImgRaw]);
+    if (topOutsideImgRaw) transformImage(topOutsideImgRaw, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
+    if (topInsideImgRaw) transformImage(topInsideImgRaw, transformMode, topInsideRotation, setTopInsideImgTransformed);
+  }, [transformMode, outsideRotation, insideRotation, outsideImgRaw, insideImgRaw, topOutsideImgRaw, topInsideImgRaw, topOutsideRotation, topInsideRotation]);
 
   // Rebuild cube textures when transformed images change (debounced)
   useEffect(() => {
     scheduleBuild();
-  }, [outsideImgTransformed, insideImgTransformed]);
+  }, [outsideImgTransformed, insideImgTransformed, topOutsideImgTransformed, topInsideImgTransformed, hasTopBox]);
+
+  // Mirror logic for OUTSIDE polygons only: L,V,R,H rotated 180° around bbox center; U copied and shifted by vector V[0]->V[2]
+  const mirrorOutsidePolygons = (source: OrigamiMapperTypes.Polygon[], target: OrigamiMapperTypes.Polygon[]): OrigamiMapperTypes.Polygon[] => {
+    // Group by face letter
+    const byFace = (polys: OrigamiMapperTypes.Polygon[]) => {
+      const map: Record<string, OrigamiMapperTypes.Polygon[]> = {};
+      polys.forEach(p => { const k = p.id[0]; if ('RLUVH'.includes(k)) (map[k] = map[k] || []).push(p); });
+      return map;
+    };
+    const s = byFace(source);
+    const t: OrigamiMapperTypes.Polygon[] = target.map(p => ({ ...p, vertices: p.vertices.map(v => [...v] as [number, number]) }));
+    const rot180 = (cx: number, cy: number, x: number, y: number): [number, number] => [2*cx - x, 2*cy - y];
+    const bbox = (polys: OrigamiMapperTypes.Polygon[]) => {
+      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+      polys.forEach(pp=>pp.vertices.forEach(([x,y])=>{ minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y); }));
+      return {minX,minY,maxX,maxY,cx:(minX+maxX)/2,cy:(minY+maxY)/2};
+    };
+    const copyRotated = (letter: string, rotate: boolean, shiftUtoV: boolean) => {
+      const src = s[letter]; if (!src || src.length===0) return;
+      const b = bbox(src);
+      const shiftVec = (() => {
+        if (!shiftUtoV) return {dx:0,dy:0};
+        const v = s['V'];
+        if (!v || v.length===0) return {dx:0,dy:0};
+        const p0 = v[0];
+        if (p0.vertices.length < 3) return {dx:0,dy:0};
+        const a = p0.vertices[0];
+        const c = p0.vertices[2];
+        return { dx: c[0]-a[0], dy: c[1]-a[1] };
+      })();
+      // replace corresponding target face polygons by transformed source polygons
+      for (let i=0;i<t.length;i++) {
+        if (t[i].id[0] !== letter) continue;
+        const srcPoly = src[(i)%src.length];
+        const verts = srcPoly.vertices.map(([x,y]) => {
+          let nx=x, ny=y;
+          if (rotate) {
+            const r = rot180(b.cx, b.cy, x, y);
+            nx = r[0]; ny = r[1];
+          }
+          nx += shiftVec.dx; ny += shiftVec.dy;
+          return [nx, ny] as [number, number];
+        });
+        t[i] = { ...t[i], vertices: verts };
+      }
+    };
+    // L,V,R,H rotate 180 deg; U copied (no rotation) and shifted towards V by |V_1[0]-V_1[2]| along x
+    copyRotated('L', true, false);
+    copyRotated('V', true, false);
+    copyRotated('R', true, false);
+    copyRotated('H', true, false);
+    copyRotated('U', false, true);
+    return t;
+  };
 
   const handleRun = async (showProgress = false) => {
     setLoading(true);
@@ -270,9 +380,9 @@ function BoxGenerator() {
         }))
     });
 
-    // Get JSONs from mounted editors or defaults when editor is not present
-    const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : makeDefaultForSide(false);
-    const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : makeDefaultForSide(true);
+  // Get JSONs from mounted editors or defaults when editor is not present (BOTTOM ONLY for preview)
+  const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : makeDefaultForSide(false);
+  const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : makeDefaultForSide(true);
     // Combine them: merge input_polygons and output_polygons, keep other fields from outsideJson
     const combinedJson = {
       ...outsideJson,
@@ -298,8 +408,8 @@ function BoxGenerator() {
         if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, c.width, c.height); }
         return c.toDataURL('image/png');
       };
-      const leftImg = outsideImgTransformed || makeWhiteDataUrl();
-      const rightImg = insideImgTransformed || makeWhiteDataUrl();
+  const leftImg = outsideImgTransformed || makeWhiteDataUrl();
+  const rightImg = insideImgTransformed || makeWhiteDataUrl();
   dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
       // mapping done
       if (showProgress) {
@@ -367,18 +477,18 @@ function BoxGenerator() {
     })();
   }, [outsideImgRaw, insideImgRaw]);
 
-  const ensureDataUrl = async (url: string): Promise<string> => {
-    if (!url) throw new Error('No URL');
-    if (url.startsWith('data:')) return url;
-    const res = await fetch(url);
-    const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
+  // const ensureDataUrl = async (url: string): Promise<string> => {
+  //   if (!url) throw new Error('No URL');
+  //   if (url.startsWith('data:')) return url;
+  //   const res = await fetch(url);
+  //   const blob = await res.blob();
+  //   return await new Promise<string>((resolve, reject) => {
+  //     const reader = new FileReader();
+  //     reader.onloadend = () => resolve(reader.result as string);
+  //     reader.onerror = reject;
+  //     reader.readAsDataURL(blob);
+  //   });
+  // };
 
   // -------------------------
   // Autosave (IndexedDB) & .mapper file save/load helpers
@@ -575,169 +685,169 @@ function BoxGenerator() {
   // Load autosave on mount
   useEffect(() => { void loadAutosave(); }, []);
 
-  const handleDownloadPdf = async (resultsOverride?: { [key: string]: string }) => {
-    try {
-      const pageIds = ['output_page1', 'output_page2'];
-      const source = resultsOverride ?? results;
-      setPdfLoading(true);
-      // let React render loading state before doing heavy synchronous work
-      await new Promise(resolve => setTimeout(resolve, 0));
-      // A4 dimensions in mm
-      const PAGE_W = 210;
-      const PAGE_H = 297;
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-      for (let i = 0; i < pageIds.length; i++) {
-        const id = pageIds[i];
-        const url = source[id];
-        // update progress to indicate work started for this page - continue from mapping's 50%
-        setPdfProgress(50 + Math.round((i / pageIds.length) * 40));
-        // yield so progress UI can update before potentially heavy work
-        await new Promise(resolve => setTimeout(resolve, 20));
-        // marginPercent applies to each side (percentage of page width/height)
-        const frac = (scalePercent || 0) / 100;
-        const innerW = PAGE_W * (1 - 2 * frac);
-        const innerH = PAGE_H * (1 - 2 * frac);
-        const x = (PAGE_W - innerW) / 2;
-        const y = (PAGE_H - innerH) / 2;
-        // Try to obtain data URL if page image exists
-        let dataUrl: string | null = null;
-        if (url) {
-          try { dataUrl = await ensureDataUrl(url); } catch (err) { dataUrl = null; }
-        }
-        // If page image missing, create a blank white canvas to insert
-        if (!dataUrl) {
-          try {
-            const c = document.createElement('canvas');
-            // compute px size using 96 DPI as approx for canvas; this is only for raster generation
-            const pxW = Math.max(1, Math.round((innerW / 25.4) * 96));
-            const pxH = Math.max(1, Math.round((innerH / 25.4) * 96));
-            c.width = pxW; c.height = pxH;
-            const cx = c.getContext('2d');
-            if (cx) {
-              cx.fillStyle = '#ffffff';
-              cx.fillRect(0, 0, pxW, pxH);
-              dataUrl = c.toDataURL('image/png');
-            } else {
-              dataUrl = BLANK_PNG;
-            }
-          } catch (err) {
-            dataUrl = BLANK_PNG;
-          }
-        }
-        // Place image stretched to inner box. If innerW/innerH exceed page, image will be cropped.
-        doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
-        // Optionally overlay fold helper lines (A4 images) scaled to the same inner box
-        if (withFoldLines) {
-          try {
-            // Use project-relative public path. Vite serves public/ at root (BASE_URL)
-            const base = (import.meta as any).env?.BASE_URL || '/';
-            const helperPath = base + 'assets/lines_page' + (i + 1) + '.png';
-            // fetch and convert to dataURL
-            // Note: jsPDF requires data URL or binary image; ensure we have data URL
-            const resp = await fetch(helperPath);
-            if (resp.ok) {
-              const blob = await resp.blob();
-              const helperDataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-              // Rotate the helper image 180deg using an offscreen canvas, then add it
-              const imgEl = new Image();
-              imgEl.src = helperDataUrl;
-              await new Promise<void>((resolve) => {
-                imgEl.onload = () => resolve();
-                imgEl.onerror = () => resolve();
-              });
-              try {
-                const cw = imgEl.naturalWidth || imgEl.width || 1;
-                const ch = imgEl.naturalHeight || imgEl.height || 1;
-                const c = document.createElement('canvas');
-                c.width = cw;
-                c.height = ch;
-                const cx = c.getContext('2d');
-                if (cx) {
-                  // rotate 180deg around center and draw with transparency
-                  cx.translate(cw / 2, ch / 2);
-                  cx.rotate(Math.PI);
-                  cx.globalAlpha = 1;
-                  cx.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
-                  cx.globalAlpha = 1;
-                  const rotatedDataUrl = c.toDataURL('image/png');
-                  doc.addImage(rotatedDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
-                } else {
-                  // Fallback: insert original if canvas unavailable
-                  doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
-                }
-              } catch (err) {
-                // fallback to original
+  // Run mapping for a specific box (bottom or top)
+  const runMappingForBox = async (which: 'bottom' | 'top') => {
+    // Helper default json
+    const makeDefaultForSide = (isInside: boolean) => ({
+      ...boxData,
+      offset: (Array.isArray(boxData.offset) ? boxData.offset.slice(0, 2) as [number, number] : [0, 0]),
+      input_polygons: (boxData.input_polygons ?? [])
+        .filter(p => isInside ? p.id.includes('i') : !p.id.includes('i'))
+        .map(p => ({
+          ...p,
+          vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+        })),
+      output_polygons: (boxData.output_polygons ?? [])
+        .map(p => ({
+          ...p,
+          vertices: ((p.vertices ?? []).filter(v => Array.isArray(v) && v.length === 2) as [number, number][])
+        }))
+    });
+
+    const isTop = which === 'top';
+    const outsideJson = (isTop ? topOutsideEditorRef.current : outsideEditorRef.current)?.getCurrentJson() || makeDefaultForSide(false);
+    const insideJson = (isTop ? topInsideEditorRef.current : insideEditorRef.current)?.getCurrentJson() || makeDefaultForSide(true);
+    const combinedJson = {
+      ...outsideJson,
+      input_polygons: [ ...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? []) ],
+      output_polygons: [ ...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? []) ]
+    };
+    const makeWhiteDataUrl = () => {
+      const c = document.createElement('canvas');
+      c.width = 800; c.height = 600;
+      const cx = c.getContext('2d');
+      if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, c.width, c.height); }
+      return c.toDataURL('image/png');
+    };
+    const leftImg = (isTop ? topOutsideImgTransformed : outsideImgTransformed) || makeWhiteDataUrl();
+    const rightImg = (isTop ? topInsideImgTransformed : insideImgTransformed) || makeWhiteDataUrl();
+    return await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
+  };
+
+  // Generate a PDF from an array of page images (all page1 or all page2)
+  const generatePdfFromPages = async (pages: string[], pageKind: 1 | 2, fileName: string) => {
+    // A4 dimensions in mm
+    const PAGE_W = 210;
+    const PAGE_H = 297;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    for (let i = 0; i < pages.length; i++) {
+      setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
+      await new Promise(resolve => setTimeout(resolve, 10));
+      const frac = (scalePercent || 0) / 100;
+      const innerW = PAGE_W * (1 - 2 * frac);
+      const innerH = PAGE_H * (1 - 2 * frac);
+      const x = (PAGE_W - innerW) / 2;
+      const y = (PAGE_H - innerH) / 2;
+      let dataUrl = pages[i];
+      if (!dataUrl) {
+        // blank
+        const c = document.createElement('canvas');
+        const pxW = Math.max(1, Math.round((innerW / 25.4) * 96));
+        const pxH = Math.max(1, Math.round((innerH / 25.4) * 96));
+        c.width = pxW; c.height = pxH;
+        const cx = c.getContext('2d');
+        if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, pxW, pxH); }
+        dataUrl = c.toDataURL('image/png');
+      }
+      doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+      // helper lines per kind
+      const base = (import.meta as any).env?.BASE_URL || '/';
+      const helperPath = base + 'assets/lines_page' + pageKind + '.png';
+      if (withFoldLines) {
+        try {
+          const resp = await fetch(helperPath);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const reader = new FileReader();
+            const helperDataUrl: string = await new Promise((resolve) => { reader.onloadend = () => resolve(reader.result as string); reader.readAsDataURL(blob); });
+            // Rotate 180deg like before
+            const imgEl = new Image();
+            imgEl.src = helperDataUrl;
+            await new Promise<void>((resolve) => { imgEl.onload = () => resolve(); imgEl.onerror = () => resolve(); });
+            try {
+              const cw = imgEl.naturalWidth || imgEl.width || 1;
+              const ch = imgEl.naturalHeight || imgEl.height || 1;
+              const c2 = document.createElement('canvas');
+              c2.width = cw; c2.height = ch;
+              const cx2 = c2.getContext('2d');
+              if (cx2) {
+                cx2.translate(cw / 2, ch / 2);
+                cx2.rotate(Math.PI);
+                cx2.globalAlpha = 1;
+                cx2.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
+                const rotatedDataUrl = c2.toDataURL('image/png');
+                doc.addImage(rotatedDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+              } else {
                 doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
               }
+            } catch {
+              doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
             }
-          } catch (err) {
-            // non-fatal: continue without overlay
-            console.warn('Failed to load fold helper lines:', err);
           }
-        }
-        // Optionally add dotted cut-line outline hugging the image edges
-        if (withCutLines) {
-          try {
-            const DPI = 96;
-            const pxW = Math.max(1, Math.round((innerW / 25.4) * DPI));
-            const pxH = Math.max(1, Math.round((innerH / 25.4) * DPI));
-            const c2 = document.createElement('canvas');
-            c2.width = pxW;
-            c2.height = pxH;
-            const cx2 = c2.getContext('2d');
-            if (cx2) {
-              cx2.clearRect(0, 0, pxW, pxH);
-              cx2.strokeStyle = 'rgba(0,0,0,0.6)';
-              cx2.lineWidth = 1;
-              cx2.setLineDash([2, 2]);
-              const inset = 0.5;
-              cx2.strokeRect(inset, inset, pxW - 1, pxH - 1);
-              const overlayDataUrl = c2.toDataURL('image/png');
-              doc.addImage(overlayDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
-            }
-          } catch (err) {
-            console.warn('Failed to draw cut-line overlay:', err);
-          }
-        }
-        // update progress after placing this page image
-        setPdfProgress(50 + Math.round(((i + 1) / pageIds.length) * 40));
-        // yield so progress UI can update before next iteration
-        await new Promise(resolve => setTimeout(resolve, 20));
-        if (i < pageIds.length - 1) doc.addPage();
+        } catch {}
       }
-      // finalizing
-      setPdfProgress(95);
-      // give the UI a moment to render finalizing state before triggering save
-      await new Promise(resolve => setTimeout(resolve, 50));
-      doc.save('origami_mapper_results.pdf');
+      if (withCutLines) {
+        try {
+          const DPI = 96;
+          const pxW = Math.max(1, Math.round((innerW / 25.4) * DPI));
+          const pxH = Math.max(1, Math.round((innerH / 25.4) * DPI));
+          const c3 = document.createElement('canvas');
+          c3.width = pxW; c3.height = pxH;
+          const cx3 = c3.getContext('2d');
+          if (cx3) {
+            cx3.clearRect(0,0,pxW,pxH);
+            cx3.strokeStyle='rgba(0,0,0,0.6)';
+            cx3.lineWidth=1; cx3.setLineDash([2,2]);
+            const inset=0.5; cx3.strokeRect(inset,inset,pxW-1,pxH-1);
+            const overlay = c3.toDataURL('image/png');
+            doc.addImage(overlay,'PNG',x,y,innerW,innerH,undefined,'FAST');
+          }
+        } catch {}
+      }
+      if (i < pages.length - 1) doc.addPage();
+    }
+    doc.save(fileName);
+  };
+
+  // Run mapping for bottom/top and download two PDFs: outer (page1s) then inner (page2s)
+  const handleRunThenDownloadDual = async () => {
+    if (loading) return;
+    setPdfLoading(true);
+    setPdfProgress(5);
+    setLoading(true);
+    try {
+      const runs: Array<Promise<{[k:string]:string}>> = [];
+      if (hasBottomBox) runs.push(runMappingForBox('bottom'));
+      if (hasTopBox) runs.push(runMappingForBox('top'));
+      const dicts = await Promise.all(runs);
+      setPdfProgress(50);
+      // Build page arrays
+      const outerPages: string[] = [];
+      const innerPages: string[] = [];
+      dicts.forEach(d => {
+        if (d?.output_page1) outerPages.push(d.output_page1);
+        if (d?.output_page2) innerPages.push(d.output_page2);
+      });
+      // Fallback: if no boxes, still allow blank pages (or just abort)
+      if (outerPages.length === 0 && innerPages.length === 0) {
+        setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
+      }
+      // Generate PDFs sequentially
+      await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf');
+      setPdfProgress(70);
+      await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf');
       setPdfProgress(100);
-      // small delay so users can see 100% before it disappears
-      setTimeout(() => {
-        setPdfLoading(false);
-        setPdfProgress(0);
-      }, 600);
     } catch (err) {
       console.error(err);
-      const msg = (err as any)?.message ? (err as any).message : String(err);
-      alert('Failed to generate PDF: ' + msg);
-      setPdfLoading(false);
-      setPdfProgress(0);
+      alert('Failed to generate PDFs: ' + String((err as any)?.message || err));
+    } finally {
+      setLoading(false);
+      setTimeout(() => { setPdfLoading(false); setPdfProgress(0); }, 600);
     }
   };
 
-  // Run mapping first, then generate PDF
-  const handleRunThenDownload = async () => {
-    if (loading) return;
-    // ensure mapping runs (this function will set loading state itself)
-    const dict = await handleRun(true);
-    if (dict) await handleDownloadPdf(dict);
-  };
+  // (Replaced by handleRunThenDownloadDual)
 
   return (
     <>
@@ -754,7 +864,7 @@ function BoxGenerator() {
         <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
 
           {/* 3d Cube preview */}
-          <div style={{ width: 320, height: 260 }}>
+          <div style={{ width: 360, height: 320 }}>
             {/* framed boundary for the canvas */}
             <div style={{
               width: '100%',
@@ -770,46 +880,169 @@ function BoxGenerator() {
             }}>
               <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1 }}>
-                  <CubeViewer outsideFaces={outsideFaces} insideFaces={insideFaces} initialZoom={DEFAULT_VIEWER_ZOOM} />
+                  <CubeViewer
+                    outsideFaces={hasTopBox ? undefined : outsideFaces}
+                    insideFaces={hasTopBox ? undefined : insideFaces}
+                    bottomOutsideFaces={hasBottomBox ? outsideFaces : undefined}
+                    bottomInsideFaces={hasBottomBox ? insideFaces : undefined}
+                    topOutsideFaces={hasTopBox ? topOutsideFaces : undefined}
+                    topInsideFaces={hasTopBox ? topInsideFaces : undefined}
+                    bottomScale={Math.max(0.2, 1 - 2 * (bottomScalePercent / 100))}
+                    topScale={Math.max(0.2, 1 - 2 * (topScalePercent / 100))}
+                    openPercent={(hasBottomBox && hasTopBox) ? openPercent : 0}
+                    initialZoom={DEFAULT_VIEWER_ZOOM}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 2D Editors side by side - wrap to column when space is constrained */}
-          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-            <div style={{ minWidth: 300 }}>
-              <PolygonEditor
-                ref={outsideEditorRef}
-                applyResetTransform={true}
-                onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                onOutsave={() => { void saveAutosave(); }}
-                data={getEditorData(false)}
-                label='Outside image'
-                backgroundImg={outsideImgTransformed}
-                rotation={outsideRotation}
-                onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-                onUploadImage={setOutsideImg}
-                onDelete={() => { setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true); }}
-              />
-            </div>
-            <div style={{ minWidth: 300 }}>
-              <PolygonEditor
-                ref={insideEditorRef}
-                applyResetTransform={false}
-                onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                onOutsave={() => { void saveAutosave(); }}
-                data={getEditorData(true)}
-                label='Inside image'
-                backgroundImg={insideImgTransformed}
-                rotation={insideRotation}
-                onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-                onUploadImage={setInsideImg}
-                onDelete={() => { setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true); }}
-              />
-            </div>
+          {/* Create / Delete buttons for boxes */}
+          <div style={{ display: 'flex', gap: '1em', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+            {!hasBottomBox && (
+              <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
+            )}
+            {!hasTopBox && (
+              <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
+            )}
           </div>
-          {/* Shared info text below both editors */}
+
+          {/* 2D Editors - bottom and top sections */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5em', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+            {/* Bottom editors row */}
+            {hasBottomBox && (
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={outsideEditorRef}
+                    applyResetTransform={true}
+                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(false)}
+                    label='Bottom Outside image'
+                    backgroundImg={outsideImgTransformed}
+                    rotation={outsideRotation}
+                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
+                    onUploadImage={setOutsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
+                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={insideEditorRef}
+                    applyResetTransform={false}
+                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(true)}
+                    label='Bottom Inside image'
+                    backgroundImg={insideImgTransformed}
+                    rotation={insideRotation}
+                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
+                    onUploadImage={setInsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
+                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
+                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
+                  <div>
+                    <button className="menu-btn" onClick={() => {
+                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      setHasBottomBox(false);
+                    }}>Delete Bottom Box</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mirror toggles between bottom and top */}
+            {hasBottomBox && hasTopBox && (
+              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
+                <button className="menu-btn" style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('down');
+                  // bottom mirrors from top
+                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Bottom mirrors from Top">↓ Mirror down</button>
+                <button className="menu-btn" style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('up');
+                  // top mirrors from bottom
+                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Top mirrors from Bottom">↑ Mirror up</button>
+              </div>
+            )}
+
+            {/* Top editors row */}
+            {hasTopBox && (
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={topOutsideEditorRef}
+                    applyResetTransform={true}
+                    onChange={() => scheduleBuild()}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getTopEditorData(false)}
+                    label='Top Outside image'
+                    backgroundImg={topOutsideImgTransformed}
+                    rotation={topOutsideRotation}
+                    onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
+                    onUploadImage={setTopOutsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete top outside image? This cannot be undone.')) return;
+                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={topInsideEditorRef}
+                    applyResetTransform={false}
+                    onChange={() => scheduleBuild()}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getTopEditorData(true)}
+                    label='Top Inside image'
+                    backgroundImg={topInsideImgTransformed}
+                    rotation={topInsideRotation}
+                    onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
+                    onUploadImage={setTopInsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete top inside image? This cannot be undone.')) return;
+                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <div style={{ color: '#fff' }}>Top Scale: {topScalePercent}%</div>
+                  <input type="range" min={0} max={30} step={1} value={topScalePercent} onChange={e=>setTopScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
+                  <div>
+                    <button className="menu-btn" onClick={() => {
+                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      setHasTopBox(false);
+                    }}>Delete Top Box</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Open Box slider (only when both visible) */}
+          {hasBottomBox && hasTopBox && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ color: '#fff' }}>Open Box: {openPercent}%</div>
+              <input type="range" min={0} max={100} step={1} value={openPercent} onChange={e=>setOpenPercent(Number(e.target.value))} style={{ width: 280 }} />
+            </div>
+          )}
+
+          {/* Shared info text below editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
             Drag to move (auto group).
             Shift+Drag scale.
@@ -931,7 +1164,7 @@ function BoxGenerator() {
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
                     </button>
-                    <button onClick={() => handleRunThenDownload()} disabled={pdfLoading || loading} className="menu-btn">
+                    <button onClick={() => handleRunThenDownloadDual()} disabled={pdfLoading || loading} className="menu-btn">
                       {pdfLoading ? 'Preparing PDF...' : 'Download'}
                     </button>
                   </div>
