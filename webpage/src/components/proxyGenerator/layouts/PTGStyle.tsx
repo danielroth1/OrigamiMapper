@@ -214,7 +214,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       position: 'relative',
       zIndex: 2
     }}>
-      <span style={{ fontWeight: 'bold', fontSize: '1em', color: frame.titleBarText }}>{cardData.name}</span>
+  <span style={{ fontWeight: '900', fontSize: '0.78em', color: frame.titleBarText }}>{cardData.name}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', marginLeft: '0.5em', fontFamily: 'monospace', color: frame.manaCostText }}>
         {cardData.manaCost && (
           <span style={{
@@ -226,7 +226,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
             borderRadius: '50%',
             background: frame.manaCostBg,
             border: `${manaBorderWidth} solid ${manaBorderColor}`,
-            fontSize: '1.15em',
+            fontSize: '1.0em',
             fontWeight: 900,
             color: frame.manaCostText,
             lineHeight: 1
@@ -288,8 +288,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
       background: frame.typeLineBg,
       borderBottom: frame.typeLineBorder ? `1px solid ${frame.typeLineBorder}` : undefined,
       padding: '0.3em 0.6em',
-      fontStyle: 'italic',
-      fontSize: '0.85em',
+      fontSize: '0.78em',
       color: frame.typeLineText,
       textAlign: 'left',
       position: 'relative',
@@ -297,13 +296,15 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     }}>{cardData.typeLine}</div>
     <div style={{
       background: frame.textBoxBg,
-      padding: '0.5em 0.6em',
-      fontSize: '0.8em',
+      padding: '0.45em 0.5em',
+      fontSize: '11.5px',
+      letterSpacing: '0.01em',
       flex: '1',
       whiteSpace: 'pre-line',
       color: frame.textBoxText,
       position: 'relative',
-      zIndex: 2
+      zIndex: 2,
+      textAlign: 'left'
     }}>
       {cardData.pwEnabled === true ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
@@ -320,7 +321,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
                 fontWeight: 'bold',
                 color: frame.powerToughnessTextColor || '#000'
               }}>{p.stat}</div>
-              <div style={{ flex: 1, fontSize: '0.85em', color: frame.textBoxText }}>{p.desc}</div>
+              <div style={{ flex: 1, fontSize: '0.85em', color: frame.textBoxText, textAlign: 'left' }}>{p.desc}</div>
             </div>
           ))}
         </div>
@@ -328,7 +329,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
         <>
           {cardData.rulesText}
           {cardData.flavorText && (
-            <div className="card-flavor-text" style={{ fontStyle: 'italic', marginTop: '0.5em', color: frame.flavorTextColor || '#444' }}>
+            <div className="card-flavor-text" style={{ marginTop: '0.5em', color: frame.flavorTextColor || '#444', textAlign: 'justify' }}>
               {cardData.flavorText}
             </div>
           )}

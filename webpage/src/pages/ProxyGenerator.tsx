@@ -246,17 +246,26 @@ const ProxyGenerator: React.FC = () => {
     if (!source || !target) return;
     try {
       const cs = window.getComputedStyle(source);
+      // Only copy essential layout and positioning properties, not typography
+      // This preserves the inline styles in PTGStyle.tsx while ensuring layout consistency
+      const layoutProps = [
+        'position', 'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'align-content',
+        'overflow', 'overflow-x', 'overflow-y', 'z-index', 'background', 'background-color', 'background-image',
+        'border', 'border-radius', 'box-shadow', 'opacity', 'transform', 'transform-origin'
+      ];
+      
       let cssText = '';
-      for (let i = 0; i < cs.length; i++) {
-        const prop = cs[i];
+      layoutProps.forEach(prop => {
         const val = cs.getPropertyValue(prop);
-        // Skip some properties that may interfere with sizing in the export container
-        if (prop === 'width' || prop === 'height' || prop === 'box-sizing') continue;
-        cssText += `${prop}: ${val}; `;
-      }
-      // Preserve any existing inline styles on the target
+        if (val && val !== 'normal' && val !== 'none' && val !== 'auto') {
+          cssText += `${prop}: ${val}; `;
+        }
+      });
+      
+      // Preserve any existing inline styles on the target (these take priority)
       const existing = target.getAttribute('style') || '';
       target.setAttribute('style', existing + cssText);
+      
       // Ensure the exported root has the same pixel dimensions so absolute anchors compute the same
       const rect = source.getBoundingClientRect();
       target.style.width = `${Math.ceil(rect.width)}px`;
