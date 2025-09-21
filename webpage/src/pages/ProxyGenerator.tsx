@@ -2,7 +2,8 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { computeAutoBgFromDataUrl, mmToPt } from './BackgroundImageUtils';
-import { IoLeafSharp, IoSkullSharp, IoSunny, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
+import { IoLeafSharp, IoSkullSharp, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
+import { GiSun } from 'react-icons/gi';
 import { BsFire } from 'react-icons/bs';
 import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
@@ -239,7 +240,7 @@ const ProxyGenerator: React.FC = () => {
   R: (color) => <BsFire style={{ fontSize: '1.6em', color, verticalAlign: 'middle' }} />,
     U: (color) => <IoWater style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
     G: (color) => <IoLeafSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-    W: (color) => <IoSunny style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
+  W: (color) => <GiSun style={{ fontSize: '1.6em', color, verticalAlign: 'middle' }} />,  
     B: (color) => <IoSkullSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
   Y: (color) => <IoFlashSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
   A: (color) => <IoCog style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />
