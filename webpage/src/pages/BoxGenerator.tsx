@@ -300,7 +300,10 @@ function BoxGenerator() {
     scheduleBuild();
   }, [outsideImgTransformed, insideImgTransformed, topOutsideImgTransformed, topInsideImgTransformed, hasTopBox]);
 
-  // Mirror logic for OUTSIDE polygons only: L,V,R,H rotated 180° around bbox center; U copied and shifted by vector V[0]->V[2]
+  // Mirror logic for OUTSIDE polygons only:
+  // - L and R are swapped between source and target and rotated 180° around the source face bbox center
+  // - V and H are copied to same faces, rotated 180°
+  // - U is copied to U without rotation and shifted by vector V[0] -> V[2]
   const mirrorOutsidePolygons = (source: OrigamiMapperTypes.Polygon[], target: OrigamiMapperTypes.Polygon[]): OrigamiMapperTypes.Polygon[] => {
     // Group by face letter
     const byFace = (polys: OrigamiMapperTypes.Polygon[]) => {
@@ -316,8 +319,16 @@ function BoxGenerator() {
       polys.forEach(pp=>pp.vertices.forEach(([x,y])=>{ minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y); }));
       return {minX,minY,maxX,maxY,cx:(minX+maxX)/2,cy:(minY+maxY)/2};
     };
-    const copyRotated = (letter: string, rotate: boolean, shiftUtoV: boolean) => {
-      const src = s[letter]; if (!src || src.length===0) return;
+    const normAngle = (a: number) => {
+      // normalize to [-PI, PI)
+      let ang = a;
+      const TWO_PI = Math.PI * 2;
+      ang = ((ang + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
+      return ang;
+    };
+    type Face = 'R'|'L'|'U'|'V'|'H';
+    const copyFromTo = (srcLetter: Face, tgtLetter: Face, rotate: boolean, shiftUtoV: boolean) => {
+      const src = s[srcLetter]; if (!src || src.length===0) return;
       const b = bbox(src);
       const shiftVec = (() => {
         if (!shiftUtoV) return {dx:0,dy:0};
@@ -325,14 +336,17 @@ function BoxGenerator() {
         if (!v || v.length===0) return {dx:0,dy:0};
         const p0 = v[0];
         if (p0.vertices.length < 3) return {dx:0,dy:0};
-        const a = p0.vertices[0];
-        const c = p0.vertices[2];
-        return { dx: c[0]-a[0], dy: c[1]-a[1] };
+        const a1 = src[0].vertices[0]
+        const c1 = src[0].vertices[1]
+        const a2 = p0.vertices[2];
+        const c2 = p0.vertices[0];
+        return { dx: c1[0] - a1[0] + c2[0] - a2[0], dy: c1[1] - a1[1] + c2[1] - a2[1] };
       })();
       // replace corresponding target face polygons by transformed source polygons
+      let idx = 0;
       for (let i=0;i<t.length;i++) {
-        if (t[i].id[0] !== letter) continue;
-        const srcPoly = src[(i)%src.length];
+        if (t[i].id[0] !== tgtLetter) continue;
+        const srcPoly = src[(idx++)%src.length];
         const verts = srcPoly.vertices.map(([x,y]) => {
           let nx=x, ny=y;
           if (rotate) {
@@ -342,15 +356,18 @@ function BoxGenerator() {
           nx += shiftVec.dx; ny += shiftVec.dy;
           return [nx, ny] as [number, number];
         });
-        t[i] = { ...t[i], vertices: verts };
+        // update rotation: add 180° for rotated faces, keep same for U
+        const baseRot = typeof srcPoly.rotation === 'number' ? srcPoly.rotation : 0;
+        const newRot = rotate ? normAngle(baseRot + Math.PI) : baseRot;
+        t[i] = { ...t[i], vertices: verts, rotation: newRot };
       }
     };
-    // L,V,R,H rotate 180 deg; U copied (no rotation) and shifted towards V by |V_1[0]-V_1[2]| along x
-    copyRotated('L', true, false);
-    copyRotated('V', true, false);
-    copyRotated('R', true, false);
-    copyRotated('H', true, false);
-    copyRotated('U', false, true);
+    // Swap L<->R, rotate those; V/H rotate in place; U copies in place with shift towards V by vector V[0]->V[2]
+    copyFromTo('R','L', true, false);
+    copyFromTo('L','R', true, false);
+    copyFromTo('V','V', true, false);
+    copyFromTo('H','H', true, false);
+    copyFromTo('U','U', true, true);
     return t;
   };
 
@@ -942,77 +959,6 @@ function BoxGenerator() {
 
           {/* 2D Editors - bottom and top sections */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5em', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-            {/* Bottom editors row */}
-            {hasBottomBox && (
-              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={outsideEditorRef}
-                    applyResetTransform={true}
-                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getEditorData(false)}
-                    label='Bottom Outside image'
-                    backgroundImg={outsideImgTransformed}
-                    rotation={outsideRotation}
-                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-                    onUploadImage={setOutsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
-                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={insideEditorRef}
-                    applyResetTransform={false}
-                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getEditorData(true)}
-                    label='Bottom Inside image'
-                    backgroundImg={insideImgTransformed}
-                    rotation={insideRotation}
-                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-                    onUploadImage={setInsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
-                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
-                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
-                  <div>
-                    <button className="menu-btn" onClick={() => {
-                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
-                      setHasBottomBox(false);
-                    }}>Delete Bottom Box</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Mirror toggles between bottom and top */}
-            {hasBottomBox && hasTopBox && (
-              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button className="menu-btn" style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
-                  setMirrorDirection('down');
-                  // bottom mirrors from top
-                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
-                }} title="Bottom mirrors from Top">↓ Mirror down</button>
-                <button className="menu-btn" style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
-                  setMirrorDirection('up');
-                  // top mirrors from bottom
-                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
-                }} title="Top mirrors from Bottom">↑ Mirror up</button>
-              </div>
-            )}
 
             {/* Top editors row */}
             {hasTopBox && (
@@ -1061,6 +1007,78 @@ function BoxGenerator() {
                       if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
                       setHasTopBox(false);
                     }}>Delete Top Box</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mirror toggles between bottom and top */}
+            {hasBottomBox && hasTopBox && (
+              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
+                <button className="menu-btn" style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('down');
+                  // bottom mirrors from top
+                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Bottom mirrors from Top">↓ Mirror down</button>
+                <button className="menu-btn" style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('up');
+                  // top mirrors from bottom
+                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Top mirrors from Bottom">↑ Mirror up</button>
+              </div>
+            )}
+
+            {/* Bottom editors row */}
+            {hasBottomBox && (
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={outsideEditorRef}
+                    applyResetTransform={true}
+                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(false)}
+                    label='Bottom Outside image'
+                    backgroundImg={outsideImgTransformed}
+                    rotation={outsideRotation}
+                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
+                    onUploadImage={setOutsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
+                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ minWidth: 300 }}>
+                  <PolygonEditor
+                    ref={insideEditorRef}
+                    applyResetTransform={false}
+                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(true)}
+                    label='Bottom Inside image'
+                    backgroundImg={insideImgTransformed}
+                    rotation={insideRotation}
+                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
+                    onUploadImage={setInsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
+                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
+                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
+                  <div>
+                    <button className="menu-btn" onClick={() => {
+                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      setHasBottomBox(false);
+                    }}>Delete Bottom Box</button>
                   </div>
                 </div>
               </div>
