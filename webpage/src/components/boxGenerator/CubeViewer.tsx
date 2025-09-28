@@ -149,7 +149,7 @@ export default function CubeViewer({
       ) : null}
       {/* Top box (render only if provided) */}
       {topOut || topIn ? (
-        <group position={[0, topY, 0]} scale={[topScale, topScale, topScale]}>
+        <group position={[0, topY, 0]} scale={[topScale, topScale, topScale]} rotation={[Math.PI, Math.PI, 0]}>
           <TexturedOpenBox outsideFaces={topOut} insideFaces={topIn} width={width} height={height} />
         </group>
       ) : null}

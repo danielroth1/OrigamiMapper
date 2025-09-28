@@ -446,7 +446,7 @@ function BoxGenerator() {
     if (!isDebug) return; // skip in production unless flag set
     if (suppressAutoDemo) return; // user explicitly deleted images; don't auto-reload them
     // Only attempt if neither image is already set (avoid overriding user uploads)
-    if (outsideImgRaw || insideImgRaw) return;
+  if ((outsideImgRaw && insideImgRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;
     const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
     const outsideUrl = base + 'assets/examples/outside.jpg';
     const insideUrl = base + 'assets/examples/inside.jpg';
@@ -472,10 +472,18 @@ function BoxGenerator() {
         fetchAsDataUrlIfExists(outsideUrl),
         fetchAsDataUrlIfExists(insideUrl)
       ]);
-      if (inputDataUrl) setOutsideImg(inputDataUrl); // treat example input as outside image
-      if (outputDataUrl) setInsideImg(outputDataUrl); // treat example output as inside image
+      if (inputDataUrl) {
+        setOutsideImg(inputDataUrl); // bottom outside
+        // also auto-create and assign for top box
+        setHasTopBox(true);
+        setTopOutsideImg(inputDataUrl);
+      }
+      if (outputDataUrl) {
+        setInsideImg(outputDataUrl); // bottom inside
+        setTopInsideImg(outputDataUrl);
+      }
     })();
-  }, [outsideImgRaw, insideImgRaw]);
+  }, [outsideImgRaw, insideImgRaw, topOutsideImgRaw, topInsideImgRaw]);
 
   // const ensureDataUrl = async (url: string): Promise<string> => {
   //   if (!url) throw new Error('No URL');
@@ -863,23 +871,48 @@ function BoxGenerator() {
         {/* 3D cube preview + 2D Editors */}
         <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
 
-          {/* 3d Cube preview */}
-          <div style={{ width: 360, height: 320 }}>
-            {/* framed boundary for the canvas */}
-            <div style={{
-              width: '100%',
-              height: '100%',
-              padding: 8,
-              borderRadius: 10,
-              background: '#0f0f10',
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1 }}>
+          {/* 3d Cube preview with external vertical slider */}
+          <div style={{ width: 480, display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 }}>
+            {/* Left: vertical slider placed OUTSIDE the colored frame */}
+            {hasBottomBox && hasTopBox && (
+              <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
+                <div style={{ height: 320, position: 'relative' }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={openPercent}
+                    onChange={e=>setOpenPercent(Number(e.target.value))}
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      width: 240,
+                      transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
+                    } as React.CSSProperties}
+                    aria-label="Open Box"
+                    title={`Open Box: ${openPercent}%`}
+                  />
+                </div>
+              </div>
+            )}
+            {/* Right: framed boundary for the canvas */}
+            <div style={{ width: 420, height: 320 }}>
+              <div style={{
+                width: '100%',
+                height: '100%',
+                padding: 8,
+                borderRadius: 10,
+                background: '#0f0f10',
+                border: '1px solid rgba(255,255,255,0.06)',
+                boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
                   <CubeViewer
                     outsideFaces={hasTopBox ? undefined : outsideFaces}
                     insideFaces={hasTopBox ? undefined : insideFaces}
@@ -1033,14 +1066,6 @@ function BoxGenerator() {
               </div>
             )}
           </div>
-
-          {/* Open Box slider (only when both visible) */}
-          {hasBottomBox && hasTopBox && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{ color: '#fff' }}>Open Box: {openPercent}%</div>
-              <input type="range" min={0} max={100} step={1} value={openPercent} onChange={e=>setOpenPercent(Number(e.target.value))} style={{ width: 280 }} />
-            </div>
-          )}
 
           {/* Shared info text below editors */}
           <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
