@@ -890,32 +890,8 @@ function BoxGenerator() {
 
           {/* 3d Cube preview with external vertical slider */}
           <div style={{ width: 480, display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 }}>
-            {/* Left: vertical slider placed OUTSIDE the colored frame */}
-            {hasBottomBox && hasTopBox && (
-              <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
-                <div style={{ height: 320, position: 'relative' }}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={openPercent}
-                    onChange={e=>setOpenPercent(Number(e.target.value))}
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      top: '50%',
-                      width: 240,
-                      transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
-                    } as React.CSSProperties}
-                    aria-label="Open Box"
-                    title={`Open Box: ${openPercent}%`}
-                  />
-                </div>
-              </div>
-            )}
-            {/* Right: framed boundary for the canvas */}
+            
+            {/* Left: framed boundary for the canvas */}
             <div style={{ width: 420, height: 320 }}>
               <div style={{
                 width: '100%',
@@ -945,6 +921,33 @@ function BoxGenerator() {
                 </div>
               </div>
             </div>
+
+            {/* Right: vertical slider placed OUTSIDE the colored frame */}
+            {hasBottomBox && hasTopBox && (
+              <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
+                <div style={{ height: 320, position: 'relative' }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={openPercent}
+                    onChange={e=>setOpenPercent(Number(e.target.value))}
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      width: 240,
+                      transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
+                    } as React.CSSProperties}
+                    aria-label="Open Box"
+                    title={`Open Box: ${openPercent}%`}
+                  />
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Create / Delete buttons for boxes */}
