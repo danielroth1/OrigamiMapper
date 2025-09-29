@@ -12,7 +12,7 @@ import PolygonEditor, { type PolygonEditorHandle } from '../components/boxGenera
 import boxData from '../templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
-import { IoSave, IoCloudUpload } from 'react-icons/io5';
+import { IoSave, IoCloudUpload, IoCube, IoChevronUpCircle, IoChevronDownCircle, IoSwapHorizontal } from 'react-icons/io5';
 
 
 function BoxGenerator() {
@@ -47,6 +47,10 @@ function BoxGenerator() {
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
   const [mirrorDirection, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
+  // Viewer selection: which boxes to show in 3D and which canvases to show on the left
+  const [viewMode, setViewMode] = useState<'both' | 'top' | 'bottom'>('both');
+  // Canvas side filter: show only outside or only inside editors
+  const [sideFilter, setSideFilter] = useState<'outside' | 'inside'>('outside');
   // Rotation selectors (0, 90, 180, 270 degrees) per image
   const [outsideRotation, setOutsideRotation] = useState<0 | 90 | 180 | 270>(0);
   const [insideRotation, setInsideRotation] = useState<0 | 90 | 180 | 270>(0);
@@ -710,6 +714,16 @@ function BoxGenerator() {
   // Load autosave on mount
   useEffect(() => { void loadAutosave(); }, []);
 
+  // Keep viewMode valid if boxes are created/deleted
+  useEffect(() => {
+    if (!hasTopBox && !hasBottomBox) {
+      setViewMode('both'); // no boxes yet
+      return;
+    }
+    if (!hasTopBox && viewMode === 'top') setViewMode('bottom');
+    if (!hasBottomBox && viewMode === 'bottom') setViewMode('top');
+  }, [hasTopBox, hasBottomBox, viewMode]);
+
 
   // Run mapping for a specific box (bottom or top)
   const runMappingForBox = async (which: 'bottom' | 'top') => {
@@ -885,14 +899,205 @@ function BoxGenerator() {
           Perfect for holding a standard deck of 60 cards.
         </div>
 
-        {/* 3D cube preview + 2D Editors */}
-        <div className="images" style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'center' }}>
+        {/* 3D cube preview + 2D Editors (canvases on the left) */}
+        <div className="images" style={{ display: 'flex', flexDirection: 'row', gap: '1.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+          {/* Left column: Editors and controls */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
+            {/* Side filter toggle and create box buttons */}
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                className="menu-btn"
+                onClick={() => setSideFilter(sideFilter === 'outside' ? 'inside' : 'outside')}
+                title={sideFilter === 'outside' ? 'Show only Inside canvas' : 'Show only Outside canvas'}
+                aria-label={sideFilter === 'outside' ? 'Show only Inside canvas' : 'Show only Outside canvas'}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <IoSwapHorizontal style={{ verticalAlign: 'middle' }} /> {sideFilter === 'outside' ? 'Outside' : 'Inside'}
+              </button>
+              <div style={{ display: 'flex', gap: '0.5em' }}>
+                {!hasBottomBox && (
+                  <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
+                )}
+                {!hasTopBox && (
+                  <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
+                )}
+              </div>
+            </div>
 
-          {/* 3d Cube preview with external vertical slider */}
-          <div style={{ width: 480, display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 }}>
-            
-            {/* Left: framed boundary for the canvas */}
-            <div style={{ width: 420, height: 320 }}>
+            {/* Top box editors (only when visible by viewMode) */}
+            {hasTopBox && viewMode !== 'bottom' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }}>
+                {sideFilter === 'outside' ? (
+                  <div>
+                    <PolygonEditor
+                      ref={topOutsideEditorRef}
+                      applyResetTransform={true}
+                      onChange={() => scheduleBuild()}
+                      onOutsave={() => { void saveAutosave(); }}
+                      data={getTopEditorData(false)}
+                      label='Top Outside image'
+                      backgroundImg={topOutsideImgTransformed}
+                      rotation={topOutsideRotation}
+                      onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
+                      onUploadImage={setTopOutsideImg}
+                      onDelete={() => {
+                        if (!confirm('Delete top outside image? This cannot be undone.')) return;
+                        setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <PolygonEditor
+                      ref={topInsideEditorRef}
+                      applyResetTransform={false}
+                      onChange={() => scheduleBuild()}
+                      onOutsave={() => { void saveAutosave(); }}
+                      data={getTopEditorData(true)}
+                      label='Top Inside image'
+                      backgroundImg={topInsideImgTransformed}
+                      rotation={topInsideRotation}
+                      onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
+                      onUploadImage={setTopInsideImg}
+                      onDelete={() => {
+                        if (!confirm('Delete top inside image? This cannot be undone.')) return;
+                        setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                      }}
+                    />
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <div style={{ color: '#fff' }}>Top Scale: {topScalePercent}%</div>
+                  <input type="range" min={0} max={30} step={1} value={topScalePercent} onChange={e=>setTopScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
+                  <div>
+                    <button className="menu-btn" onClick={() => {
+                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      setHasTopBox(false);
+                    }}>Delete Top Box</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mirror toggles between bottom and top */}
+            {hasBottomBox && hasTopBox && (
+              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
+                <button style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('down');
+                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Bottom mirrors from Top">↓</button>
+                <button style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
+                  setMirrorDirection('up');
+                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
+                  scheduleBuild();
+                }} title="Top mirrors from Bottom">↑</button>
+              </div>
+            )}
+
+            {/* Bottom box editors (only when visible by viewMode) */}
+            {hasBottomBox && viewMode !== 'top' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }}>
+                {sideFilter === 'outside' ? (
+                  <div>
+                    <PolygonEditor
+                      ref={outsideEditorRef}
+                      applyResetTransform={true}
+                      onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                      onOutsave={() => { void saveAutosave(); }}
+                      data={getEditorData(false)}
+                      label='Bottom Outside image'
+                      backgroundImg={outsideImgTransformed}
+                      rotation={outsideRotation}
+                      onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
+                      onUploadImage={setOutsideImg}
+                      onDelete={() => {
+                        if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
+                        setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <PolygonEditor
+                      ref={insideEditorRef}
+                      applyResetTransform={false}
+                      onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                      onOutsave={() => { void saveAutosave(); }}
+                      data={getEditorData(true)}
+                      label='Bottom Inside image'
+                      backgroundImg={insideImgTransformed}
+                      rotation={insideRotation}
+                      onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
+                      onUploadImage={setInsideImg}
+                      onDelete={() => {
+                        if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
+                        setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                      }}
+                    />
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
+                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
+                  <div>
+                    <button className="menu-btn" onClick={() => {
+                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      setHasBottomBox(false);
+                    }}>Delete Bottom Box</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Helper text */}
+            <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.25em 0 0 0', lineHeight: 1.2, whiteSpace: 'normal', textAlign: 'center', display: 'inline-block', maxWidth: '40ch', overflowWrap: 'anywhere' }}>
+              Drag to move (auto group).
+              Shift+Drag scale.
+              Ctrl/Cmd+Drag rotate.
+              Drag empty area to marquee select.
+            </div>
+          </div>
+
+          {/* Right column: Cube viewer with toolbar and open slider */}
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 }}>
+            {/* Canvas frame */}
+            <div style={{ width: 240, height: 320, position: 'relative' }}>
+              {/* Toolbar on top of canvas */}
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <button
+                  className="menu-btn"
+                  onClick={() => setViewMode('both')}
+                  disabled={!(hasBottomBox && hasTopBox)}
+                  title="Show both boxes in 3D and editors"
+                  aria-label="Show both boxes"
+                  style={{ opacity: (hasBottomBox && hasTopBox) ? 1 : 0.5, padding: '2px 8px' }}
+                >
+                  <IoCube style={{ verticalAlign: 'middle', marginRight: 6 }} /> Both
+                </button>
+                <button
+                  className="menu-btn"
+                  onClick={() => setViewMode('top')}
+                  disabled={!hasTopBox}
+                  title="Show only the Top box"
+                  aria-label="Show only Top box"
+                  style={{ opacity: hasTopBox ? 1 : 0.5, padding: '2px 8px' }}
+                >
+                  <IoChevronUpCircle style={{ verticalAlign: 'middle', marginRight: 6 }} /> Top
+                </button>
+                <button
+                  className="menu-btn"
+                  onClick={() => setViewMode('bottom')}
+                  disabled={!hasBottomBox}
+                  title="Show only the Bottom box"
+                  aria-label="Show only Bottom box"
+                  style={{ opacity: hasBottomBox ? 1 : 0.5, padding: '2px 8px' }}
+                >
+                  <IoChevronDownCircle style={{ verticalAlign: 'middle', marginRight: 6 }} /> Bottom
+                </button>
+              </div>
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -907,15 +1112,13 @@ function BoxGenerator() {
               }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
                   <CubeViewer
-                    outsideFaces={hasTopBox ? undefined : outsideFaces}
-                    insideFaces={hasTopBox ? undefined : insideFaces}
-                    bottomOutsideFaces={hasBottomBox ? outsideFaces : undefined}
-                    bottomInsideFaces={hasBottomBox ? insideFaces : undefined}
-                    topOutsideFaces={hasTopBox ? topOutsideFaces : undefined}
-                    topInsideFaces={hasTopBox ? topInsideFaces : undefined}
+                    bottomOutsideFaces={(hasBottomBox && viewMode !== 'top') ? outsideFaces : undefined}
+                    bottomInsideFaces={(hasBottomBox && viewMode !== 'top') ? insideFaces : undefined}
+                    topOutsideFaces={(hasTopBox && viewMode !== 'bottom') ? topOutsideFaces : undefined}
+                    topInsideFaces={(hasTopBox && viewMode !== 'bottom') ? topInsideFaces : undefined}
                     bottomScale={Math.max(0.2, 1 - 2 * (bottomScalePercent / 100))}
                     topScale={Math.max(0.2, 1 - 2 * (topScalePercent / 100))}
-                    openPercent={(hasBottomBox && hasTopBox) ? openPercent : 0}
+                    openPercent={(hasBottomBox && hasTopBox && viewMode === 'both') ? openPercent : 0}
                     initialZoom={DEFAULT_VIEWER_ZOOM}
                   />
                 </div>
@@ -923,7 +1126,7 @@ function BoxGenerator() {
             </div>
 
             {/* Right: vertical slider placed OUTSIDE the colored frame */}
-            {hasBottomBox && hasTopBox && (
+            {(hasBottomBox && hasTopBox && viewMode === 'both') && (
               <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
                 <div style={{ height: 320, position: 'relative' }}>
@@ -947,153 +1150,6 @@ function BoxGenerator() {
                 </div>
               </div>
             )}
-
-          </div>
-
-          {/* Create / Delete buttons for boxes */}
-          <div style={{ display: 'flex', gap: '1em', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-            {!hasBottomBox && (
-              <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
-            )}
-            {!hasTopBox && (
-              <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
-            )}
-          </div>
-
-          {/* 2D Editors - bottom and top sections */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5em', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-
-            {/* Top editors row */}
-            {hasTopBox && (
-              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={topOutsideEditorRef}
-                    applyResetTransform={true}
-                    onChange={() => scheduleBuild()}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getTopEditorData(false)}
-                    label='Top Outside image'
-                    backgroundImg={topOutsideImgTransformed}
-                    rotation={topOutsideRotation}
-                    onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
-                    onUploadImage={setTopOutsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete top outside image? This cannot be undone.')) return;
-                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={topInsideEditorRef}
-                    applyResetTransform={false}
-                    onChange={() => scheduleBuild()}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getTopEditorData(true)}
-                    label='Top Inside image'
-                    backgroundImg={topInsideImgTransformed}
-                    rotation={topInsideRotation}
-                    onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
-                    onUploadImage={setTopInsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete top inside image? This cannot be undone.')) return;
-                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                  <div style={{ color: '#fff' }}>Top Scale: {topScalePercent}%</div>
-                  <input type="range" min={0} max={30} step={1} value={topScalePercent} onChange={e=>setTopScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
-                  <div>
-                    <button className="menu-btn" onClick={() => {
-                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
-                      setHasTopBox(false);
-                    }}>Delete Top Box</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Mirror toggles between bottom and top */}
-            {hasBottomBox && hasTopBox && (
-              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button className="menu-btn" style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
-                  setMirrorDirection('down');
-                  // bottom mirrors from top
-                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
-                }} title="Bottom mirrors from Top">↓ Mirror down</button>
-                <button className="menu-btn" style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
-                  setMirrorDirection('up');
-                  // top mirrors from bottom
-                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
-                }} title="Top mirrors from Bottom">↑ Mirror up</button>
-              </div>
-            )}
-
-            {/* Bottom editors row */}
-            {hasBottomBox && (
-              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '2em', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={outsideEditorRef}
-                    applyResetTransform={true}
-                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getEditorData(false)}
-                    label='Bottom Outside image'
-                    backgroundImg={outsideImgTransformed}
-                    rotation={outsideRotation}
-                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-                    onUploadImage={setOutsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
-                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ minWidth: 300 }}>
-                  <PolygonEditor
-                    ref={insideEditorRef}
-                    applyResetTransform={false}
-                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                    onOutsave={() => { void saveAutosave(); }}
-                    data={getEditorData(true)}
-                    label='Bottom Inside image'
-                    backgroundImg={insideImgTransformed}
-                    rotation={insideRotation}
-                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-                    onUploadImage={setInsideImg}
-                    onDelete={() => {
-                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
-                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
-                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
-                  <div>
-                    <button className="menu-btn" onClick={() => {
-                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
-                      setHasBottomBox(false);
-                    }}>Delete Bottom Box</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Shared info text below editors */}
-          <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.5em auto 0 auto', lineHeight: 1.2, maxWidth: '400px', wordBreak: 'break-word', whiteSpace: 'pre-line', textAlign: 'center' }}>
-            Drag to move (auto group).
-            Shift+Drag scale.
-            Ctrl/Cmd+Drag rotate.
-            Drag empty area to marquee select.
           </div>
         </div>
 
