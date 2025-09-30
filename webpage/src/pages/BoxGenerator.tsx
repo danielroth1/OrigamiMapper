@@ -179,15 +179,24 @@ function BoxGenerator() {
     return out;
   };
 
-  const handleBuildCubeTextures = (outsidePolys?: OrigamiMapperTypes.Polygon[], insidePolys?: OrigamiMapperTypes.Polygon[]) => {
-    // Bottom (legacy) build
-    const outPolys = outsidePolys ?? outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-    const inPolys = insidePolys ?? insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+  const handleBuildCubeTextures = (
+    outsidePolys?: OrigamiMapperTypes.Polygon[],
+    insidePolys?: OrigamiMapperTypes.Polygon[]
+  ) => {
+    // Bottom (legacy) build: prefer explicit args, then mounted editor, finally template defaults
+    const outPolys = outsidePolys
+      ?? outsideEditorRef.current?.getCurrentJson().input_polygons
+      ?? getEditorData(false).input_polygons;
+    const inPolys = insidePolys
+      ?? insideEditorRef.current?.getCurrentJson().input_polygons
+      ?? getEditorData(true).input_polygons;
     buildFaceTextures(outPolys, outsideImgTransformed).then(tex => setOutsideFaces(tex));
     buildFaceTextures(inPolys, insideImgTransformed).then(tex => setInsideFaces(tex));
     // Top build (if editors exist)
-    const topOutPolys = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-    const topInPolys = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+    const topOutPolys = topOutsideEditorRef.current?.getCurrentJson().input_polygons
+      ?? getTopEditorData(false).input_polygons;
+    const topInPolys = topInsideEditorRef.current?.getCurrentJson().input_polygons
+      ?? getTopEditorData(true).input_polygons;
     const topOutsideImg = topOutsideImgTransformed;
     const topInsideImg = topInsideImgTransformed;
     if (hasTopBox) {
@@ -258,7 +267,10 @@ function BoxGenerator() {
 
   // Debounced auto-build when polygon editors or images change. PolygonEditor will call onChange with new JSON.
   const buildDebounceRef = useRef<number | null>(null);
-  const scheduleBuild = (outsidePolys?: OrigamiMapperTypes.Polygon[], insidePolys?: OrigamiMapperTypes.Polygon[]) => {
+  const scheduleBuild = (
+    outsidePolys?: OrigamiMapperTypes.Polygon[],
+    insidePolys?: OrigamiMapperTypes.Polygon[]
+  ) => {
     if (buildDebounceRef.current) window.clearTimeout(buildDebounceRef.current);
     buildDebounceRef.current = window.setTimeout(() => {
       handleBuildCubeTextures(outsidePolys, insidePolys);
@@ -925,47 +937,44 @@ function BoxGenerator() {
             </div>
 
             {/* Top box editors (only when visible by viewMode) */}
-            {hasTopBox && viewMode !== 'bottom' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }}>
-                {sideFilter === 'outside' ? (
-                  <div>
-                    <PolygonEditor
-                      ref={topOutsideEditorRef}
-                      applyResetTransform={true}
-                      onChange={() => scheduleBuild()}
-                      onOutsave={() => { void saveAutosave(); }}
-                      data={getTopEditorData(false)}
-                      label='Top Outside image'
-                      backgroundImg={topOutsideImgTransformed}
-                      rotation={topOutsideRotation}
-                      onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
-                      onUploadImage={setTopOutsideImg}
-                      onDelete={() => {
-                        if (!confirm('Delete top outside image? This cannot be undone.')) return;
-                        setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <PolygonEditor
-                      ref={topInsideEditorRef}
-                      applyResetTransform={false}
-                      onChange={() => scheduleBuild()}
-                      onOutsave={() => { void saveAutosave(); }}
-                      data={getTopEditorData(true)}
-                      label='Top Inside image'
-                      backgroundImg={topInsideImgTransformed}
-                      rotation={topInsideRotation}
-                      onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
-                      onUploadImage={setTopInsideImg}
-                      onDelete={() => {
-                        if (!confirm('Delete top inside image? This cannot be undone.')) return;
-                        setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
-                      }}
-                    />
-                  </div>
-                )}
+            {hasTopBox && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'bottom'}>
+                <div hidden={sideFilter !== 'outside'}>
+                  <PolygonEditor
+                    ref={topOutsideEditorRef}
+                    applyResetTransform={true}
+                    onChange={() => scheduleBuild()}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getTopEditorData(false)}
+                    label='Top Outside image'
+                    backgroundImg={topOutsideImgTransformed}
+                    rotation={topOutsideRotation}
+                    onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
+                    onUploadImage={setTopOutsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete top outside image? This cannot be undone.')) return;
+                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div hidden={sideFilter !== 'inside'}>
+                  <PolygonEditor
+                    ref={topInsideEditorRef}
+                    applyResetTransform={false}
+                    onChange={() => scheduleBuild()}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getTopEditorData(true)}
+                    label='Top Inside image'
+                    backgroundImg={topInsideImgTransformed}
+                    rotation={topInsideRotation}
+                    onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
+                    onUploadImage={setTopInsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete top inside image? This cannot be undone.')) return;
+                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
                   <div style={{ color: '#fff' }}>Top Scale: {topScalePercent}%</div>
                   <input type="range" min={0} max={30} step={1} value={topScalePercent} onChange={e=>setTopScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
@@ -998,47 +1007,44 @@ function BoxGenerator() {
             )}
 
             {/* Bottom box editors (only when visible by viewMode) */}
-            {hasBottomBox && viewMode !== 'top' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }}>
-                {sideFilter === 'outside' ? (
-                  <div>
-                    <PolygonEditor
-                      ref={outsideEditorRef}
-                      applyResetTransform={true}
-                      onChange={json => scheduleBuild(json.input_polygons, undefined)}
-                      onOutsave={() => { void saveAutosave(); }}
-                      data={getEditorData(false)}
-                      label='Bottom Outside image'
-                      backgroundImg={outsideImgTransformed}
-                      rotation={outsideRotation}
-                      onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-                      onUploadImage={setOutsideImg}
-                      onDelete={() => {
-                        if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
-                        setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <PolygonEditor
-                      ref={insideEditorRef}
-                      applyResetTransform={false}
-                      onChange={json => scheduleBuild(undefined, json.input_polygons)}
-                      onOutsave={() => { void saveAutosave(); }}
-                      data={getEditorData(true)}
-                      label='Bottom Inside image'
-                      backgroundImg={insideImgTransformed}
-                      rotation={insideRotation}
-                      onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-                      onUploadImage={setInsideImg}
-                      onDelete={() => {
-                        if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
-                        setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
-                      }}
-                    />
-                  </div>
-                )}
+            {hasBottomBox && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'top'}>
+                <div hidden={sideFilter !== 'outside'}>
+                  <PolygonEditor
+                    ref={outsideEditorRef}
+                    applyResetTransform={true}
+                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(false)}
+                    label='Bottom Outside image'
+                    backgroundImg={outsideImgTransformed}
+                    rotation={outsideRotation}
+                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
+                    onUploadImage={setOutsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
+                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
+                <div hidden={sideFilter !== 'inside'}>
+                  <PolygonEditor
+                    ref={insideEditorRef}
+                    applyResetTransform={false}
+                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                    onOutsave={() => { void saveAutosave(); }}
+                    data={getEditorData(true)}
+                    label='Bottom Inside image'
+                    backgroundImg={insideImgTransformed}
+                    rotation={insideRotation}
+                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
+                    onUploadImage={setInsideImg}
+                    onDelete={() => {
+                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
+                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                    }}
+                  />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
                   <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
                   <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
