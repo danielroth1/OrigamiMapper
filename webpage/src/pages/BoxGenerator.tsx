@@ -12,7 +12,7 @@ import PolygonEditor, { type PolygonEditorHandle } from '../components/boxGenera
 import boxData from '../templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
-import { IoSave, IoCloudUpload, IoCube, IoChevronUpCircle, IoChevronDownCircle, IoSwapHorizontal } from 'react-icons/io5';
+import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 
 
 function BoxGenerator() {
@@ -49,6 +49,18 @@ function BoxGenerator() {
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
   // Viewer selection: which boxes to show in 3D and which canvases to show on the left
   const [viewMode, setViewMode] = useState<'both' | 'top' | 'bottom'>('both');
+  // Custom dropdown for view selector
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const viewMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!viewMenuRef.current) return;
+      if (!viewMenuOpen) return;
+      if (!viewMenuRef.current.contains(e.target as Node)) setViewMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [viewMenuOpen]);
   // Canvas side filter: show only outside or only inside editors
   const [sideFilter, setSideFilter] = useState<'outside' | 'inside'>('outside');
   // Rotation selectors (0, 90, 180, 270 degrees) per image
@@ -914,15 +926,15 @@ function BoxGenerator() {
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
         <div className="images" style={{ display: 'flex', flexDirection: 'row', gap: '1.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: '500px', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <button
                 className="menu-btn"
                 onClick={() => setSideFilter(sideFilter === 'outside' ? 'inside' : 'outside')}
                 title={sideFilter === 'outside' ? 'Show only Inside canvas' : 'Show only Outside canvas'}
                 aria-label={sideFilter === 'outside' ? 'Show only Inside canvas' : 'Show only Outside canvas'}
-                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '6px 0px' }}
               >
                 <IoSwapHorizontal style={{ verticalAlign: 'middle' }} /> {sideFilter === 'outside' ? 'Outside' : 'Inside'}
               </button>
@@ -1072,37 +1084,57 @@ function BoxGenerator() {
             {/* Canvas frame */}
             <div style={{ width: 240, height: 320, position: 'relative' }}>
               {/* Toolbar on top of canvas */}
-              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <button
-                  className="menu-btn"
-                  onClick={() => setViewMode('both')}
-                  disabled={!(hasBottomBox && hasTopBox)}
-                  title="Show both boxes in 3D and editors"
-                  aria-label="Show both boxes"
-                  style={{ opacity: (hasBottomBox && hasTopBox) ? 1 : 0.5, padding: '2px 8px' }}
-                >
-                  <IoCube style={{ verticalAlign: 'middle', marginRight: 6 }} /> Both
-                </button>
-                <button
-                  className="menu-btn"
-                  onClick={() => setViewMode('top')}
-                  disabled={!hasTopBox}
-                  title="Show only the Top box"
-                  aria-label="Show only Top box"
-                  style={{ opacity: hasTopBox ? 1 : 0.5, padding: '2px 8px' }}
-                >
-                  <IoChevronUpCircle style={{ verticalAlign: 'middle', marginRight: 6 }} /> Top
-                </button>
-                <button
-                  className="menu-btn"
-                  onClick={() => setViewMode('bottom')}
-                  disabled={!hasBottomBox}
-                  title="Show only the Bottom box"
-                  aria-label="Show only Bottom box"
-                  style={{ opacity: hasBottomBox ? 1 : 0.5, padding: '2px 8px' }}
-                >
-                  <IoChevronDownCircle style={{ verticalAlign: 'middle', marginRight: 6 }} /> Bottom
-                </button>
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'start', gap: 8 }}>
+                <div ref={viewMenuRef} style={{ position: 'relative' }}>
+                  <button
+                    className="menu-btn"
+                    onClick={() => setViewMenuOpen(v => !v)}
+                    disabled={!hasBottomBox && !hasTopBox}
+                    aria-haspopup="listbox"
+                    aria-expanded={viewMenuOpen}
+                    title="Select which box to view"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%',padding: '6px 16px 6px 8px' }}
+                  >
+                    {viewMode === 'both' && <IoCube style={{ verticalAlign: 'middle' }} />}
+                    {viewMode === 'top' && <IoChevronUpCircle style={{ verticalAlign: 'middle' }} />}
+                    {viewMode === 'bottom' && <IoChevronDownCircle style={{ verticalAlign: 'middle' }} />}
+                    <span>{viewMode === 'both' ? 'Both' : viewMode.charAt(0).toUpperCase() + viewMode.slice(1)}</span>
+                  </button>
+                  {viewMenuOpen && (
+                    <div role="listbox" aria-label="View Mode" style={{ position: 'absolute', top: '110%', left: 0, background: '#1b1b1b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, minWidth: 140, boxShadow: '0 6px 18px rgba(0,0,0,0.5)', zIndex: 20 }}>
+                      <button
+                        role="option"
+                        aria-selected={viewMode==='both'}
+                        onClick={() => { if (hasBottomBox && hasTopBox) { setViewMode('both'); setViewMenuOpen(false); } }}
+                        disabled={!(hasBottomBox && hasTopBox)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: (hasBottomBox && hasTopBox) ? 1 : 0.5 }}
+                        title="Show both boxes"
+                      >
+                        <IoCube /> Both
+                      </button>
+                      <button
+                        role="option"
+                        aria-selected={viewMode==='top'}
+                        onClick={() => { if (hasTopBox) { setViewMode('top'); setViewMenuOpen(false); } }}
+                        disabled={!hasTopBox}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: hasTopBox ? 1 : 0.5 }}
+                        title="Show only the Top box"
+                      >
+                        <IoChevronUpCircle /> Top
+                      </button>
+                      <button
+                        role="option"
+                        aria-selected={viewMode==='bottom'}
+                        onClick={() => { if (hasBottomBox) { setViewMode('bottom'); setViewMenuOpen(false); } }}
+                        disabled={!hasBottomBox}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: hasBottomBox ? 1 : 0.5 }}
+                        title="Show only the Bottom box"
+                      >
+                        <IoChevronDownCircle /> Bottom
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{
                 width: '100%',
