@@ -1115,9 +1115,9 @@ function BoxGenerator() {
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', gridTemplateRows: 'auto auto', justifyContent: 'center', gap: 12 }}>
             {/* Canvas frame */}
-            <div style={{ width: 240, height: 320, position: 'relative' }}>
+            <div style={{ gridColumn: 1, gridRow: 1, width: 240, height: 320, position: 'relative' }}>
               {/* Toolbar on top of canvas */}
               <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'start', gap: 8 }}>
                 <div ref={viewMenuRef} style={{ position: 'relative' }}>
@@ -1211,7 +1211,7 @@ function BoxGenerator() {
 
             {/* Right: vertical slider placed OUTSIDE the colored frame */}
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
-              <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+              <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
                 <div style={{ height: 320, position: 'relative' }}>
                   <input
@@ -1234,26 +1234,28 @@ function BoxGenerator() {
                 </div>
               </div>
             )}
-          </div>
-          {/* Top-Bottom ratio slider under viewer */}
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-            <div style={{ width: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: move left to emphasize Top (Bottom reduced), right to emphasize Bottom (Top reduced)."}>
-                Top-Bottom ratio: {topBottomRatio}
+
+            {/* Top-Bottom ratio slider under viewer */}
+            <div style={{ gridColumn: 1, gridRow: 2, width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+              <div style={{ width: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: move left to emphasize Top (Bottom reduced), right to emphasize Bottom (Top reduced)."}>
+                  Top-Bottom ratio: {topBottomRatio}
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={topBottomRatio}
+                  onChange={e => setTopBottomRatio(Number(e.target.value))}
+                  aria-label="Top-Bottom ratio"
+                  title={"Move left to increase Top relative scale and reduce Bottom to 0. Move right to increase Bottom and reduce Top to 0. Center is neutral."}
+                  style={{ width: '100%' }}
+                />
               </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={topBottomRatio}
-                onChange={e => setTopBottomRatio(Number(e.target.value))}
-                aria-label="Top-Bottom ratio"
-                title={"Move left to increase Top relative scale and reduce Bottom to 0. Move right to increase Bottom and reduce Top to 0. Center is neutral."}
-                style={{ width: '100%' }}
-              />
             </div>
           </div>
+          
         </div>
 
         {/* Settings / Export controls / Reference images */}
