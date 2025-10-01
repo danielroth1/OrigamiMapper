@@ -364,9 +364,9 @@ function BoxGenerator() {
         }))
     });
 
-  // Get JSONs from mounted editors or defaults when editor is not present (BOTTOM ONLY for preview)
-  const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : makeDefaultForSide(false);
-  const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : makeDefaultForSide(true);
+    // Get JSONs from mounted editors or defaults when editor is not present (BOTTOM ONLY for preview)
+    const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : makeDefaultForSide(false);
+    const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : makeDefaultForSide(true);
     // Combine them: merge input_polygons and output_polygons, keep other fields from outsideJson
     const combinedJson = {
       ...outsideJson,
@@ -392,9 +392,9 @@ function BoxGenerator() {
         if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, c.width, c.height); }
         return c.toDataURL('image/png');
       };
-  const leftImg = outsideImgTransformed || makeWhiteDataUrl();
-  const rightImg = insideImgTransformed || makeWhiteDataUrl();
-  dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
+      const leftImg = outsideImgTransformed || makeWhiteDataUrl();
+      const rightImg = insideImgTransformed || makeWhiteDataUrl();
+      dict = await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
       // mapping done
       if (showProgress) {
         // mapping progress stays within 0..50 so PDF generation can continue from 50..100
@@ -430,7 +430,7 @@ function BoxGenerator() {
     if (!isDebug) return; // skip in production unless flag set
     if (suppressAutoDemo) return; // user explicitly deleted images; don't auto-reload them
     // Only attempt if neither image is already set (avoid overriding user uploads)
-  if ((outsideImgRaw && insideImgRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;
+    if ((outsideImgRaw && insideImgRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;
     const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
     const outsideUrl = base + 'assets/examples/outside.jpg';
     const insideUrl = base + 'assets/examples/inside.jpg';
@@ -555,7 +555,7 @@ function BoxGenerator() {
         insideJson,
         transformMode,
         scalePercent,
-  triangleOffsetPct,
+        triangleOffsetPct,
         outputDpi,
         withFoldLines,
         withCutLines
@@ -576,8 +576,8 @@ function BoxGenerator() {
       setOutsideImg(outDataUrl ?? "");
       setInsideImg(inDataUrl ?? "");
       if (rec.transformMode) setTransformMode(rec.transformMode);
-  if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
-  if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
+      if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
+      if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
       if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
       if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
       if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
@@ -712,8 +712,8 @@ function BoxGenerator() {
     const insideJson = (isTop ? topInsideEditorRef.current : insideEditorRef.current)?.getCurrentJson() || makeDefaultForSide(true);
     const combinedJson = {
       ...outsideJson,
-      input_polygons: [ ...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? []) ],
-      output_polygons: [ ...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? []) ]
+      input_polygons: [...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? [])],
+      output_polygons: [...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? [])]
     };
     const makeWhiteDataUrl = () => {
       const c = document.createElement('canvas');
@@ -741,8 +741,8 @@ function BoxGenerator() {
     for (let i = 0; i < pages.length; i++) {
       setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
-  const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent) : scalePercent;
-  const frac = Math.max(0, (perPageScale || 0) / 100);
+      const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent) : scalePercent;
+      const frac = Math.max(0, (perPageScale || 0) / 100);
       const innerW = PAGE_W * (1 - 2 * frac);
       const innerH = PAGE_H * (1 - 2 * frac);
       const x = (PAGE_W - innerW) / 2;
@@ -793,7 +793,7 @@ function BoxGenerator() {
               doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
             }
           }
-        } catch {}
+        } catch { }
       }
       if (withCutLines) {
         try {
@@ -804,14 +804,14 @@ function BoxGenerator() {
           c3.width = pxW; c3.height = pxH;
           const cx3 = c3.getContext('2d');
           if (cx3) {
-            cx3.clearRect(0,0,pxW,pxH);
-            cx3.strokeStyle='rgba(0,0,0,0.6)';
-            cx3.lineWidth=1; cx3.setLineDash([2,2]);
-            const inset=0.5; cx3.strokeRect(inset,inset,pxW-1,pxH-1);
+            cx3.clearRect(0, 0, pxW, pxH);
+            cx3.strokeStyle = 'rgba(0,0,0,0.6)';
+            cx3.lineWidth = 1; cx3.setLineDash([2, 2]);
+            const inset = 0.5; cx3.strokeRect(inset, inset, pxW - 1, pxH - 1);
             const overlay = c3.toDataURL('image/png');
-            doc.addImage(overlay,'PNG',x,y,innerW,innerH,undefined,'FAST');
+            doc.addImage(overlay, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
           }
-        } catch {}
+        } catch { }
       }
       if (i < pages.length - 1) doc.addPage();
     }
@@ -825,7 +825,7 @@ function BoxGenerator() {
     setPdfProgress(5);
     setLoading(true);
     try {
-      const runs: Array<Promise<{[k:string]:string}>> = [];
+      const runs: Array<Promise<{ [k: string]: string }>> = [];
       if (hasBottomBox) runs.push(runMappingForBox('bottom'));
       if (hasTopBox) runs.push(runMappingForBox('top'));
       const dicts = await Promise.all(runs);
@@ -861,9 +861,9 @@ function BoxGenerator() {
         setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
       }
       // Generate PDFs sequentially
-  await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf', outerScales);
+      await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf', outerScales);
       setPdfProgress(70);
-  await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf', innerScales);
+      await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf', innerScales);
       setPdfProgress(100);
     } catch (err) {
       console.error(err);
@@ -968,13 +968,13 @@ function BoxGenerator() {
             {/* Mirror toggles between bottom and top */}
             {hasBottomBox && hasTopBox && (
               <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button style={{ opacity: mirrorDirection==='down'?1:0.7 }} onClick={() => {
+                <button style={{ opacity: mirrorDirection === 'down' ? 1 : 0.7 }} onClick={() => {
                   setMirrorDirection('down');
                   const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
                   scheduleBuild();
                 }} title="Bottom mirrors from Top">↓</button>
-                <button style={{ opacity: mirrorDirection==='up'?1:0.7 }} onClick={() => {
+                <button style={{ opacity: mirrorDirection === 'up' ? 1 : 0.7 }} onClick={() => {
                   setMirrorDirection('up');
                   const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
@@ -1059,7 +1059,7 @@ function BoxGenerator() {
                     aria-haspopup="listbox"
                     aria-expanded={viewMenuOpen}
                     title="Select which box to view"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%',padding: '6px 16px 6px 8px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 16px 6px 8px' }}
                   >
                     {viewMode === 'both' && <IoCube style={{ verticalAlign: 'middle' }} />}
                     {viewMode === 'top' && <IoChevronUpCircle style={{ verticalAlign: 'middle' }} />}
@@ -1070,7 +1070,7 @@ function BoxGenerator() {
                     <div role="listbox" aria-label="View Mode" style={{ position: 'absolute', top: '110%', left: 0, background: '#1b1b1b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, minWidth: 140, boxShadow: '0 6px 18px rgba(0,0,0,0.5)', zIndex: 20 }}>
                       <button
                         role="option"
-                        aria-selected={viewMode==='both'}
+                        aria-selected={viewMode === 'both'}
                         onClick={() => { if (hasBottomBox && hasTopBox) { setViewMode('both'); setViewMenuOpen(false); } }}
                         disabled={!(hasBottomBox && hasTopBox)}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: (hasBottomBox && hasTopBox) ? 1 : 0.5 }}
@@ -1080,7 +1080,7 @@ function BoxGenerator() {
                       </button>
                       <button
                         role="option"
-                        aria-selected={viewMode==='top'}
+                        aria-selected={viewMode === 'top'}
                         onClick={() => { if (hasTopBox) { setViewMode('top'); setViewMenuOpen(false); } }}
                         disabled={!hasTopBox}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: hasTopBox ? 1 : 0.5 }}
@@ -1090,7 +1090,7 @@ function BoxGenerator() {
                       </button>
                       <button
                         role="option"
-                        aria-selected={viewMode==='bottom'}
+                        aria-selected={viewMode === 'bottom'}
                         onClick={() => { if (hasBottomBox) { setViewMode('bottom'); setViewMenuOpen(false); } }}
                         disabled={!hasBottomBox}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', width: '100%', background: 'transparent', color: '#fff', opacity: hasBottomBox ? 1 : 0.5 }}
@@ -1125,14 +1125,14 @@ function BoxGenerator() {
                     const previewBottomScale = Math.max(0.2, 1 - 2 * (effBottomPct / 100));
                     return (
                       <CubeViewer
-                    bottomOutsideFaces={(hasBottomBox && viewMode !== 'top') ? outsideFaces : undefined}
-                    bottomInsideFaces={(hasBottomBox && viewMode !== 'top') ? insideFaces : undefined}
-                    topOutsideFaces={(hasTopBox && viewMode !== 'bottom') ? topOutsideFaces : undefined}
-                    topInsideFaces={(hasTopBox && viewMode !== 'bottom') ? topInsideFaces : undefined}
-                    bottomScale={previewBottomScale}
-                    topScale={previewTopScale}
-                    openPercent={(hasBottomBox && hasTopBox && viewMode === 'both') ? openPercent : 0}
-                    initialZoom={DEFAULT_VIEWER_ZOOM}
+                        bottomOutsideFaces={(hasBottomBox && viewMode !== 'top') ? outsideFaces : undefined}
+                        bottomInsideFaces={(hasBottomBox && viewMode !== 'top') ? insideFaces : undefined}
+                        topOutsideFaces={(hasTopBox && viewMode !== 'bottom') ? topOutsideFaces : undefined}
+                        topInsideFaces={(hasTopBox && viewMode !== 'bottom') ? topInsideFaces : undefined}
+                        bottomScale={previewBottomScale}
+                        topScale={previewTopScale}
+                        openPercent={(hasBottomBox && hasTopBox && viewMode === 'both') ? openPercent : 0}
+                        initialZoom={DEFAULT_VIEWER_ZOOM}
                       />
                     );
                   })()}
@@ -1142,7 +1142,7 @@ function BoxGenerator() {
 
             {/* Right: vertical slider placed OUTSIDE the colored frame */}
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
-              <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+              <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
                 <div style={{ height: 320, position: 'relative' }}>
                   <input
@@ -1151,7 +1151,7 @@ function BoxGenerator() {
                     max={100}
                     step={1}
                     value={openPercent}
-                    onChange={e=>setOpenPercent(Number(e.target.value))}
+                    onChange={e => setOpenPercent(Number(e.target.value))}
                     style={{
                       position: 'absolute',
                       left: '50%',
@@ -1186,7 +1186,7 @@ function BoxGenerator() {
               </div>
             </div>
           </div>
-          
+
         </div>
 
         {/* Settings / Export controls / Reference images */}
