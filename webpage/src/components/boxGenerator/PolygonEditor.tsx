@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import ImageUpload from './ImageUpload';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline } from 'react-icons/io5';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -17,6 +17,8 @@ interface PolygonEditorProps {
   data: OrigamiMapperTypes.TemplateJson;
   backgroundImg?: string;
   label: string;
+  // Assign a group so paired editors (inside/outside) can sync zoom together
+  zoomGroup?: 'top' | 'bottom';
   // When true, reset() applies an initial 90° CCW rotation and then translates
   // the combined polygon bbox so its top-left is at (0,0). No scaling.
   applyResetTransform?: boolean;
@@ -30,11 +32,13 @@ interface PolygonEditorProps {
   onOutsave?: (json: OrigamiMapperTypes.TemplateJson) => void;
   // optional callback invoked when user wants to delete the current background image
   onDelete?: () => void;
+  // optional callback invoked to delete the entire box (parent controls removal)
+  onDeleteBox?: () => void;
   // optional callback when user uploads an image from inside this editor
   onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onUploadImage }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, zoomGroup, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onDeleteBox, onUploadImage }, ref) => {
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
   const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
@@ -181,6 +185,28 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: INIT_MAX_CANVAS_WIDTH, h: INIT_MAX_CANVAS_HEIGHT });
   const width = canvasSize.w;
   const height = canvasSize.h;
+  const editorIdRef = useRef<string>(Math.random().toString(36).slice(2));
+
+  // Sync zoom across editors in the same group
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      try {
+        const e = ev as CustomEvent<{ group: 'top' | 'bottom'; factor: number; origin: string }>;
+        if (!zoomGroup) return;
+        if (!e?.detail) return;
+        if (e.detail.group !== zoomGroup) return;
+        if (e.detail.origin === editorIdRef.current) return;
+        const factor = e.detail.factor;
+        setMaxCanvasSize(prev => {
+          const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor)));
+          const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor)));
+          return { w: nw, h: nh };
+        });
+      } catch {}
+    };
+    window.addEventListener('polygonEditor:zoom' as any, handler);
+    return () => window.removeEventListener('polygonEditor:zoom' as any, handler);
+  }, [zoomGroup]);
   const initialHistoryPushedRef = useRef(false);
   const imageDimsRef = useRef<{ w: number; h: number } | null>(null);
   const lastConvertedKeyRef = useRef<string | null>(null);
@@ -1017,12 +1043,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       {/* Placeholder if no image present */}
       {!backgroundImg && (
         <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ImageUpload label={`Load ${label}`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
+          <ImageUpload label={`Load image`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
         </div>
-      )}
-      {/* Title */}
-      {backgroundImg && (
-        <div style={{ color: '#fff', fontSize: '1em', textAlign: 'center' }}>{label}</div>
       )}
       {/* Main Grid */}
       {backgroundImg && (
@@ -1061,15 +1083,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 type="button"
                 title="Zoom out"
                 onClick={() => {
-                  // decrease canvas size by 10%, clamp to reasonable bounds
-                  // decrease max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                  const factor = 0.75;
                   setMaxCanvasSize(prev => {
-                    const factor = 0.75;
                     const nw = Math.max(MIN_MAX_CANVAS, Math.round(prev.w * factor));
                     const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
-                    const nextMax = { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
-                    return nextMax;
+                    return { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
                   });
+                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch {}
                 }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
@@ -1084,15 +1104,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 type="button"
                 title="Zoom in"
                 onClick={() => {
-                  // increase canvas size by 10%, clamp to MAX_CANVAS_* constants
-                  // increase max canvas size by 10% and clamp, then ensure current canvasSize fits within new max
+                  const factor = 1 / 0.75;
                   setMaxCanvasSize(prev => {
-                    const factor = 1 / 0.75;
                     const nw = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.w * factor));
                     const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
-                    const nextMax = { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
-                    return nextMax;
+                    return { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
                   });
+                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch {}
                 }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
@@ -1299,11 +1317,22 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
               onClick={() => {
                 if (typeof onDelete !== 'function') return;
-                const ok = window.confirm('Delete image? This cannot be undone.');
+                const ok = window.confirm('Clear background image? This cannot be undone.');
                 if (ok) onDelete();
               }}
-              title="Delete image"
-            ><IoTrash color="#fff" size={20} /></button>
+              title="Clear background image"
+            ><IoCloseCircleOutline color="#fff" size={20} /></button>
+            {typeof onDeleteBox === 'function' && (
+              <button
+                type="button"
+                style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+                onClick={() => {
+                  const ok = window.confirm('Delete entire box (both canvases)? This cannot be undone.');
+                  if (ok) onDeleteBox();
+                }}
+                title="Delete box"
+              ><IoTrash color="#fff" size={20} /></button>
+            )}
             {/* reverted: Revert button moved to left toolbar */}
             <button
               type="button"

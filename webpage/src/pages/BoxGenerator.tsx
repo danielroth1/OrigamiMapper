@@ -42,8 +42,16 @@ function BoxGenerator() {
   const [hasTopBox, setHasTopBox] = useState<boolean>(false);
   // 3D open percentage and per-box scales (percent like global Scale slider)
   const [openPercent, setOpenPercent] = useState<number>(0);
+  // Base per-box scale (from global Scale slider); final export/preview scales are modulated by topBottomRatio
   const [bottomScalePercent, setBottomScalePercent] = useState<number>(scalePercent);
   const [topScalePercent, setTopScalePercent] = useState<number>(scalePercent);
+  // Keep per-box scales reflecting the global scale when it changes (so UI preview remains consistent)
+  useEffect(() => {
+    setBottomScalePercent(scalePercent);
+    setTopScalePercent(scalePercent);
+  }, [scalePercent]);
+  // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
+  const [topBottomRatio, setTopBottomRatio] = useState<number>(50);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
   const [mirrorDirection, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
@@ -789,7 +797,12 @@ function BoxGenerator() {
   };
 
   // Generate a PDF from an array of page images (all page1 or all page2)
-  const generatePdfFromPages = async (pages: string[], pageKind: 1 | 2, fileName: string) => {
+  const generatePdfFromPages = async (
+    pages: string[],
+    pageKind: 1 | 2,
+    fileName: string,
+    pageScalePercents?: number[] // optional per-page scale overrides (0..100). If omitted, uses global scalePercent
+  ) => {
     // A4 dimensions in mm
     const PAGE_W = 210;
     const PAGE_H = 297;
@@ -797,7 +810,8 @@ function BoxGenerator() {
     for (let i = 0; i < pages.length; i++) {
       setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
-      const frac = (scalePercent || 0) / 100;
+  const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent) : scalePercent;
+  const frac = Math.max(0, (perPageScale || 0) / 100);
       const innerW = PAGE_W * (1 - 2 * frac);
       const innerH = PAGE_H * (1 - 2 * frac);
       const x = (PAGE_W - innerW) / 2;
@@ -888,18 +902,37 @@ function BoxGenerator() {
       // Build page arrays
       const outerPages: string[] = [];
       const innerPages: string[] = [];
-      dicts.forEach(d => {
-        if (d?.output_page1) outerPages.push(d.output_page1);
-        if (d?.output_page2) innerPages.push(d.output_page2);
-      });
+      const outerScales: number[] = [];
+      const innerScales: number[] = [];
+
+      const ratio = topBottomRatio; // 0..100
+      const factors = (() => {
+        if (ratio < 50) return { top: (50 - ratio) / 50, bottom: 0 };
+        if (ratio > 50) return { top: 0, bottom: (ratio - 50) / 50 };
+        return { top: 0, bottom: 0 };
+      })();
+
+      // Helper push with corresponding scale for which box it belongs to
+      const pushPagesWithScale = (which: 'bottom' | 'top', d: { [k: string]: string } | undefined) => {
+        if (!d) return;
+        const factor = which === 'top' ? factors.top : factors.bottom;
+        const eff = Math.max(0, Math.round((scalePercent || 0) * factor));
+        if (d.output_page1) { outerPages.push(d.output_page1); outerScales.push(eff); }
+        if (d.output_page2) { innerPages.push(d.output_page2); innerScales.push(eff); }
+      };
+
+      // Determine mapping from dict order to box which
+      let idx = 0;
+      if (hasBottomBox) { pushPagesWithScale('bottom', dicts[idx]); idx++; }
+      if (hasTopBox) { pushPagesWithScale('top', dicts[idx]); idx++; }
       // Fallback: if no boxes, still allow blank pages (or just abort)
       if (outerPages.length === 0 && innerPages.length === 0) {
         setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
       }
       // Generate PDFs sequentially
-      await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf');
+  await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf', outerScales);
       setPdfProgress(70);
-      await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf');
+  await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf', innerScales);
       setPdfProgress(100);
     } catch (err) {
       console.error(err);
@@ -954,6 +987,7 @@ function BoxGenerator() {
                 <div hidden={sideFilter !== 'outside'}>
                   <PolygonEditor
                     ref={topOutsideEditorRef}
+                    zoomGroup={'top'}
                     applyResetTransform={true}
                     onChange={() => scheduleBuild()}
                     onOutsave={() => { void saveAutosave(); }}
@@ -964,14 +998,19 @@ function BoxGenerator() {
                     onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
                     onUploadImage={setTopOutsideImg}
                     onDelete={() => {
-                      if (!confirm('Delete top outside image? This cannot be undone.')) return;
+                      if (!confirm('Clear top outside image? This cannot be undone.')) return;
                       setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                    onDeleteBox={() => {
+                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      setHasTopBox(false);
                     }}
                   />
                 </div>
                 <div hidden={sideFilter !== 'inside'}>
                   <PolygonEditor
                     ref={topInsideEditorRef}
+                    zoomGroup={'top'}
                     applyResetTransform={false}
                     onChange={() => scheduleBuild()}
                     onOutsave={() => { void saveAutosave(); }}
@@ -982,21 +1021,16 @@ function BoxGenerator() {
                     onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
                     onUploadImage={setTopInsideImg}
                     onDelete={() => {
-                      if (!confirm('Delete top inside image? This cannot be undone.')) return;
+                      if (!confirm('Clear top inside image? This cannot be undone.')) return;
                       setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                    }}
+                    onDeleteBox={() => {
+                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      setHasTopBox(false);
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                  <div style={{ color: '#fff' }}>Top Scale: {topScalePercent}%</div>
-                  <input type="range" min={0} max={30} step={1} value={topScalePercent} onChange={e=>setTopScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
-                  <div>
-                    <button className="menu-btn" onClick={() => {
-                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
-                      setHasTopBox(false);
-                    }}>Delete Top Box</button>
-                  </div>
-                </div>
+                {/* per-box scale removed: replaced by global top-bottom ratio */}
               </div>
             )}
 
@@ -1024,6 +1058,7 @@ function BoxGenerator() {
                 <div hidden={sideFilter !== 'outside'}>
                   <PolygonEditor
                     ref={outsideEditorRef}
+                    zoomGroup={'bottom'}
                     applyResetTransform={true}
                     onChange={json => scheduleBuild(json.input_polygons, undefined)}
                     onOutsave={() => { void saveAutosave(); }}
@@ -1034,14 +1069,19 @@ function BoxGenerator() {
                     onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
                     onUploadImage={setOutsideImg}
                     onDelete={() => {
-                      if (!confirm('Delete bottom outside image? This cannot be undone.')) return;
+                      if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
                       setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                    }}
+                    onDeleteBox={() => {
+                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      setHasBottomBox(false);
                     }}
                   />
                 </div>
                 <div hidden={sideFilter !== 'inside'}>
                   <PolygonEditor
                     ref={insideEditorRef}
+                    zoomGroup={'bottom'}
                     applyResetTransform={false}
                     onChange={json => scheduleBuild(undefined, json.input_polygons)}
                     onOutsave={() => { void saveAutosave(); }}
@@ -1052,21 +1092,16 @@ function BoxGenerator() {
                     onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
                     onUploadImage={setInsideImg}
                     onDelete={() => {
-                      if (!confirm('Delete bottom inside image? This cannot be undone.')) return;
+                      if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
                       setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                    }}
+                    onDeleteBox={() => {
+                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      setHasBottomBox(false);
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
-                  <div style={{ color: '#fff' }}>Bottom Scale: {bottomScalePercent}%</div>
-                  <input type="range" min={0} max={30} step={1} value={bottomScalePercent} onChange={e=>setBottomScalePercent(Number(e.target.value))} style={{ width: '60%' }} />
-                  <div>
-                    <button className="menu-btn" onClick={() => {
-                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
-                      setHasBottomBox(false);
-                    }}>Delete Bottom Box</button>
-                  </div>
-                </div>
+                {/* per-box scale removed: replaced by global top-bottom ratio */}
               </div>
             )}
 
@@ -1149,16 +1184,27 @@ function BoxGenerator() {
                 justifyContent: 'center'
               }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
-                  <CubeViewer
+                  {(() => {
+                    const ratio = topBottomRatio; // 0..100
+                    const topFactor = ratio < 50 ? (50 - ratio) / 50 : 0;
+                    const bottomFactor = ratio > 50 ? (ratio - 50) / 50 : 0;
+                    const effTopPct = (topScalePercent || 0) * topFactor;
+                    const effBottomPct = (bottomScalePercent || 0) * bottomFactor;
+                    const previewTopScale = Math.max(0.2, 1 - 2 * (effTopPct / 100));
+                    const previewBottomScale = Math.max(0.2, 1 - 2 * (effBottomPct / 100));
+                    return (
+                      <CubeViewer
                     bottomOutsideFaces={(hasBottomBox && viewMode !== 'top') ? outsideFaces : undefined}
                     bottomInsideFaces={(hasBottomBox && viewMode !== 'top') ? insideFaces : undefined}
                     topOutsideFaces={(hasTopBox && viewMode !== 'bottom') ? topOutsideFaces : undefined}
                     topInsideFaces={(hasTopBox && viewMode !== 'bottom') ? topInsideFaces : undefined}
-                    bottomScale={Math.max(0.2, 1 - 2 * (bottomScalePercent / 100))}
-                    topScale={Math.max(0.2, 1 - 2 * (topScalePercent / 100))}
+                    bottomScale={previewBottomScale}
+                    topScale={previewTopScale}
                     openPercent={(hasBottomBox && hasTopBox && viewMode === 'both') ? openPercent : 0}
                     initialZoom={DEFAULT_VIEWER_ZOOM}
-                  />
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1188,6 +1234,25 @@ function BoxGenerator() {
                 </div>
               </div>
             )}
+          </div>
+          {/* Top-Bottom ratio slider under viewer */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <div style={{ width: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: move left to emphasize Top (Bottom reduced), right to emphasize Bottom (Top reduced)."}>
+                Top-Bottom ratio: {topBottomRatio}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={topBottomRatio}
+                onChange={e => setTopBottomRatio(Number(e.target.value))}
+                aria-label="Top-Bottom ratio"
+                title={"Move left to increase Top relative scale and reduce Bottom to 0. Move right to increase Bottom and reduce Top to 0. Center is neutral."}
+                style={{ width: '100%' }}
+              />
+            </div>
           </div>
         </div>
 
