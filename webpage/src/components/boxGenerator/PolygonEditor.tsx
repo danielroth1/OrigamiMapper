@@ -4,6 +4,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
+import { mirrorOutsidePolygons } from '../../utils/polygons';
 import ImageUpload from './ImageUpload';
 import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
@@ -202,7 +203,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
           const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor)));
           return { w: nw, h: nh };
         });
-      } catch {}
+      } catch { }
     };
     window.addEventListener('polygonEditor:zoom' as any, handler);
     return () => window.removeEventListener('polygonEditor:zoom' as any, handler);
@@ -919,7 +920,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       // 2) Rotate around canvas center by -90° (visual CCW in y-down screen space)
       const cx = width / 2;
       const cy = height / 2;
-      const rad = -Math.PI / 2; // negative for visual CCW in screen coords
+      const rad = -Math.PI / 2;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
       const rotPolys = absPolys.map(p => ({
@@ -954,11 +955,32 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         vertices: p.vertices.map(([px, py]) => [px * s, py * s] as [number, number])
       }));
       // 5) Convert back to normalized
-      const norm = scaled.map(p => ({
+      let norm = scaled.map(p => ({
         ...p,
         rotation: p.rotation || 0,
         vertices: p.vertices.map(([px, py]) => [px / width, py / height] as [number, number])
       }));
+      // 6) If this is the TOP outside editor, apply mirroring
+      try {
+        if (zoomGroup === 'top') {
+          const isOutside = norm.every(pp => !String(pp.id).includes('i'));
+          if (isOutside) {
+            const mirrored = mirrorOutsidePolygons(norm, norm);
+            // Normalize rotation property and translate so top-left of combined bbox is at (0,0)
+            let next = mirrored.map(p => ({ ...p, rotation: p.rotation ?? 0 }));
+            let minX = Infinity, minY = Infinity;
+            next.forEach(pp => pp.vertices.forEach(([vx, vy]) => { if (vx < minX) minX = vx; if (vy < minY) minY = vy; }));
+            if (isFinite(minX) && isFinite(minY)) {
+              const dx = -minX, dy = -minY;
+              next = next.map(pp => ({
+                ...pp,
+                vertices: pp.vertices.map(([vx, vy]) => [vx + dx, vy + dy] as [number, number])
+              }));
+            }
+            norm = next;
+          }
+        }
+      } catch { }
       return norm;
     }
 
@@ -1089,7 +1111,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                     const nh = Math.max(MIN_MAX_CANVAS, Math.round(prev.h * factor));
                     return { w: Math.min(ABSOLUTE_MAX_CANVAS, nw), h: Math.min(ABSOLUTE_MAX_CANVAS, nh) };
                   });
-                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch {}
+                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch { }
                 }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
@@ -1110,7 +1132,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                     const nh = Math.min(ABSOLUTE_MAX_CANVAS, Math.round(prev.h * factor));
                     return { w: Math.max(MIN_MAX_CANVAS, nw), h: Math.max(MIN_MAX_CANVAS, nh) };
                   });
-                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch {}
+                  try { if (zoomGroup) window.dispatchEvent(new CustomEvent('polygonEditor:zoom', { detail: { group: zoomGroup, factor, origin: editorIdRef.current } })); } catch { }
                 }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
