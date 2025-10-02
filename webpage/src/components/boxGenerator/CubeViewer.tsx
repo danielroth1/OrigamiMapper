@@ -116,7 +116,7 @@ export default function CubeViewer({
   // base camera position (isometric-ish). We move camera closer by multiplying by 1/initialZoom.
   // initialZoom: 1 = default, 2 = twice as close, 0.5 = farther away
   const clampZoom = Math.max(0.2, initialZoom);
-  const basePos = new THREE.Vector3(0.85, 0.85, 0.95);
+  const basePos = new THREE.Vector3(1.85, 1.85, 1.95);
   const camPos = basePos.clone().divideScalar(clampZoom);
 
   // Determine which textures to use for bottom when only single-box props are provided

@@ -178,8 +178,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const transformStateRef = useRef<TransformState | null>(null);
 
   // Max canvas bounds (original A4 derived size). Actual canvas will fit inside while matching background image aspect ratio.
-  const INIT_MAX_CANVAS_WIDTH = 180;
-  const INIT_MAX_CANVAS_HEIGHT = (297 / 210) * 180;
+  const INIT_MAX_CANVAS_WIDTH = (1 / 0.75) * 180;
+  const INIT_MAX_CANVAS_HEIGHT = (1 / 0.75) * (297 / 210) * 180;
   const MIN_MAX_CANVAS = 50; // don't let the max canvas drop below this
   const ABSOLUTE_MAX_CANVAS = 2000; // absolute upper cap for safety
   const [maxCanvasSize, setMaxCanvasSize] = useState<{ w: number; h: number }>({ w: INIT_MAX_CANVAS_WIDTH, h: INIT_MAX_CANVAS_HEIGHT });

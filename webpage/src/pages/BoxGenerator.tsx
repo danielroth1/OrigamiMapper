@@ -45,7 +45,7 @@ function BoxGenerator() {
   const [openPercent, setOpenPercent] = useState<number>(50);
   // Note: Preview ignores global scalePercent; PDF export applies scalePercent per page
   // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
-  const [topBottomRatio, setTopBottomRatio] = useState<number>(50);
+  const [topBottomRatio, setTopBottomRatio] = useState<number>(55);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
   const [mirrorDirection, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
@@ -71,7 +71,7 @@ function BoxGenerator() {
     if (!el || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const h = 0.9 * (entry.contentRect?.height ?? el.clientHeight ?? 0);
+        const h = 0.8 * (entry.contentRect?.height ?? el.clientHeight ?? 0);
         setViewerHeight(Math.max(0, Math.round(h)));
       }
     });
@@ -1111,8 +1111,8 @@ function BoxGenerator() {
                 </div>
               </div>
               <div style={{
-                width: '100%',
-                height: '100%',
+                width: (viewerHeight * 3 / 4 || '100%') as number | string,
+                height: (viewerHeight || '100%') as number | string,
                 padding: 8,
                 borderRadius: 10,
                 background: '#0f0f10',
@@ -1154,7 +1154,7 @@ function BoxGenerator() {
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
               <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
-                <div style={{ height: (viewerHeight || '100%') as number | string, position: 'relative' }}>
+                <div style={{ height: (0.8 * viewerHeight || '100%') as number | string, position: 'relative' }}>
                   <input
                     type="range"
                     min={0}
@@ -1166,7 +1166,7 @@ function BoxGenerator() {
                       position: 'absolute',
                       left: '50%',
                       top: '50%',
-                      width: (viewerHeight || 0),
+                      width: (0.8 * viewerHeight || 0),
                       transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
                     } as React.CSSProperties}
                     aria-label="Open Box"
