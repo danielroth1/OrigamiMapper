@@ -42,15 +42,8 @@ function BoxGenerator() {
   const [hasBottomBox, setHasBottomBox] = useState<boolean>(true);
   const [hasTopBox, setHasTopBox] = useState<boolean>(false);
   // 3D open percentage and per-box scales (percent like global Scale slider)
-  const [openPercent, setOpenPercent] = useState<number>(0);
-  // Base per-box scale (from global Scale slider); final export/preview scales are modulated by topBottomRatio
-  const [bottomScalePercent, setBottomScalePercent] = useState<number>(scalePercent);
-  const [topScalePercent, setTopScalePercent] = useState<number>(scalePercent);
-  // Keep per-box scales reflecting the global scale when it changes (so UI preview remains consistent)
-  useEffect(() => {
-    setBottomScalePercent(scalePercent);
-    setTopScalePercent(scalePercent);
-  }, [scalePercent]);
+  const [openPercent, setOpenPercent] = useState<number>(50);
+  // Note: Preview ignores global scalePercent; PDF export applies scalePercent per page
   // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
   const [topBottomRatio, setTopBottomRatio] = useState<number>(50);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
@@ -61,6 +54,9 @@ function BoxGenerator() {
   // Custom dropdown for view selector
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
+  // Measure viewer frame height to size vertical slider (rotated range input)
+  const viewerFrameRef = useRef<HTMLDivElement | null>(null);
+  const [viewerHeight, setViewerHeight] = useState<number>(0);
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!viewMenuRef.current) return;
@@ -70,6 +66,18 @@ function BoxGenerator() {
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [viewMenuOpen]);
+  useEffect(() => {
+    const el = viewerFrameRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = 0.9 * (entry.contentRect?.height ?? el.clientHeight ?? 0);
+        setViewerHeight(Math.max(0, Math.round(h)));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Canvas side filter: show only outside or only inside editors
   const [sideFilter, setSideFilter] = useState<'outside' | 'inside'>('outside');
   // Rotation selectors (0, 90, 180, 270 degrees) per image
@@ -888,9 +896,9 @@ function BoxGenerator() {
         </div>
 
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
-        <div className="images" style={{ display: 'flex', flexDirection: 'row', gap: '1.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+        <div className="images" style={{ display: 'flex', flexDirection: 'row', gap: '3.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: '500px', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
+          <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
             <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <button
@@ -1046,9 +1054,9 @@ function BoxGenerator() {
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', gridTemplateRows: 'auto auto', justifyContent: 'center', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 300 }}>
             {/* Canvas frame */}
-            <div style={{ gridColumn: 1, gridRow: 1, width: 240, height: 320, position: 'relative' }}>
+            <div style={{ gridColumn: 1, gridRow: 1, width: '100%', position: 'relative', aspectRatio: '3 / 4' }}>
               {/* Toolbar on top of canvas */}
               <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'start', gap: 8 }}>
                 <div ref={viewMenuRef} style={{ position: 'relative' }}>
@@ -1119,8 +1127,10 @@ function BoxGenerator() {
                     const ratio = topBottomRatio; // 0..100
                     const topFactor = ratio < 50 ? (50 - ratio) / 50 : 0;
                     const bottomFactor = ratio > 50 ? (ratio - 50) / 50 : 0;
-                    const effTopPct = (topScalePercent || 0) * topFactor;
-                    const effBottomPct = (bottomScalePercent || 0) * bottomFactor;
+                    // Preview should ignore global scalePercent; use a fixed max preview reduction percent
+                    const PREVIEW_RATIO_MAX_PCT = 30; // decoupled from scalePercent
+                    const effTopPct = PREVIEW_RATIO_MAX_PCT * topFactor;
+                    const effBottomPct = PREVIEW_RATIO_MAX_PCT * bottomFactor;
                     const previewTopScale = Math.max(0.2, 1 - 2 * (effTopPct / 100));
                     const previewBottomScale = Math.max(0.2, 1 - 2 * (effBottomPct / 100));
                     return (
@@ -1144,7 +1154,7 @@ function BoxGenerator() {
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
               <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
-                <div style={{ height: 320, position: 'relative' }}>
+                <div style={{ height: (viewerHeight || '100%') as number | string, position: 'relative' }}>
                   <input
                     type="range"
                     min={0}
@@ -1156,7 +1166,7 @@ function BoxGenerator() {
                       position: 'absolute',
                       left: '50%',
                       top: '50%',
-                      width: 240,
+                      width: (viewerHeight || 0),
                       transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
                     } as React.CSSProperties}
                     aria-label="Open Box"
@@ -1168,7 +1178,7 @@ function BoxGenerator() {
 
             {/* Top-Bottom ratio slider under viewer */}
             <div style={{ gridColumn: 1, gridRow: 2, width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-              <div style={{ width: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                 <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: move left to emphasize Top (Bottom reduced), right to emphasize Bottom (Top reduced)."}>
                   Top-Bottom ratio: {topBottomRatio}
                 </div>

@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 
 // (Legacy OpenBox removed; replaced by TexturedOpenBox below.)
 
-export type FaceKey = 'R'|'L'|'U'|'V'|'H'; // Right, Left, Bottom (U), Front (V), Back (H)
+export type FaceKey = 'R' | 'L' | 'U' | 'V' | 'H'; // Right, Left, Bottom (U), Front (V), Back (H)
 export type FaceTextures = Partial<Record<FaceKey, string>>;
 
 interface CubeViewerProps {
@@ -31,8 +31,8 @@ interface CubeViewerProps {
 // Map our logical face letters to material slot order after removing top face.
 // There are different mappings for outside vs inside so Hi/Vi can be placed independently.
 // Slots (groups) after removing top: 0:+X (R), 1:-X (L), 2:-Y (U bottom), 3:+Z (front), 4:-Z (back)
-const OUTSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','V','H']; // outside: place H on front, V on back
-const INSIDE_SLOT_ORDER: FaceKey[] = ['R','L','U','V','H'];  // inside: original ordering (V front, H back)
+const OUTSIDE_SLOT_ORDER: FaceKey[] = ['R', 'L', 'U', 'V', 'H']; // outside: place H on front, V on back
+const INSIDE_SLOT_ORDER: FaceKey[] = ['R', 'L', 'U', 'V', 'H'];  // inside: original ordering (V front, H back)
 
 function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseColor: number, slotOrder: FaceKey[] = OUTSIDE_SLOT_ORDER): THREE.Material[] {
   return slotOrder.map(key => {
@@ -60,9 +60,9 @@ function buildMaterials(faces: FaceTextures | undefined, side: THREE.Side, baseC
   });
 }
 
-function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { outsideFaces?: FaceTextures; insideFaces?: FaceTextures; width?: number; height?: number }) {
+function TexturedOpenBox({ outsideFaces, insideFaces, width = 1, height = 1 }: { outsideFaces?: FaceTextures; insideFaces?: FaceTextures; width?: number; height?: number }) {
   const geometry = useMemo(() => {
-    const depth = 0.82828282828*width;
+    const depth = 0.82828282828 * width;
     const g = new THREE.BoxGeometry(width, height, depth);
     // remove top face (index 2) similar to OpenBox above
     const removedGroupIndex = 2;
@@ -73,10 +73,10 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
       const remStart = g.groups[removedGroupIndex].start;
       const remEnd = remStart + g.groups[removedGroupIndex].count;
       const newIndices: number[] = [];
-      for (let i=0;i<oldArray.length;i++) if (i < remStart || i >= remEnd) newIndices.push(oldArray[i]);
+      for (let i = 0; i < oldArray.length; i++) if (i < remStart || i >= remEnd) newIndices.push(oldArray[i]);
       g.setIndex(newIndices);
       g.clearGroups();
-      let runningStart=0;
+      let runningStart = 0;
       for (const grp of groups) {
         const mi = grp.materialIndex ?? 0;
         g.addGroup(runningStart, grp.count, mi < removedGroupIndex ? mi : mi - 1);
@@ -86,9 +86,9 @@ function TexturedOpenBox({ outsideFaces, insideFaces, width=1, height=1 }: { out
     return g;
   }, [width, height]);
 
-  const outsideMats = useMemo(()=>buildMaterials(outsideFaces, THREE.FrontSide, 0xcccccc, OUTSIDE_SLOT_ORDER), [outsideFaces]);
+  const outsideMats = useMemo(() => buildMaterials(outsideFaces, THREE.FrontSide, 0xcccccc, OUTSIDE_SLOT_ORDER), [outsideFaces]);
   const insideBaseColor = (insideFaces && Object.keys(insideFaces).length > 0) ? 0x222222 : 0xffffff;
-  const insideMats = useMemo(()=>buildMaterials(insideFaces, THREE.BackSide, insideBaseColor, INSIDE_SLOT_ORDER), [insideFaces]);
+  const insideMats = useMemo(() => buildMaterials(insideFaces, THREE.BackSide, insideBaseColor, INSIDE_SLOT_ORDER), [insideFaces]);
 
   return (
     <>
@@ -128,7 +128,7 @@ export default function CubeViewer({
   // Compute vertical separation based on openPercent and scaled box heights
   const clampedOpen = Math.max(0, Math.min(100, openPercent || 0));
   const maxScaledH = Math.max(height * Math.max(0.01, bottomScale), height * Math.max(0.01, topScale));
-  const totalSep = (clampedOpen / 100) * (1.5 * maxScaledH);
+  const totalSep = (clampedOpen / 100) * (2.5 * maxScaledH);
   const bottomY = -totalSep / 2;
   const topY = totalSep / 2;
 
@@ -138,9 +138,9 @@ export default function CubeViewer({
       // enable antialias via GL props; configure encoding/toneMapping in onCreated with casts
       gl={{ antialias: true }}
     >
-  {/* neutral, not-overpowering lights so textures read correctly */}
-  <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
-  <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
+      {/* neutral, not-overpowering lights so textures read correctly */}
+      <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
+      <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
       {/* Bottom box (or single box when top not provided) */}
       {bottomOut || bottomIn ? (
         <group position={[0, bottomY, 0]} scale={[bottomScale, bottomScale, bottomScale]}>
@@ -153,8 +153,8 @@ export default function CubeViewer({
           <TexturedOpenBox outsideFaces={topOut} insideFaces={topIn} width={width} height={height} />
         </group>
       ) : null}
-  <OrbitControls enablePan={false} />
-  {import.meta.env.DEV && <Stats />}
+      <OrbitControls enablePan={false} />
+      {import.meta.env.DEV && <Stats />}
     </Canvas>
   );
 }
