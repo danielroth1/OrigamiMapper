@@ -15,10 +15,15 @@ import Header from '../components/Header';
 import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 
+const SHOW_TEMPLATES = false;
+const SHOW_TRANSFORMS = false;
+const SHOW_OUTPUT_PAGES = false;
 
 function BoxGenerator() {
-  const [outsideImgRaw, setOutsideImgRaw] = useState('');
-  const [insideImgRaw, setInsideImgRaw] = useState('');
+  const [outsideImgTopRaw, setOutsideImgTopRaw] = useState('');
+  const [insideImgTopRaw, setInsideImgTopRaw] = useState('');
+  const [outsideImgBottomRaw, setOutsideImgBottomRaw] = useState('');
+  const [insideImgBottomRaw, setInsideImgBottomRaw] = useState('');
   const [outsideImgTransformed, setOutsideImgTransformed] = useState('');
   const [insideImgTransformed, setInsideImgTransformed] = useState('');
   const [, setTemplate] = useState('Box');
@@ -308,12 +313,18 @@ function BoxGenerator() {
   };
 
   // Set and transform outside image
-  const setOutsideImg = (dataUrl: string) => {
-    setOutsideImgRaw(dataUrl);
+  const setOutsideImg = (dataUrl: string, top: boolean) => {
+    if (top)
+      setOutsideImgTopRaw(dataUrl);
+    else
+      setOutsideImgBottomRaw(dataUrl);
     transformImage(dataUrl, transformMode, outsideRotation, setOutsideImgTransformed);
   };
-  const setInsideImg = (dataUrl: string) => {
-    setInsideImgRaw(dataUrl);
+  const setInsideImg = (dataUrl: string, top: boolean) => {
+    if (top)
+      setInsideImgTopRaw(dataUrl);
+    else
+      setInsideImgBottomRaw(dataUrl);
     transformImage(dataUrl, transformMode, insideRotation, setInsideImgTransformed);
   };
   // Top image transforms
@@ -334,11 +345,13 @@ function BoxGenerator() {
 
   // Re-transform images when mode changes
   useEffect(() => {
-    if (outsideImgRaw) transformImage(outsideImgRaw, transformMode, outsideRotation, setOutsideImgTransformed);
-    if (insideImgRaw) transformImage(insideImgRaw, transformMode, insideRotation, setInsideImgTransformed);
+    if (outsideImgTopRaw) transformImage(outsideImgTopRaw, transformMode, outsideRotation, setOutsideImgTransformed);
+    if (insideImgTopRaw) transformImage(insideImgTopRaw, transformMode, insideRotation, setInsideImgTransformed);
+    if (outsideImgBottomRaw) transformImage(outsideImgBottomRaw, transformMode, outsideRotation, setOutsideImgTransformed);
+    if (insideImgBottomRaw) transformImage(insideImgBottomRaw, transformMode, insideRotation, setInsideImgTransformed);
     if (topOutsideImgRaw) transformImage(topOutsideImgRaw, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
     if (topInsideImgRaw) transformImage(topInsideImgRaw, transformMode, topInsideRotation, setTopInsideImgTransformed);
-  }, [transformMode, outsideRotation, insideRotation, outsideImgRaw, insideImgRaw, topOutsideImgRaw, topInsideImgRaw, topOutsideRotation, topInsideRotation]);
+  }, [transformMode, outsideRotation, insideRotation, outsideImgBottomRaw, insideImgBottomRaw, outsideImgTopRaw, insideImgTopRaw, topOutsideImgRaw, topInsideImgRaw, topOutsideRotation, topInsideRotation]);
 
   // Rebuild cube textures when transformed images change (debounced)
   useEffect(() => {
@@ -438,10 +451,13 @@ function BoxGenerator() {
     if (!isDebug) return; // skip in production unless flag set
     if (suppressAutoDemo) return; // user explicitly deleted images; don't auto-reload them
     // Only attempt if neither image is already set (avoid overriding user uploads)
-    if ((outsideImgRaw && insideImgRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;
+    if ((outsideImgTopRaw && insideImgTopRaw) && (outsideImgBottomRaw && insideImgBottomRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;
     const base = (import.meta as any).env?.BASE_URL || '/'; // Vite base path (e.g., '/origami-mapper/')
-    const outsideUrl = base + 'assets/examples/outside.jpg';
-    const insideUrl = base + 'assets/examples/inside.jpg';
+    const outsideUrlTop = base + 'assets/examples/example_outside_top.png';
+    // Note: if top/bottom variants for inside don't exist, these fetches will simply return null
+    const insideUrlTop = base + 'assets/examples/example_inside_top.png';
+    const outsideUrlBottom = base + 'assets/examples/example_outside_bottom.png';
+    const insideUrlBottom = base + 'assets/examples/example_inside_bottom.png';
 
     const fetchAsDataUrlIfExists = async (url: string): Promise<string | null> => {
       try {
@@ -460,22 +476,30 @@ function BoxGenerator() {
     };
 
     (async () => {
-      const [inputDataUrl, outputDataUrl] = await Promise.all([
-        fetchAsDataUrlIfExists(outsideUrl),
-        fetchAsDataUrlIfExists(insideUrl)
+      const [outputDataTopUrl, inputDataTopUrl, outputDataBottomUrl, inputDataBottomUrl] = await Promise.all([
+        fetchAsDataUrlIfExists(outsideUrlTop),
+        fetchAsDataUrlIfExists(insideUrlTop),
+        fetchAsDataUrlIfExists(outsideUrlBottom),
+        fetchAsDataUrlIfExists(insideUrlBottom)
       ]);
-      if (inputDataUrl) {
-        setOutsideImg(inputDataUrl); // bottom outside
-        // also auto-create and assign for top box
+      if (inputDataTopUrl) {
         setHasTopBox(true);
-        setTopOutsideImg(inputDataUrl);
+        // Use top-specific setter so transformed image is stored in top state
+        setTopInsideImg(inputDataTopUrl);
       }
-      if (outputDataUrl) {
-        setInsideImg(outputDataUrl); // bottom inside
-        setTopInsideImg(outputDataUrl);
+      if (outputDataTopUrl) {
+        setHasTopBox(true);
+        // Use top-specific setter so transformed image is stored in top state
+        setTopOutsideImg(outputDataTopUrl);
+      }
+      if (inputDataBottomUrl) {
+        setInsideImg(inputDataBottomUrl, false);
+      }
+      if (outputDataBottomUrl) {
+        setOutsideImg(outputDataBottomUrl, false);
       }
     })();
-  }, [outsideImgRaw, insideImgRaw, topOutsideImgRaw, topInsideImgRaw]);
+  }, [outsideImgTopRaw, insideImgTopRaw, outsideImgBottomRaw, insideImgBottomRaw, topOutsideImgRaw, topInsideImgRaw]);
 
   // const ensureDataUrl = async (url: string): Promise<string> => {
   //   if (!url) throw new Error('No URL');
@@ -552,13 +576,17 @@ function BoxGenerator() {
     try {
       const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null;
       const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : null;
-      const outsideBlob = await dataUrlToBlob(outsideImgRaw || null);
-      const insideBlob = await dataUrlToBlob(insideImgRaw || null);
+      const outsideTopBlob = await dataUrlToBlob(outsideImgTopRaw || null);
+      const insideTopBlob = await dataUrlToBlob(insideImgTopRaw || null);
+      const outsideBottomBlob = await dataUrlToBlob(outsideImgBottomRaw || null);
+      const insideBottomBlob = await dataUrlToBlob(insideImgBottomRaw || null);
       const item = {
         id: 'autosave',
         updatedAt: Date.now(),
-        outsideBlob,
-        insideBlob,
+        outsideTopBlob,
+        insideTopBlob,
+        outsideBottomBlob,
+        insideBottomBlob,
         outsideJson,
         insideJson,
         transformMode,
@@ -579,10 +607,14 @@ function BoxGenerator() {
     try {
       const rec = await getItem('autosave');
       if (!rec) return;
-      const outDataUrl = await blobToDataUrl(rec.outsideBlob);
-      const inDataUrl = await blobToDataUrl(rec.insideBlob);
-      setOutsideImg(outDataUrl ?? "");
-      setInsideImg(inDataUrl ?? "");
+      const outDataTopUrl = await blobToDataUrl(rec.outsideTopBlob);
+      const inDataTopUrl = await blobToDataUrl(rec.insideTopBlob);
+      const outDataBottomUrl = await blobToDataUrl(rec.outsideBottomBlob);
+      const inDataBottomUrl = await blobToDataUrl(rec.insideBottomBlob);
+      setOutsideImg(outDataBottomUrl ?? "", false);
+      setInsideImg(inDataBottomUrl ?? "", false);
+      setOutsideImg(outDataTopUrl ?? "", true);
+      setInsideImg(inDataTopUrl ?? "", true);
       if (rec.transformMode) setTransformMode(rec.transformMode);
       if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
       if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
@@ -612,13 +644,21 @@ function BoxGenerator() {
       const zip = new JSZip();
       zip.file('box.json', JSON.stringify(combinedJson, null, 2));
       // add raw images if present
-      if (outsideImgRaw) {
-        const outBlob = await dataUrlToBlob(outsideImgRaw);
-        if (outBlob) zip.file('outside.png', outBlob);
+      if (outsideImgTopRaw) {
+        const outBlob = await dataUrlToBlob(outsideImgTopRaw);
+        if (outBlob) zip.file('outside_top.png', outBlob);
       }
-      if (insideImgRaw) {
-        const inBlob = await dataUrlToBlob(insideImgRaw);
-        if (inBlob) zip.file('inside.png', inBlob);
+      if (insideImgTopRaw) {
+        const inBlob = await dataUrlToBlob(insideImgTopRaw);
+        if (inBlob) zip.file('inside_top.png', inBlob);
+      }
+      if (outsideImgBottomRaw) {
+        const outBlob = await dataUrlToBlob(outsideImgBottomRaw);
+        if (outBlob) zip.file('outside_bottom.png', outBlob);
+      }
+      if (insideImgBottomRaw) {
+        const inBlob = await dataUrlToBlob(insideImgBottomRaw);
+        if (inBlob) zip.file('inside_bottom.png', inBlob);
       }
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'origami_project.mapper');
@@ -656,17 +696,31 @@ function BoxGenerator() {
       }
       // images
       let dataUrl = "";
-      if (zip.file('outside.png')) {
-        const blob = await zip.file('outside.png')!.async('blob');
+      if (zip.file('outside_top.png')) {
+        const blob = await zip.file('outside_top.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
       }
-      setOutsideImg(dataUrl);
+      // Use top-specific setter
+      setTopOutsideImg(dataUrl);
       dataUrl = "";
-      if (zip.file('inside.png')) {
-        const blob = await zip.file('inside.png')!.async('blob');
+      if (zip.file('inside_top.png')) {
+        const blob = await zip.file('inside_top.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
       }
-      setInsideImg(dataUrl);
+      // Use top-specific setter
+      setTopInsideImg(dataUrl);
+
+      if (zip.file('outside_bottom.png')) {
+        const blob = await zip.file('outside_bottom.png')!.async('blob');
+        dataUrl = await blobToDataUrl(blob) ?? "";
+      }
+      setOutsideImg(dataUrl, false);
+      dataUrl = "";
+      if (zip.file('inside_bottom.png')) {
+        const blob = await zip.file('inside_bottom.png')!.async('blob');
+        dataUrl = await blobToDataUrl(blob) ?? "";
+      }
+      setInsideImg(dataUrl, false);
     } catch (err) {
       console.error('Failed to load .mapper file:', err);
       alert('Failed to load project file: ' + String(err));
@@ -680,7 +734,7 @@ function BoxGenerator() {
     autosaveTimer.current = window.setTimeout(() => { void saveAutosave(); }, 600);
     return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outsideImgRaw, insideImgRaw, transformMode, scalePercent, triangleOffsetPct, outputDpi, withFoldLines, withCutLines]);
+  }, [outsideImgTopRaw, outsideImgBottomRaw, insideImgTopRaw, insideImgBottomRaw, transformMode, scalePercent, triangleOffsetPct, outputDpi, withFoldLines, withCutLines]);
 
   // Load autosave on mount
   useEffect(() => { void loadAutosave(); }, []);
@@ -1005,11 +1059,11 @@ function BoxGenerator() {
                     label='Bottom Outside image'
                     backgroundImg={outsideImgTransformed}
                     rotation={outsideRotation}
-                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgRaw, transformMode, r, setOutsideImgTransformed); }}
-                    onUploadImage={setOutsideImg}
+                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgBottomRaw, transformMode, r, setOutsideImgTransformed); }}
+                    onUploadImage={(dataUrl) => setOutsideImg(dataUrl, false)}
                     onDelete={() => {
                       if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
-                      setOutsideImgRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                      setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
@@ -1028,11 +1082,11 @@ function BoxGenerator() {
                     label='Bottom Inside image'
                     backgroundImg={insideImgTransformed}
                     rotation={insideRotation}
-                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgRaw, transformMode, r, setInsideImgTransformed); }}
-                    onUploadImage={setInsideImg}
+                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgBottomRaw, transformMode, r, setInsideImgTransformed); }}
+                    onUploadImage={(dataUrl) => setInsideImg(dataUrl, false)}
                     onDelete={() => {
                       if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
-                      setInsideImgRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                      setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
@@ -1200,19 +1254,19 @@ function BoxGenerator() {
         </div>
 
         {/* Settings / Export controls / Reference images */}
-        <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginBottom: '2em' }}>
+        <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '1em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
-            <img src="/origami-mapper/assets/box_outside_mapping.png" width={120} />
+            <img src="/origami-mapper/assets/reference_outside.png" width={120} />
           </div>
           <div style={{ flex: '0 1 400px' }}>
             {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
             <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
+                {SHOW_TEMPLATES && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
                   <TemplateSelect onTemplate={setTemplate} />
-                </div>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                </div>}
+                {SHOW_TRANSFORMS && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Transform:</span>
                   <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
                     <option value="none">None</option>
@@ -1221,7 +1275,7 @@ function BoxGenerator() {
                     <option value="tile4">Tile 4x (2x2)</option>
                     <option value="tile8">Tile 8x (4x2)</option>
                   </select>
-                </div>
+                </div>}
                 {/* Rotation selectors moved into each PolygonEditor sidebar */}
                 <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Output DPI:</span>
@@ -1339,15 +1393,15 @@ function BoxGenerator() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Inside Reference</div>
-            <img src="/origami-mapper/assets/box_inside_mapping.png" width={120} />
+            <img src="/origami-mapper/assets/reference_inside.png" width={120} />
           </div>
         </div>
 
         {/* Output previews side by side */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
+        {SHOW_OUTPUT_PAGES && <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
           <ImagePreview src={results.output_page1} label="Output Page 1" />
           <ImagePreview src={results.output_page2} label="Output Page 2" />
-        </div>
+        </div>}
 
         <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
           <div>
