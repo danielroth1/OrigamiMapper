@@ -1260,8 +1260,8 @@ function BoxGenerator() {
         {/* Settings / Export controls / Reference images */}
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '1em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#fff', marginBottom: '0.5em' }}>Outside Reference</div>
-            <img src="/origami-mapper/assets/reference_outside.png" width={120} />
+            <div style={{ color: '#fff', marginBottom: '0.5em'}}>Outside Reference</div>
+            <img style={{ background: '#fff' }} src="/origami-mapper/assets/reference_outside_top.png" width={120} />
           </div>
           <div style={{ flex: '0 1 400px' }}>
             {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
@@ -1397,7 +1397,7 @@ function BoxGenerator() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#fff', marginBottom: '0.5em' }}>Inside Reference</div>
-            <img src="/origami-mapper/assets/reference_inside.png" width={120} />
+            <img style={{ background: '#fff' }} src="/origami-mapper/assets/reference_inside.png" width={120} />
           </div>
         </div>
 
