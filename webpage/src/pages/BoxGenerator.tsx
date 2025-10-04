@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
-import { mirrorOutsidePolygons } from '../utils/polygons';
+import { mirrorOutsidePolygons, mirrorInsidePolygons } from '../utils/polygons';
 import { saveAs } from 'file-saver';
 import CubeViewer, { type FaceTextures } from "../components/boxGenerator/CubeViewer";
 import type { OrigamiMapperTypes } from '../OrigamiMapperTypes';
@@ -1004,7 +1004,7 @@ function BoxGenerator() {
                   <PolygonEditor
                     ref={topInsideEditorRef}
                     zoomGroup={'top'}
-                    applyResetTransform={false}
+                    applyResetTransform={true}
                     onChange={() => scheduleBuild()}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getTopEditorData(true)}
@@ -1034,12 +1034,16 @@ function BoxGenerator() {
                   setMirrorDirection('down');
                   const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
+                  const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (insideEditorRef.current) insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, insideEditorRef.current.getCurrentJson().input_polygons) });
                   scheduleBuild();
                 }} title="Bottom mirrors from Top">↓</button>
                 <button style={{ opacity: mirrorDirection === 'up' ? 1 : 0.7 }} onClick={() => {
                   setMirrorDirection('up');
                   const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
+                  const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                  if (topInsideEditorRef.current) topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, topInsideEditorRef.current.getCurrentJson().input_polygons) });
                   scheduleBuild();
                 }} title="Top mirrors from Bottom">↑</button>
               </div>
@@ -1075,7 +1079,7 @@ function BoxGenerator() {
                   <PolygonEditor
                     ref={insideEditorRef}
                     zoomGroup={'bottom'}
-                    applyResetTransform={false}
+                    applyResetTransform={true}
                     onChange={json => scheduleBuild(undefined, json.input_polygons)}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getEditorData(true)}

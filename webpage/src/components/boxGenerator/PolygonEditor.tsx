@@ -4,7 +4,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
-import { mirrorOutsidePolygons } from '../../utils/polygons';
+import { mirrorOutsidePolygons, mirrorInsidePolygons } from '../../utils/polygons';
 import ImageUpload from './ImageUpload';
 import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
@@ -911,30 +911,39 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     // If applyResetTransform is enabled, rotate all polygons 90° CCW (visual)
     // around the canvas center, then translate so combined bbox top-left is at (0,0).
     // No scaling.
+    // When applyResetTransform is enabled:
+    // - Outside editors: apply full reset (rotate 90°, translate to 0,0, scale contain, mirror for top)
+    // - Inside editors: skip the 90° rotation, but still translate to 0,0, scale contain, and mirror for top
     if (applyResetTransform) {
       // 1) Convert normalized -> absolute pixels
       const absPolys = base.map(p => ({
         ...p,
         vertices: p.vertices.map(([vx, vy]) => [vx * width, vy * height] as [number, number])
       }));
-      // 2) Rotate around canvas center by -90° (visual CCW in y-down screen space)
-      const cx = width / 2;
-      const cy = height / 2;
-      const rad = -Math.PI / 2;
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-      const rotPolys = absPolys.map(p => ({
-        ...p,
-        vertices: p.vertices.map(([px, py]) => {
-          const ox = px - cx;
-          const oy = py - cy;
-          const rx = ox * cos - oy * sin;
-          const ry = ox * sin + oy * cos;
-          const npx = rx + cx;
-          const npy = ry + cy;
-          return [npx, npy] as [number, number];
-        })
-      }));
+      // Determine whether these are inside or outside polygons
+      const isOutsideSet = absPolys.every(pp => !String(pp.id).includes('i'));
+      // 2) For outside: rotate around canvas center by -90° (visual CCW).
+      //    For inside: skip 90° rotation, continue with translate/scale steps.
+      let rotPolys = absPolys;
+      if (isOutsideSet) {
+        const cx = width / 2;
+        const cy = height / 2;
+        const rad = -Math.PI / 2;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        rotPolys = absPolys.map(p => ({
+          ...p,
+          vertices: p.vertices.map(([px, py]) => {
+            const ox = px - cx;
+            const oy = py - cy;
+            const rx = ox * cos - oy * sin;
+            const ry = ox * sin + oy * cos;
+            const npx = rx + cx;
+            const npy = ry + cy;
+            return [npx, npy] as [number, number];
+          })
+        }));
+      }
       // 3) Find combined bbox and translate to align top-left to (0,0)
       let minX = Infinity, minY = Infinity;
       rotPolys.forEach(p => p.vertices.forEach(([px, py]) => { if (px < minX) minX = px; if (py < minY) minY = py; }));
@@ -960,13 +969,27 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         rotation: p.rotation || 0,
         vertices: p.vertices.map(([px, py]) => [px / width, py / height] as [number, number])
       }));
-      // 6) If this is the TOP outside editor, apply mirroring
+      // 6) If this is the TOP editor, apply mirroring:
       try {
         if (zoomGroup === 'top') {
           const isOutside = norm.every(pp => !String(pp.id).includes('i'));
+          const isInside = norm.every(pp => String(pp.id).includes('i'));
           if (isOutside) {
             const mirrored = mirrorOutsidePolygons(norm, norm);
             // Normalize rotation property and translate so top-left of combined bbox is at (0,0)
+            let next = mirrored.map(p => ({ ...p, rotation: p.rotation ?? 0 }));
+            let minX = Infinity, minY = Infinity;
+            next.forEach(pp => pp.vertices.forEach(([vx, vy]) => { if (vx < minX) minX = vx; if (vy < minY) minY = vy; }));
+            if (isFinite(minX) && isFinite(minY)) {
+              const dx = -minX, dy = -minY;
+              next = next.map(pp => ({
+                ...pp,
+                vertices: pp.vertices.map(([vx, vy]) => [vx + dx, vy + dy] as [number, number])
+              }));
+            }
+            norm = next;
+          } else if (isInside) {
+            const mirrored = mirrorInsidePolygons(norm, norm);
             let next = mirrored.map(p => ({ ...p, rotation: p.rotation ?? 0 }));
             let minX = Infinity, minY = Infinity;
             next.forEach(pp => pp.vertices.forEach(([vx, vy]) => { if (vx < minX) minX = vx; if (vy < minY) minY = vy; }));
