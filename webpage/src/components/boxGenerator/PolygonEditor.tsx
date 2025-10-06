@@ -213,6 +213,10 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const initialHistoryPushedRef = useRef(false);
   const imageDimsRef = useRef<{ w: number; h: number } | null>(null);
   const lastConvertedKeyRef = useRef<string | null>(null);
+  // Force a one-time polygon reset on the next background image update (set when user rotates via UI)
+  const forceResetOnNextBgChangeRef = useRef<boolean>(false);
+  // Force a one-time polygon reset when the user uploads a new image via this editor
+  const resetOnUserUploadRef = useRef<boolean>(false);
 
   // Deep equality for polygon arrays (IDs and vertices, with small float tolerance)
   const deepEqualPolygons = (a: OrigamiMapperTypes.Polygon[], b: OrigamiMapperTypes.Polygon[]) => {
@@ -704,7 +708,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [width, height, maxCanvasSize]);
+  }, [width, height, maxCanvasSize, backgroundImg]);
 
   // Load background image (no canvas resize) and convert polygon coordinates from image space -> canvas space once.
   useEffect(() => {
@@ -743,13 +747,17 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             setCanvasSize({ w, h });
             imageDimsRef.current = { w: img.naturalWidth, h: img.naturalHeight };
             const key = backgroundImg + ':' + polygonsRef.current.length;
-            // Auto-reset only when editor is pristine: initial state and polygons equal template
+            // Auto-reset when user rotated (force flag), explicitly uploaded a new image in this editor,
+            // or when the editor is pristine; skip otherwise (e.g., mirror case)
             if (lastConvertedKeyRef.current !== key) {
               const isPristine = historyRef.current.length <= 1 && deepEqualPolygons(polygonsRef.current, data.input_polygons);
-              if (isPristine) {
+              if (forceResetOnNextBgChangeRef.current || resetOnUserUploadRef.current || isPristine) {
                 const converted = resetPolygons(data.input_polygons, w, h);
                 setPolygons(converted);
               }
+              // consume the flag after handling current bg
+              forceResetOnNextBgChangeRef.current = false;
+              resetOnUserUploadRef.current = false;
               lastConvertedKeyRef.current = key;
             }
           }
@@ -1079,6 +1087,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       reader.onload = () => {
         const dataUrl = reader.result as string;
         if (typeof onUploadImage === 'function') {
+          // Mark that polygons should reset on the next background update for this user-initiated upload
+          resetOnUserUploadRef.current = true;
           onUploadImage(dataUrl);
         }
       };
@@ -1113,7 +1123,11 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       {/* Placeholder if no image present */}
       {!backgroundImg && (
         <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ImageUpload label={`Load image`} onImage={(data) => { if (typeof onUploadImage === 'function') onUploadImage(data); }} />
+          <ImageUpload label={`Load image`} onImage={(data) => {
+            // Mark that polygons should reset on the next background update for this user-initiated upload
+            resetOnUserUploadRef.current = true;
+            if (typeof onUploadImage === 'function') onUploadImage(data);
+          }} />
         </div>
       )}
       {/* Main Grid */}
@@ -1127,6 +1141,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 title="Rotate counter-clockwise 90°"
                 onClick={() => {
                   if (typeof onRotationChange !== 'function') return;
+                  // User rotation: ensure polygons are re-based to new background orientation on next image update
+                  forceResetOnNextBgChangeRef.current = true;
                   const cur = rotation ?? 0;
                   const next = ((cur + 270) % 360) as 0 | 90 | 180 | 270;
                   onRotationChange(next);
@@ -1140,6 +1156,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 title="Rotate clockwise 90°"
                 onClick={() => {
                   if (typeof onRotationChange !== 'function') return;
+                  // User rotation: ensure polygons are re-based to new background orientation on next image update
+                  forceResetOnNextBgChangeRef.current = true;
                   const cur = rotation ?? 0;
                   const next = ((cur + 90) % 360) as 0 | 90 | 180 | 270;
                   onRotationChange(next);
