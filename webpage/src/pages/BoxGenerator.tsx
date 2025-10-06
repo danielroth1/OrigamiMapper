@@ -52,7 +52,7 @@ function BoxGenerator() {
   // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
   const [topBottomRatio, setTopBottomRatio] = useState<number>(55);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
-  const [mirrorDirection, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
+  const [, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
   // Viewer selection: which boxes to show in 3D and which canvases to show on the left
   const [viewMode, setViewMode] = useState<'both' | 'top' | 'bottom'>('both');
@@ -1071,16 +1071,26 @@ function BoxGenerator() {
             {/* Mirror toggles between bottom and top */}
             {hasBottomBox && hasTopBox && (
               <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button style={{ opacity: mirrorDirection === 'down' ? 1 : 0.7 }} onClick={() => {
+                <button onClick={() => {
                   setMirrorDirection('down');
+                  // Also copy TOP images down to BOTTOM
+                  setSuppressAutoDemo(true);
+                  if (topOutsideImgRaw) setOutsideImg(topOutsideImgRaw, false);
+                  if (topInsideImgRaw) setInsideImg(topInsideImgRaw, false);
+                  scheduleBuildBottom();
                   const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
                   const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (insideEditorRef.current) insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, insideEditorRef.current.getCurrentJson().input_polygons) });
                   scheduleBuildBottom();
                 }} title="Bottom mirrors from Top">↓</button>
-                <button style={{ opacity: mirrorDirection === 'up' ? 1 : 0.7 }} onClick={() => {
+                <button onClick={() => {
                   setMirrorDirection('up');
+                  // Also copy BOTTOM images up to TOP
+                  setSuppressAutoDemo(true);
+                  if (outsideImgBottomRaw) setTopOutsideImg(outsideImgBottomRaw);
+                  if (insideImgBottomRaw) setTopInsideImg(insideImgBottomRaw);
+                  scheduleBuildTop();
                   const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
                   const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
