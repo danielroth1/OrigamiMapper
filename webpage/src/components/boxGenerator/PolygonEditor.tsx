@@ -40,6 +40,8 @@ interface PolygonEditorProps {
 }
 
 const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, zoomGroup, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onDeleteBox, onUploadImage }, ref) => {
+  // Debug flag: show certain controls only in dev or when VITE_DEBUG=true
+  const isDebug = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
   const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
@@ -1367,17 +1369,21 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               style={{ display: 'none' }}
               onChange={handleImport}
             />
-            <button
-              type="button"
-              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-              onClick={() => fileInputRef.current?.click()}
-              title="Import JSON or Image"
-            ><IoFolderOpen color="#fff" size={20} /></button>
-            <button
-              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-              onClick={handleExport}
-              title="Export JSON"
-            ><IoDownload color="#fff" size={20} /></button>
+            {isDebug && (
+              <>
+                <button
+                  type="button"
+                  style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Import JSON or Image"
+                ><IoFolderOpen color="#fff" size={20} /></button>
+                <button
+                  style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
+                  onClick={handleExport}
+                  title="Export JSON"
+                ><IoDownload color="#fff" size={20} /></button>
+              </>
+            )}
             <button
               type="button"
               style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
