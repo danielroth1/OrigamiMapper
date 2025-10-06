@@ -1036,7 +1036,7 @@ function BoxGenerator() {
                       setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
-                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      if (!confirm('Delete Top Box? This cannot be undone.')) return;
                       setHasTopBox(false);
                     }}
                   />
@@ -1059,7 +1059,7 @@ function BoxGenerator() {
                       setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
-                      if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
+                      if (!confirm('Delete Top Box? This cannot be undone.')) return;
                       setHasTopBox(false);
                     }}
                   />

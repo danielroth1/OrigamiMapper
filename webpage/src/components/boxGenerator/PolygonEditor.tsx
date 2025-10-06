@@ -1389,8 +1389,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
               onClick={() => {
                 if (typeof onDelete !== 'function') return;
-                const ok = window.confirm('Clear background image? This cannot be undone.');
-                if (ok) onDelete();
+                onDelete();
               }}
               title="Clear background image"
             ><IoCloseCircleOutline color="#fff" size={20} /></button>
@@ -1399,8 +1398,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 type="button"
                 style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
                 onClick={() => {
-                  const ok = window.confirm('Delete entire box (both canvases)? This cannot be undone.');
-                  if (ok) onDeleteBox();
+                  onDeleteBox();
                 }}
                 title="Delete box"
               ><IoTrash color="#fff" size={20} /></button>
