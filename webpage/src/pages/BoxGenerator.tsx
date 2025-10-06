@@ -984,6 +984,16 @@ function BoxGenerator() {
     }
   };
 
+  const getCanvasHeight = () =>
+  {
+    return Math.max(100, Math.min(500, viewerHeight));
+  }
+
+  const getCanvasWidth = () =>
+  {
+    return getCanvasHeight() * 3 / 4;
+  }
+
   // (Replaced by handleRunThenDownloadDual)
 
   return (
@@ -998,7 +1008,7 @@ function BoxGenerator() {
         </div>
 
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
-        <div className="images" style={{ display: 'flex', flexDirection: 'row', gap: '3.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+        <div className="images" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
           <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
@@ -1210,7 +1220,7 @@ function BoxGenerator() {
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 300 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 300 }}>
             {/* Canvas frame */}
             <div style={{ gridColumn: 1, gridRow: 1, width: '100%', position: 'relative', aspectRatio: '3 / 4' }}>
               {/* Toolbar on top of canvas */}
@@ -1267,8 +1277,8 @@ function BoxGenerator() {
                 </div>
               </div>
               <div style={{
-                width: (viewerHeight * 3 / 4 || '100%') as number | string,
-                height: (viewerHeight || '100%') as number | string,
+                width: (getCanvasWidth() || '100%') as number | string,
+                height: (getCanvasHeight() || '100%') as number | string,
                 padding: 8,
                 borderRadius: 10,
                 background: '#0f0f10',
@@ -1308,26 +1318,28 @@ function BoxGenerator() {
 
             {/* Right: vertical slider placed OUTSIDE the colored frame */}
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
-              <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
-                <div style={{ height: (0.8 * viewerHeight || '100%') as number | string, position: 'relative' }}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={openPercent}
-                    onChange={e => setOpenPercent(Number(e.target.value))}
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      top: '50%',
-                      width: (0.8 * viewerHeight || 0),
-                      transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
-                    } as React.CSSProperties}
-                    aria-label="Open Box"
-                    title={`Open Box: ${openPercent}%`}
-                  />
+              <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
+                  <div style={{ height: (0.8 * getCanvasHeight() || '100%') as number | string, position: 'relative' }}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={openPercent}
+                      onChange={e => setOpenPercent(Number(e.target.value))}
+                      style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        width: (0.8 * getCanvasHeight() || 0),
+                        transform: 'translateX(-50%) translateY(-50%) rotate(-90deg)'
+                      } as React.CSSProperties}
+                      aria-label="Open Box"
+                      title={`Open Box: ${openPercent}%`}
+                    />
+                  </div>
                 </div>
               </div>
             )}
