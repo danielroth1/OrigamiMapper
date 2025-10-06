@@ -214,6 +214,26 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const imageDimsRef = useRef<{ w: number; h: number } | null>(null);
   const lastConvertedKeyRef = useRef<string | null>(null);
 
+  // Deep equality for polygon arrays (IDs and vertices, with small float tolerance)
+  const deepEqualPolygons = (a: OrigamiMapperTypes.Polygon[], b: OrigamiMapperTypes.Polygon[]) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    const EPS = 1e-9;
+    for (let i = 0; i < a.length; i++) {
+      const pa = a[i];
+      const pb = b[i];
+      if (pa.id !== pb.id) return false;
+      if (pa.vertices.length !== pb.vertices.length) return false;
+      for (let j = 0; j < pa.vertices.length; j++) {
+        const [ax, ay] = pa.vertices[j];
+        const [bx, by] = pb.vertices[j];
+        if (Math.abs(ax - bx) > EPS || Math.abs(ay - by) > EPS) return false;
+      }
+    }
+    return true;
+  };
+
   // Setup scene/camera/renderer once on mount, cleanup on unmount
   useEffect(() => {
     // Record initial state for revert only once
@@ -723,10 +743,13 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             setCanvasSize({ w, h });
             imageDimsRef.current = { w: img.naturalWidth, h: img.naturalHeight };
             const key = backgroundImg + ':' + polygonsRef.current.length;
-            // Convert polygon coordinates only once per background image (or after reset/import)
+            // Auto-reset only when editor is pristine: initial state and polygons equal template
             if (lastConvertedKeyRef.current !== key) {
-              const converted = resetPolygons(data.input_polygons, w, h);
-              setPolygons(converted);
+              const isPristine = historyRef.current.length <= 1 && deepEqualPolygons(polygonsRef.current, data.input_polygons);
+              if (isPristine) {
+                const converted = resetPolygons(data.input_polygons, w, h);
+                setPolygons(converted);
+              }
               lastConvertedKeyRef.current = key;
             }
           }

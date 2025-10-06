@@ -213,6 +213,13 @@ function BoxGenerator() {
     return out;
   };
 
+  // Rotate a data URL by given degrees and return a new data URL
+  const rotateDataUrlDegrees = (dataUrl: string, degrees: 0 | 90 | 180 | 270): Promise<string> =>
+    new Promise((resolve) => {
+      if (!dataUrl || degrees % 360 === 0) return resolve(dataUrl);
+      ImageTransform.rotateDegrees(dataUrl, degrees, (res: string) => resolve(res));
+    });
+
   // Removed: combined build in favor of side-specific builders
 
   // Build-only-bottom helper
@@ -1071,12 +1078,21 @@ function BoxGenerator() {
             {/* Mirror toggles between bottom and top */}
             {hasBottomBox && hasTopBox && (
               <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button onClick={() => {
+                <button onClick={async () => {
                   setMirrorDirection('down');
                   // Also copy TOP images down to BOTTOM
                   setSuppressAutoDemo(true);
-                  if (topOutsideImgRaw) setOutsideImg(topOutsideImgRaw, false);
-                  if (topInsideImgRaw) setInsideImg(topInsideImgRaw, false);
+                  // Pre-rotate raw images by rotation delta so bottom keeps its own rotation state
+                  const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                  const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                  if (topOutsideImgRaw) {
+                    const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
+                    setOutsideImgBottomRaw(rotated);
+                  }
+                  if (topInsideImgRaw) {
+                    const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
+                    setInsideImgBottomRaw(rotated);
+                  }
                   scheduleBuildBottom();
                   const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
@@ -1084,12 +1100,21 @@ function BoxGenerator() {
                   if (insideEditorRef.current) insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, insideEditorRef.current.getCurrentJson().input_polygons) });
                   scheduleBuildBottom();
                 }} title="Bottom mirrors from Top">↓</button>
-                <button onClick={() => {
+                <button onClick={async () => {
                   setMirrorDirection('up');
                   // Also copy BOTTOM images up to TOP
                   setSuppressAutoDemo(true);
-                  if (outsideImgBottomRaw) setTopOutsideImg(outsideImgBottomRaw);
-                  if (insideImgBottomRaw) setTopInsideImg(insideImgBottomRaw);
+                  // Pre-rotate raw images by rotation delta so top keeps its own rotation state
+                  const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                  const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                  if (outsideImgBottomRaw) {
+                    const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
+                    setTopOutsideImg(rotated);
+                  }
+                  if (insideImgBottomRaw) {
+                    const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
+                    setTopInsideImg(rotated);
+                  }
                   scheduleBuildTop();
                   const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
