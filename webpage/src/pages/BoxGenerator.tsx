@@ -1309,10 +1309,22 @@ function BoxGenerator() {
         </div>
 
         {/* Settings / Export controls / Reference images */}
+        {(() => {
+          // Build asset URLs using Vite base path so it works in dev and production (GH Pages)
+          const basePath = (import.meta as any).env?.BASE_URL || '/';
+          const refOutsideTop = basePath + 'assets/reference_outside_top.png';
+          const refOutsideBottom = basePath + 'assets/reference_outside_bottom.png';
+          const refInside = basePath + 'assets/reference_inside.png';
+          return (
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '1em', marginBottom: '2em' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#fff', marginBottom: '0.5em'}}>Outside Reference</div>
-            <img style={{ background: '#fff' }} src="/origami-mapper/assets/reference_outside_top.png" width={120} />
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
+            <div style={{ color: '#fff'}}>Outside Reference</div>
+            <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
+              <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideTop} width={120} alt="Outside Top Reference" />
+            </a>
+            <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
+              <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
+            </a>
           </div>
           <div style={{ flex: '0 1 400px' }}>
             {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
@@ -1446,11 +1458,15 @@ function BoxGenerator() {
               </div>
             </section>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#fff', marginBottom: '0.5em' }}>Inside Reference</div>
-            <img style={{ background: '#fff' }} src="/origami-mapper/assets/reference_inside.png" width={120} />
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
+            <div style={{ color: '#fff'}}>Inside Reference</div>
+            <a href={refInside} download={"reference_inside.png"} title="Download Inside reference">
+              <img style={{ background: '#fff', cursor: 'pointer' }} src={refInside} width={120} alt="Inside Reference" />
+            </a>
           </div>
         </div>
+          );
+        })()}
 
         {/* Output previews side by side */}
         {SHOW_OUTPUT_PAGES && <div style={{ display: 'flex', flexDirection: 'row', gap: '2em', justifyContent: 'center', alignItems: 'flex-start', marginTop: '1em' }}>
