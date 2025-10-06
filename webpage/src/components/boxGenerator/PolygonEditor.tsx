@@ -6,7 +6,10 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import { mirrorOutsidePolygons, mirrorInsidePolygons } from '../../utils/polygons';
 import ImageUpload from './ImageUpload';
-import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline } from 'react-icons/io5';
+import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline, IoReloadOutline } from 'react-icons/io5';
+
+// Toggle Import/Export JSON buttons in the editor toolbars
+const SHOW_IMPORT_EXPORT_JSON = false;
 
 export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
@@ -40,8 +43,7 @@ interface PolygonEditorProps {
 }
 
 const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, zoomGroup, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onDeleteBox, onUploadImage }, ref) => {
-  // Debug flag: show certain controls only in dev or when VITE_DEBUG=true
-  const isDebug = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
+  // Debug flag removed; use SHOW_IMPORT_EXPORT_JSON constant for Import/Export visibility
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
   const [ctrlKeyDown, setCtrlKeyDown] = useState(false);
@@ -1135,7 +1137,64 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
         <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', gridTemplateRows: 'auto auto auto' }}>
           {/* Top bar */}
           <div style={{ gridRow: '1', gridColumn: '2', marginBottom: '0.3em', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: '6px', padding: '2px', alignSelf: 'flex-end', marginTop: '6px', marginRight: '6px' }}>
+            <div style={{ display: 'flex', gap: '6px', padding: '2px', alignSelf: 'flex-start', marginTop: '6px', marginLeft: '6px' }}>
+              {/* Hidden file input for Import (top toolbar) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,image/*"
+                style={{ display: 'none' }}
+                onChange={handleImport}
+              />
+              {/* Moved: Import/Export (config), Clear, Delete Box, Reset */}
+              {SHOW_IMPORT_EXPORT_JSON && (
+                <>
+                  <button
+                    type="button"
+                    title="Import JSON or Image"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <IoFolderOpen color="#fff" size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Export JSON"
+                    onClick={handleExport}
+                    style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <IoDownload color="#fff" size={18} />
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                title="Clear background image"
+                onClick={() => { if (typeof onDelete === 'function') onDelete(); }}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <IoCloseCircleOutline color="#fff" size={18} />
+              </button>
+              {typeof onDeleteBox === 'function' && (
+                <button
+                  type="button"
+                  title="Delete box"
+                  onClick={() => { onDeleteBox(); }}
+                  style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  <IoTrash color="#fff" size={18} />
+                </button>
+              )}
+              <button
+                type="button"
+                title="Reset"
+                onClick={handleReset}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <IoReloadOutline color="#fff" size={18} />
+              </button>
+              {/* Separator between moved buttons and existing rotate/zoom */}
+              <div style={{ width: 1, height: 24, background: '#bbb', alignSelf: 'center', margin: '0 6px' }} />
               <button
                 type="button"
                 title="Rotate counter-clockwise 90°"
@@ -1149,7 +1208,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(-90deg)' }} />
+                <IoRefreshCircle color="#fff" size={18} style={{ transform: 'rotate(-90deg) scaleX(-1)' }} />
               </button>
               <button
                 type="button"
@@ -1213,7 +1272,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             </div>
           </div>
           {/* Left Bar */}
-          <div style={{ gridRow: '2', gridColumn: '1', display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em' }}>
+          <div style={{ gridRow: '2', gridColumn: '1', display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '0.5em', marginRight: '0.3em' }}>
             {/* Left toolbar with rotate/scale toggles */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3em', alignItems: 'center', paddingTop: '6px' }}>
               {/* Revert button (moved from bottom): small toolbar button at top-left */}
@@ -1344,6 +1403,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                   <IoRefreshCircle size={10} style={{ position: 'absolute', right: -2, bottom: -2, opacity: 0.85 }} />
                 </span>
               </button>
+
+              {/* Removed moved buttons from left toolbar (now in top toolbar) */}
             </div>
           </div>
           {/* Right bar */}
@@ -1394,64 +1455,7 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               );
             })()}
           </div>
-          {/* Bottom bar */}
-          <div style={{
-            gridRow: '3', gridColumn: '2',
-            marginTop: '0.5em',
-            display: 'flex',
-            gap: '0.3em',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,image/*"
-              style={{ display: 'none' }}
-              onChange={handleImport}
-            />
-            {isDebug && (
-              <>
-                <button
-                  type="button"
-                  style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Import JSON or Image"
-                ><IoFolderOpen color="#fff" size={20} /></button>
-                <button
-                  style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-                  onClick={handleExport}
-                  title="Export JSON"
-                ><IoDownload color="#fff" size={20} /></button>
-              </>
-            )}
-            <button
-              type="button"
-              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-              onClick={() => {
-                if (typeof onDelete !== 'function') return;
-                onDelete();
-              }}
-              title="Clear background image"
-            ><IoCloseCircleOutline color="#fff" size={20} /></button>
-            {typeof onDeleteBox === 'function' && (
-              <button
-                type="button"
-                style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-                onClick={() => {
-                  onDeleteBox();
-                }}
-                title="Delete box"
-              ><IoTrash color="#fff" size={20} /></button>
-            )}
-            {/* reverted: Revert button moved to left toolbar */}
-            <button
-              type="button"
-              style={{ fontSize: '1.2em', padding: '0.3em 0.5em', borderRadius: '5px', background: '#000', border: 'none', cursor: 'pointer' }}
-              onClick={handleReset}
-              title="Reset"
-            ><IoRefreshCircle color="#fff" size={20} /></button>
-          </div>
+          {/* Bottom bar removed: buttons moved to left toolbar */}
         </div>
       )}
 
