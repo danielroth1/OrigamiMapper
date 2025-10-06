@@ -1314,21 +1314,42 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               margin: '0 auto',
               display: 'flex',
               justifyContent: 'center',
-              alignItems: 'center',
+              alignItems: 'center'
             }}
           >
-            {selectionRect && (
-              <div style={{
-                position: 'absolute',
-                left: Math.min(selectionRect.x, selectionRect.x + selectionRect.w),
-                top: Math.min(selectionRect.y, selectionRect.y + selectionRect.h),
-                width: Math.abs(selectionRect.w),
-                height: Math.abs(selectionRect.h),
-                border: '1px dashed #ff8800',
-                background: 'rgba(255,136,0,0.1)',
-                pointerEvents: 'none'
-              }} />
-            )}
+            {selectionRect && (() => {
+              // When the canvas is smaller than the parent container and centered via flex,
+              // adjust the selection rectangle by the canvas's offset within the mount container.
+              let offsetLeft = 0, offsetTop = 0;
+              try {
+                const mountEl = mountRef.current;
+                const canvasEl = rendererRef.current?.domElement || null;
+                if (mountEl && canvasEl) {
+                  const mRect = mountEl.getBoundingClientRect();
+                  const cRect = canvasEl.getBoundingClientRect();
+                  offsetLeft = cRect.left - mRect.left;
+                  offsetTop = cRect.top - mRect.top;
+                }
+              } catch { /* no-op */ }
+              const left = offsetLeft + Math.min(selectionRect.x, selectionRect.x + selectionRect.w);
+              const top = offsetTop + Math.min(selectionRect.y, selectionRect.y + selectionRect.h);
+              const width = Math.abs(selectionRect.w);
+              const height = Math.abs(selectionRect.h);
+              return (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left,
+                    top,
+                    width,
+                    height,
+                    border: '1px dashed #ff8800',
+                    background: 'rgba(255,136,0,0.1)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              );
+            })()}
           </div>
           {/* Bottom bar */}
           <div style={{

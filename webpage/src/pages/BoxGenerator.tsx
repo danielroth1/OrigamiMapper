@@ -213,11 +213,13 @@ function BoxGenerator() {
     return out;
   };
 
-  const handleBuildCubeTextures = (
+  // Removed: combined build in favor of side-specific builders
+
+  // Build-only-bottom helper
+  const handleBuildBottomTextures = (
     outsidePolys?: OrigamiMapperTypes.Polygon[],
     insidePolys?: OrigamiMapperTypes.Polygon[]
   ) => {
-    // Bottom (legacy) build: prefer explicit args, then mounted editor, finally template defaults
     const outPolys = outsidePolys
       ?? outsideEditorRef.current?.getCurrentJson().input_polygons
       ?? getEditorData(false).input_polygons;
@@ -226,16 +228,20 @@ function BoxGenerator() {
       ?? getEditorData(true).input_polygons;
     buildFaceTextures(outPolys, outsideImgTransformed).then(tex => setOutsideFaces(tex));
     buildFaceTextures(inPolys, insideImgTransformed).then(tex => setInsideFaces(tex));
-    // Top build (if editors exist)
+  };
+
+  // Build-only-top helper
+  const handleBuildTopTextures = (
+    outsidePolys?: OrigamiMapperTypes.Polygon[],
+    insidePolys?: OrigamiMapperTypes.Polygon[]
+  ) => {
     const topOutPolys = topOutsideEditorRef.current?.getCurrentJson().input_polygons
       ?? getTopEditorData(false).input_polygons;
     const topInPolys = topInsideEditorRef.current?.getCurrentJson().input_polygons
       ?? getTopEditorData(true).input_polygons;
-    const topOutsideImg = topOutsideImgTransformed;
-    const topInsideImg = topInsideImgTransformed;
     if (hasTopBox) {
-      buildFaceTextures(topOutPolys, topOutsideImg).then(tex => setTopOutsideFaces(tex));
-      buildFaceTextures(topInPolys, topInsideImg).then(tex => setTopInsideFaces(tex));
+      buildFaceTextures(outsidePolys ?? topOutPolys, topOutsideImgTransformed).then(tex => setTopOutsideFaces(tex));
+      buildFaceTextures(insidePolys ?? topInPolys, topInsideImgTransformed).then(tex => setTopInsideFaces(tex));
     } else {
       setTopOutsideFaces({});
       setTopInsideFaces({});
@@ -300,32 +306,51 @@ function BoxGenerator() {
   };
 
   // Debounced auto-build when polygon editors or images change. PolygonEditor will call onChange with new JSON.
-  const buildDebounceRef = useRef<number | null>(null);
-  const scheduleBuild = (
+  const bottomBuildDebounceRef = useRef<number | null>(null);
+  const topBuildDebounceRef = useRef<number | null>(null);
+  const scheduleBuildBottom = (
     outsidePolys?: OrigamiMapperTypes.Polygon[],
     insidePolys?: OrigamiMapperTypes.Polygon[]
   ) => {
-    if (buildDebounceRef.current) window.clearTimeout(buildDebounceRef.current);
-    buildDebounceRef.current = window.setTimeout(() => {
-      handleBuildCubeTextures(outsidePolys, insidePolys);
-      buildDebounceRef.current = null;
+    if (bottomBuildDebounceRef.current) window.clearTimeout(bottomBuildDebounceRef.current);
+    bottomBuildDebounceRef.current = window.setTimeout(() => {
+      handleBuildBottomTextures(outsidePolys, insidePolys);
+      bottomBuildDebounceRef.current = null;
+    }, 120);
+  };
+  const scheduleBuildTop = (
+    outsidePolys?: OrigamiMapperTypes.Polygon[],
+    insidePolys?: OrigamiMapperTypes.Polygon[]
+  ) => {
+    if (topBuildDebounceRef.current) window.clearTimeout(topBuildDebounceRef.current);
+    topBuildDebounceRef.current = window.setTimeout(() => {
+      handleBuildTopTextures(outsidePolys, insidePolys);
+      topBuildDebounceRef.current = null;
     }, 120);
   };
 
   // Set and transform outside image
   const setOutsideImg = (dataUrl: string, top: boolean) => {
-    if (top)
+    if (top) {
+      // Top: write to top raw and build top-transformed using top rotation/state
       setOutsideImgTopRaw(dataUrl);
-    else
+      transformImage(dataUrl, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
+    } else {
+      // Bottom: write to bottom raw and bottom-transformed using bottom rotation/state
       setOutsideImgBottomRaw(dataUrl);
-    transformImage(dataUrl, transformMode, outsideRotation, setOutsideImgTransformed);
+      transformImage(dataUrl, transformMode, outsideRotation, setOutsideImgTransformed);
+    }
   };
   const setInsideImg = (dataUrl: string, top: boolean) => {
-    if (top)
+    if (top) {
+      // Top: write to top raw and build top-transformed using top rotation/state
       setInsideImgTopRaw(dataUrl);
-    else
+      transformImage(dataUrl, transformMode, topInsideRotation, setTopInsideImgTransformed);
+    } else {
+      // Bottom: write to bottom raw and bottom-transformed using bottom rotation/state
       setInsideImgBottomRaw(dataUrl);
-    transformImage(dataUrl, transformMode, insideRotation, setInsideImgTransformed);
+      transformImage(dataUrl, transformMode, insideRotation, setInsideImgTransformed);
+    }
   };
   // Top image transforms
   const [topOutsideImgRaw, setTopOutsideImgRaw] = useState('');
@@ -336,27 +361,32 @@ function BoxGenerator() {
   const [topInsideRotation, setTopInsideRotation] = useState<0 | 90 | 180 | 270>(0);
   const setTopOutsideImg = (dataUrl: string) => {
     setTopOutsideImgRaw(dataUrl);
+    // Keep autosave-compatible mirror in legacy top raw as well
+    setOutsideImgTopRaw(dataUrl);
     transformImage(dataUrl, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
   };
   const setTopInsideImg = (dataUrl: string) => {
     setTopInsideImgRaw(dataUrl);
+    // Keep autosave-compatible mirror in legacy top raw as well
+    setInsideImgTopRaw(dataUrl);
     transformImage(dataUrl, transformMode, topInsideRotation, setTopInsideImgTransformed);
   };
 
-  // Re-transform images when mode changes
+  // Re-transform images when mode or raw/top-raw changes
   useEffect(() => {
-    if (outsideImgTopRaw) transformImage(outsideImgTopRaw, transformMode, outsideRotation, setOutsideImgTransformed);
-    if (insideImgTopRaw) transformImage(insideImgTopRaw, transformMode, insideRotation, setInsideImgTransformed);
     if (outsideImgBottomRaw) transformImage(outsideImgBottomRaw, transformMode, outsideRotation, setOutsideImgTransformed);
     if (insideImgBottomRaw) transformImage(insideImgBottomRaw, transformMode, insideRotation, setInsideImgTransformed);
     if (topOutsideImgRaw) transformImage(topOutsideImgRaw, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
     if (topInsideImgRaw) transformImage(topInsideImgRaw, transformMode, topInsideRotation, setTopInsideImgTransformed);
-  }, [transformMode, outsideRotation, insideRotation, outsideImgBottomRaw, insideImgBottomRaw, outsideImgTopRaw, insideImgTopRaw, topOutsideImgRaw, topInsideImgRaw, topOutsideRotation, topInsideRotation]);
+  }, [transformMode, outsideRotation, insideRotation, outsideImgBottomRaw, insideImgBottomRaw, topOutsideImgRaw, topInsideImgRaw, topOutsideRotation, topInsideRotation]);
 
   // Rebuild cube textures when transformed images change (debounced)
   useEffect(() => {
-    scheduleBuild();
-  }, [outsideImgTransformed, insideImgTransformed, topOutsideImgTransformed, topInsideImgTransformed, hasTopBox]);
+    scheduleBuildBottom();
+  }, [outsideImgTransformed, insideImgTransformed]);
+  useEffect(() => {
+    scheduleBuildTop();
+  }, [topOutsideImgTransformed, topInsideImgTransformed, hasTopBox]);
 
 
   const handleRun = async (showProgress = false) => {
@@ -607,14 +637,25 @@ function BoxGenerator() {
     try {
       const rec = await getItem('autosave');
       if (!rec) return;
+      // Prevent demo auto-load from racing with autosave restore
+      setSuppressAutoDemo(true);
       const outDataTopUrl = await blobToDataUrl(rec.outsideTopBlob);
       const inDataTopUrl = await blobToDataUrl(rec.insideTopBlob);
       const outDataBottomUrl = await blobToDataUrl(rec.outsideBottomBlob);
       const inDataBottomUrl = await blobToDataUrl(rec.insideBottomBlob);
+      // Set which boxes should exist based on available images
+      const hasAnyBottom = Boolean(outDataBottomUrl || inDataBottomUrl);
+      const hasAnyTop = Boolean(outDataTopUrl || inDataTopUrl);
+      if (hasAnyBottom) setHasBottomBox(true);
+      if (hasAnyTop) setHasTopBox(true);
+      // Bottom images
       setOutsideImg(outDataBottomUrl ?? "", false);
       setInsideImg(inDataBottomUrl ?? "", false);
-      setOutsideImg(outDataTopUrl ?? "", true);
-      setInsideImg(inDataTopUrl ?? "", true);
+      // Top images: use top-specific setters so both raw and transformed top states are updated
+      if (outDataTopUrl) setTopOutsideImg(outDataTopUrl);
+      else { setTopOutsideImgRaw(""); setTopOutsideImgTransformed(""); }
+      if (inDataTopUrl) setTopInsideImg(inDataTopUrl);
+      else { setTopInsideImgRaw(""); setTopInsideImgTransformed(""); }
       if (rec.transformMode) setTransformMode(rec.transformMode);
       if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
       if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
@@ -982,17 +1023,17 @@ function BoxGenerator() {
                     ref={topOutsideEditorRef}
                     zoomGroup={'top'}
                     applyResetTransform={true}
-                    onChange={() => scheduleBuild()}
+                    onChange={() => scheduleBuildTop()}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getTopEditorData(false)}
                     label='Top Outside image'
                     backgroundImg={topOutsideImgTransformed}
                     rotation={topOutsideRotation}
                     onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
-                    onUploadImage={setTopOutsideImg}
+                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopOutsideImg(dataUrl); }}
                     onDelete={() => {
                       if (!confirm('Clear top outside image? This cannot be undone.')) return;
-                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
@@ -1005,17 +1046,17 @@ function BoxGenerator() {
                     ref={topInsideEditorRef}
                     zoomGroup={'top'}
                     applyResetTransform={true}
-                    onChange={() => scheduleBuild()}
+                    onChange={() => scheduleBuildTop()}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getTopEditorData(true)}
                     label='Top Inside image'
                     backgroundImg={topInsideImgTransformed}
                     rotation={topInsideRotation}
                     onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
-                    onUploadImage={setTopInsideImg}
+                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopInsideImg(dataUrl); }}
                     onDelete={() => {
                       if (!confirm('Clear top inside image? This cannot be undone.')) return;
-                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuild(); setSuppressAutoDemo(true);
+                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Top Box (both canvases)? This cannot be undone.')) return;
@@ -1036,7 +1077,7 @@ function BoxGenerator() {
                   if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
                   const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (insideEditorRef.current) insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, insideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
+                  scheduleBuildBottom();
                 }} title="Bottom mirrors from Top">↓</button>
                 <button style={{ opacity: mirrorDirection === 'up' ? 1 : 0.7 }} onClick={() => {
                   setMirrorDirection('up');
@@ -1044,7 +1085,7 @@ function BoxGenerator() {
                   if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
                   const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                   if (topInsideEditorRef.current) topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, topInsideEditorRef.current.getCurrentJson().input_polygons) });
-                  scheduleBuild();
+                  scheduleBuildTop();
                 }} title="Top mirrors from Bottom">↑</button>
               </div>
             )}
@@ -1057,17 +1098,17 @@ function BoxGenerator() {
                     ref={outsideEditorRef}
                     zoomGroup={'bottom'}
                     applyResetTransform={true}
-                    onChange={json => scheduleBuild(json.input_polygons, undefined)}
+                    onChange={json => scheduleBuildBottom(json.input_polygons, undefined)}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getEditorData(false)}
                     label='Bottom Outside image'
                     backgroundImg={outsideImgTransformed}
                     rotation={outsideRotation}
                     onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgBottomRaw, transformMode, r, setOutsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => setOutsideImg(dataUrl, false)}
+                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setOutsideImg(dataUrl, false); }}
                     onDelete={() => {
                       if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
-                      setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuild([], undefined); setSuppressAutoDemo(true);
+                      setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuildBottom([], undefined); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
@@ -1080,17 +1121,17 @@ function BoxGenerator() {
                     ref={insideEditorRef}
                     zoomGroup={'bottom'}
                     applyResetTransform={true}
-                    onChange={json => scheduleBuild(undefined, json.input_polygons)}
+                    onChange={json => scheduleBuildBottom(undefined, json.input_polygons)}
                     onOutsave={() => { void saveAutosave(); }}
                     data={getEditorData(true)}
                     label='Bottom Inside image'
                     backgroundImg={insideImgTransformed}
                     rotation={insideRotation}
                     onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgBottomRaw, transformMode, r, setInsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => setInsideImg(dataUrl, false)}
+                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setInsideImg(dataUrl, false); }}
                     onDelete={() => {
                       if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
-                      setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuild(undefined, []); setSuppressAutoDemo(true);
+                      setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuildBottom(undefined, []); setSuppressAutoDemo(true);
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
