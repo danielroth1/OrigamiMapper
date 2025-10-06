@@ -1082,44 +1082,66 @@ function BoxGenerator() {
                   setMirrorDirection('down');
                   // Also copy TOP images down to BOTTOM
                   setSuppressAutoDemo(true);
-                  // Pre-rotate raw images by rotation delta so bottom keeps its own rotation state
-                  const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                  const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                  if (topOutsideImgRaw) {
-                    const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
-                    setOutsideImgBottomRaw(rotated);
+                  // Mirror only the selected side
+                  if (sideFilter === 'outside') {
+                    // Pre-rotate raw outside image by rotation delta so bottom keeps its own rotation state
+                    const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                    if (topOutsideImgRaw) {
+                      const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
+                      setOutsideImgBottomRaw(rotated);
+                    }
+                    const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                    if (outsideEditorRef.current) {
+                      const target = outsideEditorRef.current.getCurrentJson().input_polygons;
+                      outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                    }
+                  } else if (sideFilter === 'inside') {
+                    // Pre-rotate raw inside image by rotation delta so bottom keeps its own rotation state
+                    const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                    if (topInsideImgRaw) {
+                      const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
+                      setInsideImgBottomRaw(rotated);
+                    }
+                    const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                    if (insideEditorRef.current) {
+                      const target = insideEditorRef.current.getCurrentJson().input_polygons;
+                      insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                    }
                   }
-                  if (topInsideImgRaw) {
-                    const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
-                    setInsideImgBottomRaw(rotated);
-                  }
-                  scheduleBuildBottom();
-                  const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (outsideEditorRef.current) outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, outsideEditorRef.current.getCurrentJson().input_polygons) });
-                  const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (insideEditorRef.current) insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, insideEditorRef.current.getCurrentJson().input_polygons) });
+                  // Build once after mirroring
                   scheduleBuildBottom();
                 }} title="Bottom mirrors from Top">↓</button>
                 <button onClick={async () => {
                   setMirrorDirection('up');
                   // Also copy BOTTOM images up to TOP
                   setSuppressAutoDemo(true);
-                  // Pre-rotate raw images by rotation delta so top keeps its own rotation state
-                  const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                  const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                  if (outsideImgBottomRaw) {
-                    const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
-                    setTopOutsideImg(rotated);
+                  // Mirror only the selected side
+                  if (sideFilter === 'outside') {
+                    // Pre-rotate raw outside image by rotation delta so top keeps its own rotation state
+                    const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                    if (outsideImgBottomRaw) {
+                      const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
+                      setTopOutsideImg(rotated);
+                    }
+                    const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                    if (topOutsideEditorRef.current) {
+                      const target = topOutsideEditorRef.current.getCurrentJson().input_polygons;
+                      topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                    }
+                  } else if (sideFilter === 'inside') {
+                    // Pre-rotate raw inside image by rotation delta so top keeps its own rotation state
+                    const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                    if (insideImgBottomRaw) {
+                      const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
+                      setTopInsideImg(rotated);
+                    }
+                    const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                    if (topInsideEditorRef.current) {
+                      const target = topInsideEditorRef.current.getCurrentJson().input_polygons;
+                      topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                    }
                   }
-                  if (insideImgBottomRaw) {
-                    const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
-                    setTopInsideImg(rotated);
-                  }
-                  scheduleBuildTop();
-                  const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, topOutsideEditorRef.current.getCurrentJson().input_polygons) });
-                  const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                  if (topInsideEditorRef.current) topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, topInsideEditorRef.current.getCurrentJson().input_polygons) });
+                  // Build once after mirroring
                   scheduleBuildTop();
                 }} title="Top mirrors from Bottom">↑</button>
               </div>
