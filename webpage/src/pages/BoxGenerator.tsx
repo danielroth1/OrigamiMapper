@@ -19,6 +19,7 @@ import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoC
 const SHOW_TEMPLATES = false;
 const SHOW_TRANSFORMS = false;
 const SHOW_OUTPUT_PAGES = false;
+const SHOW_RUN_MAPPING = false;
 
 function BoxGenerator() {
   const [outsideImgTopRaw, setOutsideImgTopRaw] = useState('');
@@ -1063,10 +1064,8 @@ function BoxGenerator() {
     for (let i = 0; i < pages.length; i++) {
       setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
-      // Apply scale like the preview logic: use per-page factor (top/bottom ratio) multiplied by global (1 - scalePercent/100)
-      const perPageFactor = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? 1) : 1;
-      const globalScale = Math.max(0, 1 - Math.max(0, Math.min(100, scalePercent)) / 100);
-      const frac = Math.max(0, perPageFactor * globalScale);
+      const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent / 100) : scalePercent / 100;
+      const frac = Math.max(0, perPageScale || 1);
       const innerW = PAGE_W * frac;
       const innerH = PAGE_H * frac;
       const x = (PAGE_W - innerW) / 2;
@@ -1221,12 +1220,22 @@ function BoxGenerator() {
           Perfect for holding a standard deck of 60 cards.
         </div>
 
+        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
+          <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
+            <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
+          </button>
+          <button onClick={() => mapperInputRef.current?.click()} disabled={loading || pdfLoading} className="menu-btn" title="Load project (.mapper)">
+            <IoCloudUpload style={{ verticalAlign: 'middle', marginRight: 8 }} /> Load
+          </button>
+          <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
+        </div>
+
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
         <div className="images" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
           <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'start' }}>
               <button
                 className="menu-btn"
                 onClick={() => setSideFilter(sideFilter === 'outside' ? 'inside' : 'outside')}
@@ -1585,7 +1594,7 @@ function BoxGenerator() {
           const refOutsideBottom = basePath + 'assets/reference_outside_bottom.png';
           const refInside = basePath + 'assets/reference_inside.png';
           return (
-        <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '1em', marginBottom: '2em' }}>
+        <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '3em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
             <div style={{ color: '#fff'}}>Outside Reference</div>
             <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
@@ -1698,11 +1707,12 @@ function BoxGenerator() {
                       style={{ width: '85%' }}
                     />
                   </div>
-                  <div style={{ display: 'flex', gap: '1em' }}>
+                  <div style={{ display: 'flex', gap: '1em', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '0.5em' }}>
+                    {SHOW_RUN_MAPPING &&
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
-                    </button>
-                    <button onClick={() => handleRunThenDownloadDual()} disabled={pdfLoading || loading} className="menu-btn">
+                    </button>}
+                    <button style={{ alignSelf: 'center'}} onClick={() => handleRunThenDownloadDual()} disabled={pdfLoading || loading} className="menu-btn">
                       {pdfLoading ? 'Preparing PDF...' : 'Download'}
                     </button>
                   </div>
