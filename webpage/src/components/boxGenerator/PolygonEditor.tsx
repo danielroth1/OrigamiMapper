@@ -15,6 +15,7 @@ export interface PolygonEditorHandle {
   getCurrentJson: () => OrigamiMapperTypes.TemplateJson;
   scalePolygonsToCanvas: () => void; // uniformly scale all polygons to fit canvas (contain)
   setFromJson: (json: OrigamiMapperTypes.TemplateJson) => void;
+  suppressNextAutoReset: () => void;
 }
 
 interface PolygonEditorProps {
@@ -219,6 +220,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const forceResetOnNextBgChangeRef = useRef<boolean>(false);
   // Force a one-time polygon reset when the user uploads a new image via this editor
   const resetOnUserUploadRef = useRef<boolean>(false);
+  // Suppress auto reset on the next background update (used when loading from autosave/mapper)
+  const suppressNextAutoResetRef = useRef<boolean>(false);
 
   // Deep equality for polygon arrays (IDs and vertices, with small float tolerance)
   const deepEqualPolygons = (a: OrigamiMapperTypes.Polygon[], b: OrigamiMapperTypes.Polygon[]) => {
@@ -753,13 +756,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
             // or when the editor is pristine; skip otherwise (e.g., mirror case)
             if (lastConvertedKeyRef.current !== key) {
               const isPristine = historyRef.current.length <= 1 && deepEqualPolygons(polygonsRef.current, data.input_polygons);
-              if (forceResetOnNextBgChangeRef.current || resetOnUserUploadRef.current || isPristine) {
+              const shouldReset = !suppressNextAutoResetRef.current && (forceResetOnNextBgChangeRef.current || resetOnUserUploadRef.current || isPristine);
+              if (shouldReset) {
                 const converted = resetPolygons(data.input_polygons, w, h);
                 setPolygons(converted);
               }
-              // consume the flag after handling current bg
+              // consume the flags after handling current bg
               forceResetOnNextBgChangeRef.current = false;
               resetOnUserUploadRef.current = false;
+              suppressNextAutoResetRef.current = false;
               lastConvertedKeyRef.current = key;
             }
           }
@@ -1062,7 +1067,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       if (typeof onChange === 'function') {
         try { onChange({ ...data, input_polygons: json.input_polygons }); } catch { }
       }
-    }
+    },
+    suppressNextAutoReset: () => { suppressNextAutoResetRef.current = true; }
   }), [data, polygons]);
 
   // Rotation is handled by the parent via transformed background image; no CSS rotation here.

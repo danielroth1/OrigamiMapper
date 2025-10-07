@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+import { unstable_batchedUpdates as batchedUpdates } from 'react-dom';
 import JSZip from 'jszip';
 import { mirrorOutsidePolygons, mirrorInsidePolygons } from '../utils/polygons';
 import { saveAs } from 'file-saver';
@@ -220,6 +221,27 @@ function BoxGenerator() {
       ImageTransform.rotateDegrees(dataUrl, degrees, (res: string) => resolve(res));
     });
 
+  // Async image transform helper: rotate then apply transform mode and return data URL
+  const transformImageAsync = (
+    dataUrl: string,
+    mode: 'none' | 'scale' | 'tile' | 'tile4' | 'tile8',
+    rotation: 0 | 90 | 180 | 270
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!dataUrl) return resolve('');
+      ImageTransform.rotateDegrees(dataUrl, rotation, (rotated: string) => {
+        if (mode === 'none') return resolve(rotated);
+        try {
+          if (mode === 'scale') return ImageTransform.scaleToA4Ratio(rotated, resolve);
+          if (mode === 'tile') return ImageTransform.tileToA4Ratio(rotated, resolve);
+          if (mode === 'tile4') return ImageTransform.tile4Times(rotated, resolve);
+          if (mode === 'tile8') return ImageTransform.tile8Times(rotated, resolve);
+        } catch {}
+        resolve(rotated);
+      });
+    });
+  };
+
   // Removed: combined build in favor of side-specific builders
 
   // Build-only-bottom helper
@@ -380,7 +402,13 @@ function BoxGenerator() {
   };
 
   // Re-transform images when mode or raw/top-raw changes
+  const skipNextTransformRef = useRef(false);
   useEffect(() => {
+    if (skipNextTransformRef.current) {
+      // Skip one pass when we explicitly set transformed values during a batched load
+      skipNextTransformRef.current = false;
+      return;
+    }
     if (outsideImgBottomRaw) transformImage(outsideImgBottomRaw, transformMode, outsideRotation, setOutsideImgTransformed);
     if (insideImgBottomRaw) transformImage(insideImgBottomRaw, transformMode, insideRotation, setInsideImgTransformed);
     if (topOutsideImgRaw) transformImage(topOutsideImgRaw, transformMode, topOutsideRotation, setTopOutsideImgTransformed);
@@ -613,10 +641,25 @@ function BoxGenerator() {
     try {
       const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null;
       const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : null;
-      const outsideTopBlob = await dataUrlToBlob(outsideImgTopRaw || null);
-      const insideTopBlob = await dataUrlToBlob(insideImgTopRaw || null);
-      const outsideBottomBlob = await dataUrlToBlob(outsideImgBottomRaw || null);
-      const insideBottomBlob = await dataUrlToBlob(insideImgBottomRaw || null);
+      const topOutsideJson = topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : null;
+      const topInsideJson = topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : null;
+      // Persist rotated images (bake rotation into the saved data)
+      const bakedTopOutside = (topOutsideImgRaw || outsideImgTopRaw)
+        ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
+        : '';
+      const bakedTopInside = (topInsideImgRaw || insideImgTopRaw)
+        ? await rotateDataUrlDegrees((topInsideImgRaw || insideImgTopRaw), topInsideRotation)
+        : '';
+      const bakedBottomOutside = outsideImgBottomRaw
+        ? await rotateDataUrlDegrees(outsideImgBottomRaw, outsideRotation)
+        : '';
+      const bakedBottomInside = insideImgBottomRaw
+        ? await rotateDataUrlDegrees(insideImgBottomRaw, insideRotation)
+        : '';
+      const outsideTopBlob = await dataUrlToBlob(bakedTopOutside || null);
+      const insideTopBlob = await dataUrlToBlob(bakedTopInside || null);
+      const outsideBottomBlob = await dataUrlToBlob(bakedBottomOutside || null);
+      const insideBottomBlob = await dataUrlToBlob(bakedBottomInside || null);
       const item = {
         id: 'autosave',
         updatedAt: Date.now(),
@@ -626,6 +669,8 @@ function BoxGenerator() {
         insideBottomBlob,
         outsideJson,
         insideJson,
+        topOutsideJson,
+        topInsideJson,
         transformMode,
         scalePercent,
         triangleOffsetPct,
@@ -650,28 +695,58 @@ function BoxGenerator() {
       const inDataTopUrl = await blobToDataUrl(rec.insideTopBlob);
       const outDataBottomUrl = await blobToDataUrl(rec.outsideBottomBlob);
       const inDataBottomUrl = await blobToDataUrl(rec.insideBottomBlob);
-      // Set which boxes should exist based on available images
-      const hasAnyBottom = Boolean(outDataBottomUrl || inDataBottomUrl);
-      const hasAnyTop = Boolean(outDataTopUrl || inDataTopUrl);
-      if (hasAnyBottom) setHasBottomBox(true);
-      if (hasAnyTop) setHasTopBox(true);
-      // Bottom images
-      setOutsideImg(outDataBottomUrl ?? "", false);
-      setInsideImg(inDataBottomUrl ?? "", false);
-      // Top images: use top-specific setters so both raw and transformed top states are updated
-      if (outDataTopUrl) setTopOutsideImg(outDataTopUrl);
-      else { setTopOutsideImgRaw(""); setTopOutsideImgTransformed(""); }
-      if (inDataTopUrl) setTopInsideImg(inDataTopUrl);
-      else { setTopInsideImgRaw(""); setTopInsideImgTransformed(""); }
-      if (rec.transformMode) setTransformMode(rec.transformMode);
-      if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
-      if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
-      if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
-      if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
-      if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
-      // restore editor JSONs if editors are mounted later; use a small timeout to allow refs to attach
-      try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch (e) { }
-      try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch (e) { }
+      // Precompute transformed images with baked rotations (use 0 rotation here)
+      const modeAtLoad = rec.transformMode ?? transformMode;
+      const [botOutT, botInT, topOutT, topInT] = await Promise.all([
+        outDataBottomUrl ? transformImageAsync(outDataBottomUrl, modeAtLoad, 0) : Promise.resolve(''),
+        inDataBottomUrl ? transformImageAsync(inDataBottomUrl, modeAtLoad, 0) : Promise.resolve(''),
+        outDataTopUrl ? transformImageAsync(outDataTopUrl, modeAtLoad, 0) : Promise.resolve(''),
+        inDataTopUrl ? transformImageAsync(inDataTopUrl, modeAtLoad, 0) : Promise.resolve('')
+      ]);
+      // Apply all state updates in one render
+      batchedUpdates(() => {
+        const hasAnyBottom = Boolean(outDataBottomUrl || inDataBottomUrl);
+        const hasAnyTop = Boolean(outDataTopUrl || inDataTopUrl);
+        if (hasAnyBottom) setHasBottomBox(true);
+        if (hasAnyTop) setHasTopBox(true);
+        // Suppress auto polygon reset before backgrounds update
+        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { insideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        // Rotations are baked; reset rotation states to 0
+        setOutsideRotation(0);
+        setInsideRotation(0);
+        setTopOutsideRotation(0);
+        setTopInsideRotation(0);
+        // Set a skip flag to avoid transform effect during this batch
+        skipNextTransformRef.current = true;
+        // Bottom raw + transformed
+        setOutsideImgBottomRaw(outDataBottomUrl || '');
+        setInsideImgBottomRaw(inDataBottomUrl || '');
+        setOutsideImgTransformed(botOutT || '');
+        setInsideImgTransformed(botInT || '');
+        // Top raw + transformed (also mirror to legacy top raws)
+        setTopOutsideImgRaw(outDataTopUrl || '');
+        setTopInsideImgRaw(inDataTopUrl || '');
+        setOutsideImgTopRaw(outDataTopUrl || '');
+        setInsideImgTopRaw(inDataTopUrl || '');
+        setTopOutsideImgTransformed(topOutT || '');
+        setTopInsideImgTransformed(topInT || '');
+        // Set transform mode last inside batch so effect is skipped
+        if (rec.transformMode) setTransformMode(rec.transformMode);
+        // Restore polygons
+        try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch {}
+        try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch {}
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } catch {}
+        try { if (rec.topInsideJson && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(rec.topInsideJson); } catch {}
+        // Other settings
+        if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
+        if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
+        if (typeof rec.outputDpi === 'number') setOutputDpi(rec.outputDpi);
+        if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
+        if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
+      });
     } catch (err) {
       console.warn('Failed to load autosave:', err);
     }
@@ -680,7 +755,8 @@ function BoxGenerator() {
   // Save to .mapper (zip) file
   const saveToMapperFile = async () => {
     try {
-      // Build combined JSON like handleRun does
+      // Build combined JSONs (bottom and top) like handleRun does
+      // Bottom
       const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : boxData;
       const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : boxData;
       const combinedJson = {
@@ -688,24 +764,46 @@ function BoxGenerator() {
         input_polygons: [...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? [])],
         output_polygons: [...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? [])]
       };
+      // Top (use top-specific helpers if refs are not mounted yet)
+      const topOutsideJson = topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : getTopEditorData(false);
+      const topInsideJson = topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : getTopEditorData(true);
+      const combinedTopJson = {
+        ...topOutsideJson,
+        input_polygons: [...(topOutsideJson.input_polygons ?? []), ...(topInsideJson.input_polygons ?? [])],
+        output_polygons: [...(topOutsideJson.output_polygons ?? []), ...(topInsideJson.output_polygons ?? [])]
+      };
 
       const zip = new JSZip();
-      zip.file('box.json', JSON.stringify(combinedJson, null, 2));
-      // add raw images if present
-      if (outsideImgTopRaw) {
-        const outBlob = await dataUrlToBlob(outsideImgTopRaw);
+      // Single combined JSON containing both bottom and top
+      const mapperJson = { bottom: combinedJson, top: combinedTopJson };
+      zip.file('box.json', JSON.stringify(mapperJson, null, 2));
+      // add rotated-only images (bake rotation into the image files)
+      const bakedTopOutside2 = (topOutsideImgRaw || outsideImgTopRaw)
+        ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
+        : '';
+      const bakedTopInside2 = (topInsideImgRaw || insideImgTopRaw)
+        ? await rotateDataUrlDegrees((topInsideImgRaw || insideImgTopRaw), topInsideRotation)
+        : '';
+      const bakedBottomOutside2 = outsideImgBottomRaw
+        ? await rotateDataUrlDegrees(outsideImgBottomRaw, outsideRotation)
+        : '';
+      const bakedBottomInside2 = insideImgBottomRaw
+        ? await rotateDataUrlDegrees(insideImgBottomRaw, insideRotation)
+        : '';
+      if (bakedTopOutside2) {
+        const outBlob = await dataUrlToBlob(bakedTopOutside2);
         if (outBlob) zip.file('outside_top.png', outBlob);
       }
-      if (insideImgTopRaw) {
-        const inBlob = await dataUrlToBlob(insideImgTopRaw);
+      if (bakedTopInside2) {
+        const inBlob = await dataUrlToBlob(bakedTopInside2);
         if (inBlob) zip.file('inside_top.png', inBlob);
       }
-      if (outsideImgBottomRaw) {
-        const outBlob = await dataUrlToBlob(outsideImgBottomRaw);
+      if (bakedBottomOutside2) {
+        const outBlob = await dataUrlToBlob(bakedBottomOutside2);
         if (outBlob) zip.file('outside_bottom.png', outBlob);
       }
-      if (insideImgBottomRaw) {
-        const inBlob = await dataUrlToBlob(insideImgBottomRaw);
+      if (bakedBottomInside2) {
+        const inBlob = await dataUrlToBlob(bakedBottomInside2);
         if (inBlob) zip.file('inside_bottom.png', inBlob);
       }
       const content = await zip.generateAsync({ type: 'blob' });
@@ -725,50 +823,164 @@ function BoxGenerator() {
       const ab = await file.arrayBuffer();
       const zip = await JSZip.loadAsync(ab);
       // read box.json
+      let loadedTopFromMain = false;
+      let loadedBottomFromMain = false;
+      // Stage polygon JSONs to apply in one batch later
+      let stagedBottomOutside: any = null;
+      let stagedBottomInside: any = null;
+      let stagedTopOutside: any = null;
+      let stagedTopInside: any = null;
       if (zip.file('box.json')) {
         const txt = await zip.file('box.json')!.async('string');
         try {
           const parsed = JSON.parse(txt);
-          // Split parsed JSON into outside/inside variants and set into respective editors
-          const outsideParsed = {
-            ...parsed,
-            input_polygons: (parsed.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
-          };
-          const insideParsed = {
-            ...parsed,
-            input_polygons: (parsed.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
-          };
-          try { if (outsideParsed && outsideEditorRef.current) outsideEditorRef.current.setFromJson(outsideParsed); } catch (e) { }
-          try { if (insideParsed && insideEditorRef.current) insideEditorRef.current.setFromJson(insideParsed); } catch (e) { }
+          if (parsed?.bottom || parsed?.top) {
+            // New format: single JSON with bottom and top
+            const bottom = parsed.bottom || {};
+            const top = parsed.top || {};
+            const bottomOutsideParsed = {
+              ...bottom,
+              input_polygons: (bottom.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
+            };
+            const bottomInsideParsed = {
+              ...bottom,
+              input_polygons: (bottom.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
+            };
+            // Stage bottom polygons for later
+            stagedBottomOutside = bottomOutsideParsed;
+            stagedBottomInside = bottomInsideParsed;
+            const hasBottomPolys = (bottom.input_polygons ?? []).length > 0 || (bottom.output_polygons ?? []).length > 0;
+            if (hasBottomPolys) {
+              setHasBottomBox(true);
+              loadedBottomFromMain = true;
+            }
+
+            const topOutsideParsed = {
+              ...top,
+              input_polygons: (top.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
+            };
+            const topInsideParsed = {
+              ...top,
+              input_polygons: (top.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
+            };
+            const hasTopPolys = (top.input_polygons ?? []).length > 0 || (top.output_polygons ?? []).length > 0;
+            if (hasTopPolys) {
+              setHasTopBox(true);
+              loadedTopFromMain = true;
+            }
+            // Stage top polygons for later
+            stagedTopOutside = topOutsideParsed;
+            stagedTopInside = topInsideParsed;
+          } else {
+            // Legacy format: parsed is a single combined JSON (bottom)
+            const outsideParsed = {
+              ...parsed,
+              input_polygons: (parsed.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
+            };
+            const insideParsed = {
+              ...parsed,
+              input_polygons: (parsed.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
+            };
+            // Stage legacy bottom polygons
+            stagedBottomOutside = outsideParsed;
+            stagedBottomInside = insideParsed;
+            const hasBottomPolys = (parsed.input_polygons ?? []).length > 0 || (parsed.output_polygons ?? []).length > 0;
+            if (hasBottomPolys) setHasBottomBox(true);
+          }
         } catch (e) { console.warn('box.json parse error', e); }
+      }
+      // Backward compatibility: if top not provided inside box.json, optionally read box_top.json
+      if (!loadedTopFromMain && zip.file('box_top.json')) {
+        const txtTop = await zip.file('box_top.json')!.async('string');
+        try {
+          const parsedTop = JSON.parse(txtTop);
+          const topOutsideParsed = {
+            ...parsedTop,
+            input_polygons: (parsedTop.input_polygons ?? []).filter((p: any) => !String(p.id).includes('i'))
+          };
+          const topInsideParsed = {
+            ...parsedTop,
+            input_polygons: (parsedTop.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
+          };
+          setHasTopBox(true);
+          stagedTopOutside = topOutsideParsed;
+          stagedTopInside = topInsideParsed;
+        } catch (e) { console.warn('box_top.json parse error', e); }
       }
       // images
       let dataUrl = "";
+      // Prepare transformed images (rotations already baked in the .mapper images)
+      const modeAtLoad = transformMode;
+      let topOutRaw = "", topInRaw = "", botOutRaw = "", botInRaw = "";
+      let topOutT = "", topInT = "", botOutT = "", botInT = "";
       if (zip.file('outside_top.png')) {
         const blob = await zip.file('outside_top.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
+        topOutRaw = dataUrl;
+        topOutT = dataUrl ? await transformImageAsync(dataUrl, modeAtLoad, 0) : "";
       }
-      // Use top-specific setter
-      setTopOutsideImg(dataUrl);
+      // defer setting until batch
       dataUrl = "";
       if (zip.file('inside_top.png')) {
         const blob = await zip.file('inside_top.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
+        topInRaw = dataUrl;
+        topInT = dataUrl ? await transformImageAsync(dataUrl, modeAtLoad, 0) : "";
       }
-      // Use top-specific setter
-      setTopInsideImg(dataUrl);
+      // defer setting until batch
+      if (dataUrl || zip.file('outside_top.png')) {
+        setHasTopBox(true);
+      }
 
       if (zip.file('outside_bottom.png')) {
         const blob = await zip.file('outside_bottom.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
+        botOutRaw = dataUrl;
+        botOutT = dataUrl ? await transformImageAsync(dataUrl, modeAtLoad, 0) : "";
       }
-      setOutsideImg(dataUrl, false);
+      // defer setting until batch
       dataUrl = "";
       if (zip.file('inside_bottom.png')) {
         const blob = await zip.file('inside_bottom.png')!.async('blob');
         dataUrl = await blobToDataUrl(blob) ?? "";
+        botInRaw = dataUrl;
+        botInT = dataUrl ? await transformImageAsync(dataUrl, modeAtLoad, 0) : "";
       }
-      setInsideImg(dataUrl, false);
+      // Apply everything in a single render
+      batchedUpdates(() => {
+        // Reset rotation states to 0 for baked images
+        setTopOutsideRotation(0);
+        setTopInsideRotation(0);
+        setOutsideRotation(0);
+        setInsideRotation(0);
+        // Suppress polygon auto reset before applying backgrounds and polygons
+        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { insideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        // Skip one transform effect pass
+        skipNextTransformRef.current = true;
+        // Set polygons if staged
+        try { if (stagedBottomOutside && outsideEditorRef.current) outsideEditorRef.current.setFromJson(stagedBottomOutside); } catch {}
+        try { if (stagedBottomInside && insideEditorRef.current) insideEditorRef.current.setFromJson(stagedBottomInside); } catch {}
+        try { if (stagedTopOutside && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(stagedTopOutside); } catch {}
+        try { if (stagedTopInside && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(stagedTopInside); } catch {}
+        // Set raw + transformed images for top and bottom
+        setTopOutsideImgRaw(topOutRaw);
+        setTopInsideImgRaw(topInRaw);
+        setOutsideImgTopRaw(topOutRaw);
+        setInsideImgTopRaw(topInRaw);
+        setTopOutsideImgTransformed(topOutT);
+        setTopInsideImgTransformed(topInT);
+        setOutsideImgBottomRaw(botOutRaw);
+        setInsideImgBottomRaw(botInRaw);
+        setOutsideImgTransformed(botOutT);
+        setInsideImgTransformed(botInT);
+        // Ensure visibility
+        if (topOutRaw || topInRaw) setHasTopBox(true);
+        if (botOutRaw || botInRaw || loadedBottomFromMain) setHasBottomBox(true);
+        if (!botOutRaw && !botInRaw && !loadedBottomFromMain) setHasBottomBox(true);
+      });
     } catch (err) {
       console.error('Failed to load .mapper file:', err);
       alert('Failed to load project file: ' + String(err));
