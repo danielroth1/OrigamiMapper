@@ -1063,10 +1063,12 @@ function BoxGenerator() {
     for (let i = 0; i < pages.length; i++) {
       setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
-      const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent) : scalePercent;
-      const frac = Math.max(0, (perPageScale || 0) / 100);
-      const innerW = PAGE_W * (1 - 2 * frac);
-      const innerH = PAGE_H * (1 - 2 * frac);
+      // Apply scale like the preview logic: use per-page factor (top/bottom ratio) multiplied by global (1 - scalePercent/100)
+      const perPageFactor = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? 1) : 1;
+      const globalScale = Math.max(0, 1 - Math.max(0, Math.min(100, scalePercent)) / 100);
+      const frac = Math.max(0, perPageFactor * globalScale);
+      const innerW = PAGE_W * frac;
+      const innerH = PAGE_H * frac;
       const x = (PAGE_W - innerW) / 2;
       const y = (PAGE_H - innerH) / 2;
       let dataUrl = pages[i];
@@ -1160,16 +1162,16 @@ function BoxGenerator() {
 
       const ratio = topBottomRatio; // 0..100
       const factors = (() => {
-        if (ratio < 50) return { top: (50 - ratio) / 50, bottom: 0 };
-        if (ratio > 50) return { top: 0, bottom: (ratio - 50) / 50 };
-        return { top: 0, bottom: 0 };
+        if (ratio < 50) return { top: 1 - (50.0 - ratio) / 50, bottom: 1 };
+        if (ratio > 50) return { top: 1, bottom: 1 - (ratio - 50.0) / 50 };
+        return { top: 1, bottom: 1 };
       })();
 
       // Helper push with corresponding scale for which box it belongs to
       const pushPagesWithScale = (which: 'bottom' | 'top', d: { [k: string]: string } | undefined) => {
         if (!d) return;
         const factor = which === 'top' ? factors.top : factors.bottom;
-        const eff = Math.max(0, Math.round((scalePercent || 0) * factor));
+        const eff = (1 - scalePercent / 100.0) * factor;
         if (d.output_page1) { outerPages.push(d.output_page1); outerScales.push(eff); }
         if (d.output_page2) { innerPages.push(d.output_page2); innerScales.push(eff); }
       };
@@ -1505,12 +1507,8 @@ function BoxGenerator() {
                     const ratio = topBottomRatio; // 0..100
                     const topFactor = ratio < 50 ? (50 - ratio) / 50 : 0;
                     const bottomFactor = ratio > 50 ? (ratio - 50) / 50 : 0;
-                    // Preview should ignore global scalePercent; use a fixed max preview reduction percent
-                    const PREVIEW_RATIO_MAX_PCT = 30; // decoupled from scalePercent
-                    const effTopPct = PREVIEW_RATIO_MAX_PCT * topFactor;
-                    const effBottomPct = PREVIEW_RATIO_MAX_PCT * bottomFactor;
-                    const previewTopScale = Math.max(0.2, 1 - 2 * (effTopPct / 100));
-                    const previewBottomScale = Math.max(0.2, 1 - 2 * (effBottomPct / 100));
+                    const previewTopScale = 1 - topFactor;
+                    const previewBottomScale = 1 - bottomFactor;
                     return (
                       <CubeViewer
                         bottomOutsideFaces={(hasBottomBox && viewMode !== 'top') ? outsideFaces : undefined}
@@ -1564,8 +1562,8 @@ function BoxGenerator() {
                 </div>
                 <input
                   type="range"
-                  min={0}
-                  max={100}
+                  min={10}
+                  max={90}
                   step={1}
                   value={topBottomRatio}
                   onChange={e => setTopBottomRatio(Number(e.target.value))}
