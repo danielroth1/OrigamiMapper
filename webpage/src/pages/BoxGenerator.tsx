@@ -1220,7 +1220,7 @@ function BoxGenerator() {
           Perfect for holding a standard deck of 60 cards.
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', marginBottom: '1em' }}>
           <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
             <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
           </button>
@@ -1245,17 +1245,12 @@ function BoxGenerator() {
               >
                 <IoSwapHorizontal style={{ verticalAlign: 'middle' }} /> {sideFilter === 'outside' ? 'Outside' : 'Inside'}
               </button>
-              <div style={{ display: 'flex', gap: '0.5em' }}>
-                {!hasBottomBox && (
-                  <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
-                )}
-                {!hasTopBox && (
-                  <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
-                )}
-              </div>
             </div>
 
             {/* Top box editors (only when visible by viewMode) */}
+            {!hasTopBox && (
+              <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
+            )}
             {hasTopBox && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'bottom'}>
                 <div hidden={sideFilter !== 'outside'}>
@@ -1381,6 +1376,9 @@ function BoxGenerator() {
             )}
 
             {/* Bottom box editors (only when visible by viewMode) */}
+            {!hasBottomBox && (
+              <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
+            )}
             {hasBottomBox && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'top'}>
                 <div hidden={sideFilter !== 'outside'}>
@@ -1538,8 +1536,8 @@ function BoxGenerator() {
             {/* Right: vertical slider placed OUTSIDE the colored frame */}
             {(hasBottomBox && hasTopBox && viewMode === 'both') && (
               <div style={{ gridColumn: 2, gridRow: 1, flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'start' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{ color: '#fff', fontSize: '0.8em' }}>Open Box</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                  <div style={{ color: '#fff', fontSize: '0.8em', marginTop: 8 }}>Open Box</div>
                   <div style={{ height: (0.8 * getCanvasHeight() || '100%') as number | string, position: 'relative' }}>
                     <input
                       type="range"
@@ -1604,10 +1602,10 @@ function BoxGenerator() {
               <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
             </a>
           </div>
-          <div style={{ flex: '0 1 400px' }}>
+          <div style={{ flex: '0 1 300px' }}>
             {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
-            <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '400px', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
+            <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '300', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
                 {SHOW_TEMPLATES && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
                   <TemplateSelect onTemplate={setTemplate} />
                 </div>}
@@ -1622,7 +1620,7 @@ function BoxGenerator() {
                   </select>
                 </div>}
                 {/* Rotation selectors moved into each PolygonEditor sidebar */}
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
                   <span style={{ color: '#fff' }}>Output DPI:</span>
                   <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
                     <option value={200}>200</option>
@@ -1717,12 +1715,6 @@ function BoxGenerator() {
                     </button>
                   </div>
                   <div style={{ display: 'flex', gap: '1em', marginTop: '0.5em' }}>
-                    <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
-                      <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
-                    </button>
-                    <button onClick={() => mapperInputRef.current?.click()} disabled={loading || pdfLoading} className="menu-btn" title="Load project (.mapper)">
-                      <IoCloudUpload style={{ verticalAlign: 'middle', marginRight: 8 }} /> Load
-                    </button>
                     <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
                   </div>
                 </div>
