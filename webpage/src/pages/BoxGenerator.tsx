@@ -638,12 +638,17 @@ function BoxGenerator() {
   });
 
   // Autosave current app state under id 'autosave'
-  const saveAutosave = async () => {
+  const saveAutosave = async (overrides?: {
+    outsideJson?: OrigamiMapperTypes.TemplateJson | null;
+    insideJson?: OrigamiMapperTypes.TemplateJson | null;
+    topOutsideJson?: OrigamiMapperTypes.TemplateJson | null;
+    topInsideJson?: OrigamiMapperTypes.TemplateJson | null;
+  }) => {
     try {
-      const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null;
-      const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : null;
-      const topOutsideJson = topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : null;
-      const topInsideJson = topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : null;
+      const outsideJson = (overrides && 'outsideJson' in (overrides || {})) ? overrides?.outsideJson : (outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null);
+      const insideJson = (overrides && 'insideJson' in (overrides || {})) ? overrides?.insideJson : (insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : null);
+      const topOutsideJson = (overrides && 'topOutsideJson' in (overrides || {})) ? overrides?.topOutsideJson : (topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : null);
+      const topInsideJson = (overrides && 'topInsideJson' in (overrides || {})) ? overrides?.topInsideJson : (topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : null);
       // Persist rotated images (bake rotation into the saved data)
       const bakedTopOutside = (topOutsideImgRaw || outsideImgTopRaw)
         ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
@@ -1259,7 +1264,7 @@ function BoxGenerator() {
                     zoomGroup={'top'}
                     applyResetTransform={true}
                     onChange={() => scheduleBuildTop()}
-                    onOutsave={() => { void saveAutosave(); }}
+                    onOutsave={(json) => { void saveAutosave({ topOutsideJson: json }); }}
                     data={getTopEditorData(false)}
                     label='Top Outside image'
                     backgroundImg={topOutsideImgTransformed}
@@ -1269,10 +1274,23 @@ function BoxGenerator() {
                     onDelete={() => {
                       if (!confirm('Clear top outside image? This cannot be undone.')) return;
                       setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
+                      void saveAutosave();
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Top Box? This cannot be undone.')) return;
+                      // Clear all Top box images so autosave reflects removal
+                      setTopOutsideImgRaw('');
+                      setTopOutsideImgTransformed('');
+                      setTopInsideImgRaw('');
+                      setTopInsideImgTransformed('');
+                      // Clear legacy top mirrors used by autosave fallback
+                      setOutsideImgTopRaw('');
+                      setInsideImgTopRaw('');
+                      // Update UI state
                       setHasTopBox(false);
+                      setSuppressAutoDemo(true);
+                      scheduleBuildTop();
+                      void saveAutosave();
                     }}
                   />
                 </div>
@@ -1282,7 +1300,7 @@ function BoxGenerator() {
                     zoomGroup={'top'}
                     applyResetTransform={true}
                     onChange={() => scheduleBuildTop()}
-                    onOutsave={() => { void saveAutosave(); }}
+                    onOutsave={(json) => { void saveAutosave({ topInsideJson: json }); }}
                     data={getTopEditorData(true)}
                     label='Top Inside image'
                     backgroundImg={topInsideImgTransformed}
@@ -1292,10 +1310,23 @@ function BoxGenerator() {
                     onDelete={() => {
                       if (!confirm('Clear top inside image? This cannot be undone.')) return;
                       setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
+                      void saveAutosave();
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Top Box? This cannot be undone.')) return;
+                      // Clear all Top box images so autosave reflects removal
+                      setTopOutsideImgRaw('');
+                      setTopOutsideImgTransformed('');
+                      setTopInsideImgRaw('');
+                      setTopInsideImgTransformed('');
+                      // Clear legacy top mirrors used by autosave fallback
+                      setOutsideImgTopRaw('');
+                      setInsideImgTopRaw('');
+                      // Update UI state
                       setHasTopBox(false);
+                      setSuppressAutoDemo(true);
+                      scheduleBuildTop();
+                      void saveAutosave();
                     }}
                   />
                 </div>
@@ -1387,7 +1418,7 @@ function BoxGenerator() {
                     zoomGroup={'bottom'}
                     applyResetTransform={true}
                     onChange={json => scheduleBuildBottom(json.input_polygons, undefined)}
-                    onOutsave={() => { void saveAutosave(); }}
+                    onOutsave={(json) => { void saveAutosave({ outsideJson: json }); }}
                     data={getEditorData(false)}
                     label='Bottom Outside image'
                     backgroundImg={outsideImgTransformed}
@@ -1397,10 +1428,20 @@ function BoxGenerator() {
                     onDelete={() => {
                       if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
                       setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuildBottom([], undefined); setSuppressAutoDemo(true);
+                      void saveAutosave();
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      // Clear all Bottom box images so autosave reflects removal
+                      setOutsideImgBottomRaw('');
+                      setOutsideImgTransformed('');
+                      setInsideImgBottomRaw('');
+                      setInsideImgTransformed('');
+                      // Update UI state
                       setHasBottomBox(false);
+                      setSuppressAutoDemo(true);
+                      scheduleBuildBottom([], []);
+                      void saveAutosave();
                     }}
                   />
                 </div>
@@ -1410,7 +1451,7 @@ function BoxGenerator() {
                     zoomGroup={'bottom'}
                     applyResetTransform={true}
                     onChange={json => scheduleBuildBottom(undefined, json.input_polygons)}
-                    onOutsave={() => { void saveAutosave(); }}
+                    onOutsave={(json) => { void saveAutosave({ insideJson: json }); }}
                     data={getEditorData(true)}
                     label='Bottom Inside image'
                     backgroundImg={insideImgTransformed}
@@ -1420,10 +1461,20 @@ function BoxGenerator() {
                     onDelete={() => {
                       if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
                       setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuildBottom(undefined, []); setSuppressAutoDemo(true);
+                      void saveAutosave();
                     }}
                     onDeleteBox={() => {
                       if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                      // Clear all Bottom box images so autosave reflects removal
+                      setOutsideImgBottomRaw('');
+                      setOutsideImgTransformed('');
+                      setInsideImgBottomRaw('');
+                      setInsideImgTransformed('');
+                      // Update UI state
                       setHasBottomBox(false);
+                      setSuppressAutoDemo(true);
+                      scheduleBuildBottom([], []);
+                      void saveAutosave();
                     }}
                   />
                 </div>

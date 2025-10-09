@@ -136,9 +136,18 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     setPolygons(polygons);
     setSelectedIds(new Set());
     pushHistory(polygonsRef.current);
+    const json = { ...data, input_polygons: polygons };
     if (typeof onChange === 'function') {
-      try { onChange({ ...data, input_polygons: polygons }); } catch { }
+      try { onChange(json); } catch { }
     }
+    // Also request an autosave immediately after reset
+    if (typeof onOutsave === 'function') {
+      try { onOutsave(json); } catch { }
+    }
+    // Emit a matching outsave event for any external listeners
+    try {
+      window.dispatchEvent(new CustomEvent('polygonEditor:outsave', { detail: { json, label } }));
+    } catch { }
   };
   const selectionRectRef = useRef<null | { x: number; y: number; w: number; h: number }>(null);
   useEffect(() => { selectionRectRef.current = selectionRect; }, [selectionRect]);
@@ -586,6 +595,12 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
                 if (b.vertices[j][0] !== a.vertices[j][0] || b.vertices[j][1] !== a.vertices[j][1]) { changed = true; break; }
               }
             }
+          }
+          // If the interaction was a rotation, treat any non-zero accumulated rotation as a change
+          // even if the vertices end up numerically identical (e.g., a full 360° turn).
+          if (!changed && state.mode === 'rotate') {
+            const EPS = 1e-6;
+            if (Math.abs(state.rotationAccum || 0) > EPS) changed = true;
           }
           if (changed) {
             pushHistory(before);
