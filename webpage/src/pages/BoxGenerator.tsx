@@ -709,7 +709,7 @@ function BoxGenerator() {
         outDataTopUrl ? transformImageAsync(outDataTopUrl, modeAtLoad, 0) : Promise.resolve(''),
         inDataTopUrl ? transformImageAsync(inDataTopUrl, modeAtLoad, 0) : Promise.resolve('')
       ]);
-      // Apply all state updates in one render
+  // Apply all state updates in one render
       batchedUpdates(() => {
         const hasAnyBottom = Boolean(outDataBottomUrl || inDataBottomUrl);
         const hasAnyTop = Boolean(outDataTopUrl || inDataTopUrl);
@@ -744,8 +744,8 @@ function BoxGenerator() {
         // Restore polygons
         try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch {}
         try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch {}
-        try { if (rec.topOutsideJson && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } catch {}
-        try { if (rec.topInsideJson && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(rec.topInsideJson); } catch {}
+  try { if (rec.topOutsideJson && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } catch {}
+  try { if (rec.topInsideJson && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(rec.topInsideJson); } catch {}
         // Other settings
         if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
         if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
@@ -753,6 +753,17 @@ function BoxGenerator() {
         if (typeof rec.withFoldLines === 'boolean') setWithFoldLines(rec.withFoldLines);
         if (typeof rec.withCutLines === 'boolean') setWithCutLines(rec.withCutLines);
       });
+      // In production builds the Top editors may not be mounted yet when we tried to setFromJson above
+      // (hasTopBox flips to true in the same batch). Apply again after the next paint.
+      setTimeout(() => {
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch {}
+        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch {}
+      }, 0);
+      // Safety second attempt in case images/transforms finalize slightly later
+      setTimeout(() => {
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch {}
+        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch {}
+      }, 60);
     } catch (err) {
       console.warn('Failed to load autosave:', err);
     }
@@ -969,8 +980,8 @@ function BoxGenerator() {
         // Set polygons if staged
         try { if (stagedBottomOutside && outsideEditorRef.current) outsideEditorRef.current.setFromJson(stagedBottomOutside); } catch {}
         try { if (stagedBottomInside && insideEditorRef.current) insideEditorRef.current.setFromJson(stagedBottomInside); } catch {}
-        try { if (stagedTopOutside && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(stagedTopOutside); } catch {}
-        try { if (stagedTopInside && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(stagedTopInside); } catch {}
+  try { if (stagedTopOutside && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(stagedTopOutside); } catch {}
+  try { if (stagedTopInside && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(stagedTopInside); } catch {}
         // Set raw + transformed images for top and bottom
         setTopOutsideImgRaw(topOutRaw);
         setTopInsideImgRaw(topInRaw);
@@ -987,6 +998,16 @@ function BoxGenerator() {
         if (botOutRaw || botInRaw || loadedBottomFromMain) setHasBottomBox(true);
         if (!botOutRaw && !botInRaw && !loadedBottomFromMain) setHasBottomBox(true);
       });
+      // In production builds the Top editors may not be mounted yet when we setFromJson above.
+      // Re-apply after mount.
+      setTimeout(() => {
+        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch {}
+        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch {}
+      }, 0);
+      setTimeout(() => {
+        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch {}
+        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch {}
+      }, 60);
     } catch (err) {
       console.error('Failed to load .mapper file:', err);
       alert('Failed to load project file: ' + String(err));
