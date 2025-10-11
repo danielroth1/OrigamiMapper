@@ -32,7 +32,7 @@ function BoxGenerator() {
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [outputDpi, setOutputDpi] = useState<number>(300);
-  const [scalePercent, setScalePercent] = useState(0); // percent (0..100+): amount to reduce the printed box on each side
+  const [scalePercent, setScalePercent] = useState(1); // percent (0..100+): amount to reduce the printed box on each side
   const [triangleOffsetPct, setTriangleOffsetPct] = useState(2); // percent (0..100): triangle growth offset relative to max(width,height)
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -52,7 +52,7 @@ function BoxGenerator() {
   const [openPercent, setOpenPercent] = useState<number>(50);
   // Note: Preview ignores global scalePercent; PDF export applies scalePercent per page
   // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
-  const [topBottomRatio, setTopBottomRatio] = useState<number>(55);
+  const [topBottomRatio, setTopBottomRatio] = useState<number>(52);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
   const [, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
@@ -1785,9 +1785,6 @@ function BoxGenerator() {
                     <button style={{ alignSelf: 'center'}} onClick={() => handleRunThenDownloadDual()} disabled={pdfLoading || loading} className="menu-btn">
                       {pdfLoading ? 'Preparing PDF...' : 'Download'}
                     </button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1em', marginTop: '0.5em' }}>
-                    <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
                   </div>
                 </div>
                 {/* simple progress bar shown while PDF is being generated */}
