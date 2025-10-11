@@ -33,7 +33,7 @@ function BoxGenerator() {
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [outputDpi, setOutputDpi] = useState<number>(300);
   const [scalePercent, setScalePercent] = useState(1); // percent (0..100+): amount to reduce the printed box on each side
-  const [triangleOffsetPct, setTriangleOffsetPct] = useState(2); // percent (0..100): triangle growth offset relative to max(width,height)
+  const [triangleOffsetPct, setTriangleOffsetPct] = useState(4); // percent (0..100): triangle growth offset relative to max(width,height)
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
