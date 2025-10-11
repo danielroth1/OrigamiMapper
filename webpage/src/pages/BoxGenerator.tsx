@@ -1076,27 +1076,27 @@ function BoxGenerator() {
     return await runMappingJS(leftImg, rightImg, JSON.stringify(combinedJson), outputDpi, Math.max(0, (triangleOffsetPct || 0) / 100));
   };
 
-  // Generate a PDF from an array of page images (all page1 or all page2)
-  const generatePdfFromPages = async (
-    pages: string[],
-    pageKind: 1 | 2,
-    fileName: string,
-    pageScalePercents?: number[] // optional per-page scale overrides (0..100). If omitted, uses global scalePercent
+  // Shared renderer: generates a PDF from a sequence of pages of different kinds and scales
+  const renderPdfFromSequence = async (
+    sequence: Array<{ dataUrl: string; pageKind: 1 | 2; scale?: number }>,
+    fileName: string
   ) => {
     // A4 dimensions in mm
     const PAGE_W = 210;
     const PAGE_H = 297;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    for (let i = 0; i < pages.length; i++) {
-      setPdfProgress(50 + Math.round((i / Math.max(1, pages.length)) * 40));
+    for (let i = 0; i < sequence.length; i++) {
+      setPdfProgress(50 + Math.round((i / Math.max(1, sequence.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
-      const perPageScale = Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent / 100) : scalePercent / 100;
+      const { dataUrl: rawUrl, pageKind, scale } = sequence[i];
+      const perPageScale = typeof scale === 'number' ? scale : (scalePercent / 100);
       const frac = Math.max(0, perPageScale || 1);
       const innerW = PAGE_W * frac;
       const innerH = PAGE_H * frac;
       const x = (PAGE_W - innerW) / 2;
       const y = (PAGE_H - innerH) / 2;
-      let dataUrl = pages[i];
+
+      let dataUrl = rawUrl;
       if (!dataUrl) {
         // blank
         const c = document.createElement('canvas');
@@ -1108,6 +1108,7 @@ function BoxGenerator() {
         dataUrl = c.toDataURL('image/png');
       }
       doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+
       // helper lines per kind
       const base = (import.meta as any).env?.BASE_URL || '/';
       const helperPath = base + 'assets/lines_page' + pageKind + '.png';
@@ -1162,13 +1163,43 @@ function BoxGenerator() {
           }
         } catch { }
       }
-      if (i < pages.length - 1) doc.addPage();
+      if (i < sequence.length - 1) doc.addPage();
     }
     doc.save(fileName);
   };
 
+  // Generate a PDF from an array of page images (all page1 or all page2)
+  const generatePdfFromPages = async (
+    pages: string[],
+    pageKind: 1 | 2,
+    fileName: string,
+    pageScalePercents?: number[] // optional per-page scale overrides (0..100). If omitted, uses global scalePercent
+  ) => {
+    const sequence = pages.map((dataUrl, i) => ({
+      dataUrl,
+      pageKind,
+      scale: Array.isArray(pageScalePercents) ? (pageScalePercents[i] ?? scalePercent / 100) : (scalePercent / 100)
+    }));
+    await renderPdfFromSequence(sequence, fileName);
+  };
+
+  // Generate a single PDF from a mixed sequence of pages; thin wrapper over shared renderer
+  const generatePdfFromPageSequence = async (
+    pages: Array<{ dataUrl: string; pageKind: 1 | 2; scale?: number }>,
+    fileName: string
+  ) => {
+    await renderPdfFromSequence(
+      pages.map(p => ({
+        dataUrl: p.dataUrl,
+        pageKind: p.pageKind,
+        scale: typeof p.scale === 'number' ? p.scale : (scalePercent / 100)
+      })),
+      fileName
+    );
+  };
+
   // Run mapping for bottom/top and download two PDFs: outer (page1s) then inner (page2s)
-  const handleRunThenDownloadDual = async () => {
+  const handleRunThenDownloadDual = async (mode: 'combined-single' | 'split-dual' = 'combined-single') => {
     if (loading) return;
     setPdfLoading(true);
     setPdfProgress(5);
@@ -1209,11 +1240,23 @@ function BoxGenerator() {
       if (outerPages.length === 0 && innerPages.length === 0) {
         setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
       }
-      // Generate PDFs sequentially
-      await generatePdfFromPages(outerPages, 1, 'origami_boxes_outer.pdf', outerScales);
-      setPdfProgress(70);
-      await generatePdfFromPages(innerPages, 2, 'origami_boxes_inner.pdf', innerScales);
-      setPdfProgress(100);
+      if (mode === 'split-dual') {
+        // Legacy behavior, but name as front/back for clarity
+        await generatePdfFromPages(innerPages, 2, 'origami_boxes_front.pdf', innerScales);
+        setPdfProgress(70);
+        await generatePdfFromPages(outerPages, 1, 'origami_boxes_back.pdf', outerScales);
+        setPdfProgress(100);
+      } else {
+        // New default: single alternating PDF: inner[0], outer[0], inner[1], outer[1], ...
+        const mixed: Array<{ dataUrl: string; pageKind: 1 | 2; scale?: number }> = [];
+        const maxLen = Math.max(innerPages.length, outerPages.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (innerPages[i]) mixed.push({ dataUrl: innerPages[i], pageKind: 2, scale: innerScales[i] });
+          if (outerPages[i]) mixed.push({ dataUrl: outerPages[i], pageKind: 1, scale: outerScales[i] });
+        }
+        await generatePdfFromPageSequence(mixed, 'origami_boxes.pdf');
+        setPdfProgress(100);
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to generate PDFs: ' + String((err as any)?.message || err));
