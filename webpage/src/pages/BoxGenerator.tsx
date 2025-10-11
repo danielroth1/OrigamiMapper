@@ -17,6 +17,52 @@ import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 
 const SHOW_TEMPLATES = false;
+  // Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
+  // - context: short message about the action (e.g., "Save project (.mapper)")
+  // - defaultBase: fallback base name (without extension)
+  // - extension: desired extension without dot (e.g., 'pdf', 'mapper')
+  const pickDownloadFilename = (opts: { context: string; defaultBase: string; extension: string }): string | null => {
+    const { context, defaultBase, extension } = opts;
+    const LS_KEY = 'om.lastFileBase';
+    const lastBaseRaw = (typeof localStorage !== 'undefined') ? (localStorage.getItem(LS_KEY) || '') : '';
+    // If defaultBase has a suffix like _front/_back, keep it as a suffix suggestion, but prefer the stored base for consistency
+    const suffixMatch = /_(front|back)$/i.exec(defaultBase);
+    const suffix = suffixMatch ? `_${suffixMatch[1].toLowerCase()}` : '';
+    const effBase = (lastBaseRaw || defaultBase).replace(/\.[^.]+$/, '');
+    const suggested = `${effBase}${suffix ? suffix : ''}.${extension}`;
+
+    const message = `Pick file name${context ? ` — ${context}` : ''}`;
+    let input = window.prompt(message, suggested);
+    if (input == null) return null; // cancelled
+    input = input.trim();
+    if (!input) return null;
+
+    // Sanitize filename (no paths or illegal characters)
+    const sanitize = (name: string) => {
+      // strip directories
+      name = name.replace(/^[\\/]+|[\\/]+$/g, '');
+      // remove illegal characters commonly restricted across OSes
+      name = name.replace(/[\0-\x1F<>:"/\\|?*]+/g, '');
+      // collapse whitespace
+      name = name.replace(/\s+/g, ' ').trim();
+      if (!name) name = `file.${extension}`;
+      return name;
+    };
+
+    let finalName = sanitize(input);
+    // Ensure extension
+    const hasExt = new RegExp(`\\.${extension}$`, 'i').test(finalName);
+    if (!hasExt) finalName = `${finalName}.${extension}`;
+
+    // Compute and persist base (shared across Save/Download). If user typed *_front/_back, store base before that suffix.
+    const withoutExt = finalName.replace(/\.[^.]+$/, '');
+    const frontBack = /(.*)_(front|back)$/i.exec(withoutExt);
+    const baseForStore = (frontBack ? frontBack[1] : withoutExt) || effBase || 'file';
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, baseForStore); } catch {}
+
+    return finalName;
+  };
+
 const SHOW_TRANSFORMS = false;
 const SHOW_OUTPUT_PAGES = false;
 const SHOW_RUN_MAPPING = false;
@@ -774,6 +820,13 @@ function BoxGenerator() {
   // Save to .mapper (zip) file
   const saveToMapperFile = async () => {
     try {
+      // Ask user for a filename (cross-browser, name only)
+      const pickedName = pickDownloadFilename({
+        context: 'Save project (.mapper)',
+        defaultBase: 'origami_project',
+        extension: 'mapper'
+      });
+      if (!pickedName) return; // user cancelled
       // Build combined JSONs (bottom and top) like handleRun does
       // Bottom
       const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : boxData;
@@ -826,7 +879,7 @@ function BoxGenerator() {
         if (inBlob) zip.file('inside_bottom.png', inBlob);
       }
       const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, 'origami_project.mapper');
+      saveAs(content, pickedName);
     } catch (err) {
       console.error('Failed to save .mapper file:', err);
       alert('Failed to save project file: ' + String(err));
@@ -1211,6 +1264,23 @@ function BoxGenerator() {
   // Run mapping for bottom/top and download two PDFs: outer (page1s) then inner (page2s)
   const handleRunThenDownloadDual = async (mode: 'combined-single' | 'split-dual' = 'combined-single') => {
     if (loading) return;
+    // Prompt for desired filename(s) up front
+    let targetPdfName = '';
+    let targetPdfNameFront = '';
+    let targetPdfNameBack = '';
+    if (mode === 'combined-single') {
+      const picked = pickDownloadFilename({ context: 'Download PDF (combined)', defaultBase: 'origami_boxes', extension: 'pdf' });
+      if (!picked) return; // user cancelled
+      targetPdfName = picked;
+    } else {
+      // Ask once, then auto-append _front and _back
+      const picked = pickDownloadFilename({ context: 'Download PDFs (front/back)', defaultBase: 'origami_boxes', extension: 'pdf' });
+      if (!picked) return; // user cancelled
+      const withoutExt = picked.replace(/\.[^.]+$/, '');
+      const base = withoutExt.replace(/_(front|back)$/i, '');
+      targetPdfNameFront = `${base}_front.pdf`;
+      targetPdfNameBack = `${base}_back.pdf`;
+    }
     // reset cancel flag and start progress
     pdfCancelRef.current = false;
     setPdfLoading(true);
@@ -1256,10 +1326,10 @@ function BoxGenerator() {
       if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       if (mode === 'split-dual') {
         // Legacy behavior, but name as front/back for clarity
-        await generatePdfFromPages(innerPages, 2, 'origami_boxes_front.pdf', innerScales);
+        await generatePdfFromPages(innerPages, 2, targetPdfNameFront || 'origami_boxes_front.pdf', innerScales);
         setPdfProgress(70);
         if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
-        await generatePdfFromPages(outerPages, 1, 'origami_boxes_back.pdf', outerScales);
+        await generatePdfFromPages(outerPages, 1, targetPdfNameBack || 'origami_boxes_back.pdf', outerScales);
         setPdfProgress(100);
       } else {
         // New default: single alternating PDF: inner[0], outer[0], inner[1], outer[1], ...
@@ -1270,7 +1340,7 @@ function BoxGenerator() {
           if (outerPages[i]) mixed.push({ dataUrl: outerPages[i], pageKind: 1, scale: outerScales[i] });
         }
         if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
-        await generatePdfFromPageSequence(mixed, 'origami_boxes.pdf');
+        await generatePdfFromPageSequence(mixed, targetPdfName || 'origami_boxes.pdf');
         setPdfProgress(100);
       }
     } catch (err) {
