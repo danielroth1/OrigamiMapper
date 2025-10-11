@@ -37,6 +37,8 @@ function BoxGenerator() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
+  // Cancel flag for PDF generation
+  const pdfCancelRef = useRef<boolean>(false);
   const [withFoldLines, setWithFoldLines] = useState(true);
   const [withCutLines, setWithCutLines] = useState(true);
   // Bottom (existing) faces
@@ -1081,11 +1083,13 @@ function BoxGenerator() {
     sequence: Array<{ dataUrl: string; pageKind: 1 | 2; scale?: number }>,
     fileName: string
   ) => {
+    if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
     // A4 dimensions in mm
     const PAGE_W = 210;
     const PAGE_H = 297;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     for (let i = 0; i < sequence.length; i++) {
+      if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       setPdfProgress(50 + Math.round((i / Math.max(1, sequence.length)) * 40));
       await new Promise(resolve => setTimeout(resolve, 10));
       const { dataUrl: rawUrl, pageKind, scale } = sequence[i];
@@ -1107,6 +1111,7 @@ function BoxGenerator() {
         if (cx) { cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, pxW, pxH); }
         dataUrl = c.toDataURL('image/png');
       }
+      if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       doc.addImage(dataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
 
       // helper lines per kind
@@ -1135,11 +1140,14 @@ function BoxGenerator() {
                 cx2.globalAlpha = 1;
                 cx2.drawImage(imgEl, -cw / 2, -ch / 2, cw, ch);
                 const rotatedDataUrl = c2.toDataURL('image/png');
+                if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
                 doc.addImage(rotatedDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
               } else {
+                if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
                 doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
               }
             } catch {
+              if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
               doc.addImage(helperDataUrl, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
             }
           }
@@ -1159,10 +1167,12 @@ function BoxGenerator() {
             cx3.lineWidth = 1; cx3.setLineDash([2, 2]);
             const inset = 0.5; cx3.strokeRect(inset, inset, pxW - 1, pxH - 1);
             const overlay = c3.toDataURL('image/png');
+            if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
             doc.addImage(overlay, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
           }
         } catch { }
       }
+      if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       if (i < sequence.length - 1) doc.addPage();
     }
     doc.save(fileName);
@@ -1201,6 +1211,8 @@ function BoxGenerator() {
   // Run mapping for bottom/top and download two PDFs: outer (page1s) then inner (page2s)
   const handleRunThenDownloadDual = async (mode: 'combined-single' | 'split-dual' = 'combined-single') => {
     if (loading) return;
+    // reset cancel flag and start progress
+    pdfCancelRef.current = false;
     setPdfLoading(true);
     setPdfProgress(5);
     setLoading(true);
@@ -1209,7 +1221,8 @@ function BoxGenerator() {
       if (hasBottomBox) runs.push(runMappingForBox('bottom'));
       if (hasTopBox) runs.push(runMappingForBox('top'));
       const dicts = await Promise.all(runs);
-      setPdfProgress(50);
+  if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
+  setPdfProgress(50);
       // Build page arrays
       const outerPages: string[] = [];
       const innerPages: string[] = [];
@@ -1240,10 +1253,12 @@ function BoxGenerator() {
       if (outerPages.length === 0 && innerPages.length === 0) {
         setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
       }
+      if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       if (mode === 'split-dual') {
         // Legacy behavior, but name as front/back for clarity
         await generatePdfFromPages(innerPages, 2, 'origami_boxes_front.pdf', innerScales);
         setPdfProgress(70);
+        if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
         await generatePdfFromPages(outerPages, 1, 'origami_boxes_back.pdf', outerScales);
         setPdfProgress(100);
       } else {
@@ -1254,16 +1269,27 @@ function BoxGenerator() {
           if (innerPages[i]) mixed.push({ dataUrl: innerPages[i], pageKind: 2, scale: innerScales[i] });
           if (outerPages[i]) mixed.push({ dataUrl: outerPages[i], pageKind: 1, scale: outerScales[i] });
         }
+        if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
         await generatePdfFromPageSequence(mixed, 'origami_boxes.pdf');
         setPdfProgress(100);
       }
     } catch (err) {
-      console.error(err);
-      alert('Failed to generate PDFs: ' + String((err as any)?.message || err));
+      if ((err as any)?.message === 'PDF_CANCELLED') {
+        // Silent cancel
+        console.warn('PDF generation cancelled');
+      } else {
+        console.error(err);
+        alert('Failed to generate PDFs: ' + String((err as any)?.message || err));
+      }
     } finally {
       setLoading(false);
-      setTimeout(() => { setPdfLoading(false); setPdfProgress(0); }, 600);
+      setTimeout(() => { setPdfLoading(false); setPdfProgress(0); }, 300);
     }
+  };
+
+  // Allow user to cancel an in-flight PDF generation
+  const cancelPdfGeneration = () => {
+    pdfCancelRef.current = true;
   };
 
   const getCanvasHeight = () =>
@@ -1825,8 +1851,18 @@ function BoxGenerator() {
                     <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
                       {loading ? 'Processing...' : 'Run Mapping'}
                     </button>}
-                    <button style={{ alignSelf: 'center'}} onClick={() => handleRunThenDownloadDual()} disabled={pdfLoading || loading} className="menu-btn">
-                      {pdfLoading ? 'Preparing PDF...' : 'Download'}
+                    <button
+                      style={{ alignSelf: 'center'}}
+                      onClick={() => {
+                        if (pdfLoading) {
+                          cancelPdfGeneration();
+                        } else {
+                          void handleRunThenDownloadDual();
+                        }
+                      }}
+                      className="menu-btn"
+                    >
+                      {pdfLoading ? 'Cancel' : 'Download'}
                     </button>
                   </div>
                 </div>
