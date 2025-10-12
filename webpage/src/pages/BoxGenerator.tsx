@@ -17,51 +17,51 @@ import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 
 const SHOW_TEMPLATES = false;
-  // Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
-  // - context: short message about the action (e.g., "Save project (.mapper)")
-  // - defaultBase: fallback base name (without extension)
-  // - extension: desired extension without dot (e.g., 'pdf', 'mapper')
-  const pickDownloadFilename = (opts: { context: string; defaultBase: string; extension: string }): string | null => {
-    const { context, defaultBase, extension } = opts;
-    const LS_KEY = 'om.lastFileBase';
-    const lastBaseRaw = (typeof localStorage !== 'undefined') ? (localStorage.getItem(LS_KEY) || '') : '';
-    // If defaultBase has a suffix like _front/_back, keep it as a suffix suggestion, but prefer the stored base for consistency
-    const suffixMatch = /_(front|back)$/i.exec(defaultBase);
-    const suffix = suffixMatch ? `_${suffixMatch[1].toLowerCase()}` : '';
-    const effBase = (lastBaseRaw || defaultBase).replace(/\.[^.]+$/, '');
-    const suggested = `${effBase}${suffix ? suffix : ''}.${extension}`;
+// Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
+// - context: short message about the action (e.g., "Save project (.mapper)")
+// - defaultBase: fallback base name (without extension)
+// - extension: desired extension without dot (e.g., 'pdf', 'mapper')
+const pickDownloadFilename = (opts: { context: string; defaultBase: string; extension: string }): string | null => {
+  const { context, defaultBase, extension } = opts;
+  const LS_KEY = 'om.lastFileBase';
+  const lastBaseRaw = (typeof localStorage !== 'undefined') ? (localStorage.getItem(LS_KEY) || '') : '';
+  // If defaultBase has a suffix like _front/_back, keep it as a suffix suggestion, but prefer the stored base for consistency
+  const suffixMatch = /_(front|back)$/i.exec(defaultBase);
+  const suffix = suffixMatch ? `_${suffixMatch[1].toLowerCase()}` : '';
+  const effBase = (lastBaseRaw || defaultBase).replace(/\.[^.]+$/, '');
+  const suggested = `${effBase}${suffix ? suffix : ''}.${extension}`;
 
-    const message = `Pick file name${context ? ` — ${context}` : ''}`;
-    let input = window.prompt(message, suggested);
-    if (input == null) return null; // cancelled
-    input = input.trim();
-    if (!input) return null;
+  const message = `Pick file name${context ? ` — ${context}` : ''}`;
+  let input = window.prompt(message, suggested);
+  if (input == null) return null; // cancelled
+  input = input.trim();
+  if (!input) return null;
 
-    // Sanitize filename (no paths or illegal characters)
-    const sanitize = (name: string) => {
-      // strip directories
-      name = name.replace(/^[\\/]+|[\\/]+$/g, '');
-      // remove illegal characters commonly restricted across OSes
-      name = name.replace(/[\0-\x1F<>:"/\\|?*]+/g, '');
-      // collapse whitespace
-      name = name.replace(/\s+/g, ' ').trim();
-      if (!name) name = `file.${extension}`;
-      return name;
-    };
-
-    let finalName = sanitize(input);
-    // Ensure extension
-    const hasExt = new RegExp(`\\.${extension}$`, 'i').test(finalName);
-    if (!hasExt) finalName = `${finalName}.${extension}`;
-
-    // Compute and persist base (shared across Save/Download). If user typed *_front/_back, store base before that suffix.
-    const withoutExt = finalName.replace(/\.[^.]+$/, '');
-    const frontBack = /(.*)_(front|back)$/i.exec(withoutExt);
-    const baseForStore = (frontBack ? frontBack[1] : withoutExt) || effBase || 'file';
-    try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, baseForStore); } catch {}
-
-    return finalName;
+  // Sanitize filename (no paths or illegal characters)
+  const sanitize = (name: string) => {
+    // strip directories
+    name = name.replace(/^[\\/]+|[\\/]+$/g, '');
+    // remove illegal characters commonly restricted across OSes
+    name = name.replace(/[\0-\x1F<>:"/\\|?*]+/g, '');
+    // collapse whitespace
+    name = name.replace(/\s+/g, ' ').trim();
+    if (!name) name = `file.${extension}`;
+    return name;
   };
+
+  let finalName = sanitize(input);
+  // Ensure extension
+  const hasExt = new RegExp(`\\.${extension}$`, 'i').test(finalName);
+  if (!hasExt) finalName = `${finalName}.${extension}`;
+
+  // Compute and persist base (shared across Save/Download). If user typed *_front/_back, store base before that suffix.
+  const withoutExt = finalName.replace(/\.[^.]+$/, '');
+  const frontBack = /(.*)_(front|back)$/i.exec(withoutExt);
+  const baseForStore = (frontBack ? frontBack[1] : withoutExt) || effBase || 'file';
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, baseForStore); } catch { }
+
+  return finalName;
+};
 
 const SHOW_TRANSFORMS = false;
 const SHOW_OUTPUT_PAGES = false;
@@ -289,7 +289,7 @@ function BoxGenerator() {
           if (mode === 'tile') return ImageTransform.tileToA4Ratio(rotated, resolve);
           if (mode === 'tile4') return ImageTransform.tile4Times(rotated, resolve);
           if (mode === 'tile8') return ImageTransform.tile8Times(rotated, resolve);
-        } catch {}
+        } catch { }
         resolve(rotated);
       });
     });
@@ -761,17 +761,17 @@ function BoxGenerator() {
         outDataTopUrl ? transformImageAsync(outDataTopUrl, modeAtLoad, 0) : Promise.resolve(''),
         inDataTopUrl ? transformImageAsync(inDataTopUrl, modeAtLoad, 0) : Promise.resolve('')
       ]);
-  // Apply all state updates in one render
+      // Apply all state updates in one render
       batchedUpdates(() => {
         const hasAnyBottom = Boolean(outDataBottomUrl || inDataBottomUrl);
         const hasAnyTop = Boolean(outDataTopUrl || inDataTopUrl);
         if (hasAnyBottom) setHasBottomBox(true);
         if (hasAnyTop) setHasTopBox(true);
         // Suppress auto polygon reset before backgrounds update
-        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { insideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { insideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch { }
         // Rotations are baked; reset rotation states to 0
         setOutsideRotation(0);
         setInsideRotation(0);
@@ -794,10 +794,10 @@ function BoxGenerator() {
         // Set transform mode last inside batch so effect is skipped
         if (rec.transformMode) setTransformMode(rec.transformMode);
         // Restore polygons
-        try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch {}
-        try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch {}
-  try { if (rec.topOutsideJson && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } catch {}
-  try { if (rec.topInsideJson && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(rec.topInsideJson); } catch {}
+        try { if (rec.outsideJson && outsideEditorRef.current) outsideEditorRef.current.setFromJson(rec.outsideJson); } catch { }
+        try { if (rec.insideJson && insideEditorRef.current) insideEditorRef.current.setFromJson(rec.insideJson); } catch { }
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } catch { }
+        try { if (rec.topInsideJson && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(rec.topInsideJson); } catch { }
         // Other settings
         if (typeof rec.scalePercent === 'number') setScalePercent(rec.scalePercent);
         if (typeof rec.triangleOffsetPct === 'number') setTriangleOffsetPct(rec.triangleOffsetPct);
@@ -808,13 +808,13 @@ function BoxGenerator() {
       // In production builds the Top editors may not be mounted yet when we tried to setFromJson above
       // (hasTopBox flips to true in the same batch). Apply again after the next paint.
       setTimeout(() => {
-        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch {}
-        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch {}
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch { }
+        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch { }
       }, 0);
       // Safety second attempt in case images/transforms finalize slightly later
       setTimeout(() => {
-        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch {}
-        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch {}
+        try { if (rec.topOutsideJson && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(rec.topOutsideJson); } } catch { }
+        try { if (rec.topInsideJson && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(rec.topInsideJson); } } catch { }
       }, 60);
     } catch (err) {
       console.warn('Failed to load autosave:', err);
@@ -1030,17 +1030,17 @@ function BoxGenerator() {
         setOutsideRotation(0);
         setInsideRotation(0);
         // Suppress polygon auto reset before applying backgrounds and polygons
-        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { insideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch {}
-        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch {}
+        try { outsideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { insideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { topOutsideEditorRef.current?.suppressNextAutoReset(); } catch { }
+        try { topInsideEditorRef.current?.suppressNextAutoReset(); } catch { }
         // Skip one transform effect pass
         skipNextTransformRef.current = true;
         // Set polygons if staged
-        try { if (stagedBottomOutside && outsideEditorRef.current) outsideEditorRef.current.setFromJson(stagedBottomOutside); } catch {}
-        try { if (stagedBottomInside && insideEditorRef.current) insideEditorRef.current.setFromJson(stagedBottomInside); } catch {}
-  try { if (stagedTopOutside && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(stagedTopOutside); } catch {}
-  try { if (stagedTopInside && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(stagedTopInside); } catch {}
+        try { if (stagedBottomOutside && outsideEditorRef.current) outsideEditorRef.current.setFromJson(stagedBottomOutside); } catch { }
+        try { if (stagedBottomInside && insideEditorRef.current) insideEditorRef.current.setFromJson(stagedBottomInside); } catch { }
+        try { if (stagedTopOutside && topOutsideEditorRef.current) topOutsideEditorRef.current.setFromJson(stagedTopOutside); } catch { }
+        try { if (stagedTopInside && topInsideEditorRef.current) topInsideEditorRef.current.setFromJson(stagedTopInside); } catch { }
         // Set raw + transformed images for top and bottom
         setTopOutsideImgRaw(topOutRaw);
         setTopInsideImgRaw(topInRaw);
@@ -1060,12 +1060,12 @@ function BoxGenerator() {
       // In production builds the Top editors may not be mounted yet when we setFromJson above.
       // Re-apply after mount.
       setTimeout(() => {
-        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch {}
-        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch {}
+        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch { }
+        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch { }
       }, 0);
       setTimeout(() => {
-        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch {}
-        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch {}
+        try { if (stagedTopOutside && topOutsideEditorRef.current) { topOutsideEditorRef.current.suppressNextAutoReset(); topOutsideEditorRef.current.setFromJson(stagedTopOutside); } } catch { }
+        try { if (stagedTopInside && topInsideEditorRef.current) { topInsideEditorRef.current.suppressNextAutoReset(); topInsideEditorRef.current.setFromJson(stagedTopInside); } } catch { }
       }, 60);
     } catch (err) {
       console.error('Failed to load .mapper file:', err);
@@ -1295,8 +1295,8 @@ function BoxGenerator() {
       if (hasBottomBox) runs.push(runMappingForBox('bottom'));
       if (hasTopBox) runs.push(runMappingForBox('top'));
       const dicts = await Promise.all(runs);
-  if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
-  setPdfProgress(50);
+      if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
+      setPdfProgress(50);
       // Build page arrays
       const outerPages: string[] = [];
       const innerPages: string[] = [];
@@ -1373,13 +1373,11 @@ function BoxGenerator() {
     setPdfCancelling(true);
   };
 
-  const getCanvasHeight = () =>
-  {
+  const getCanvasHeight = () => {
     return Math.max(100, Math.min(500, viewerHeight));
   }
 
-  const getCanvasWidth = () =>
-  {
+  const getCanvasWidth = () => {
     return getCanvasHeight() * 3 / 4;
   }
 
@@ -1407,7 +1405,7 @@ function BoxGenerator() {
         </div>
 
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
-        <div className="images" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+        <div className="images" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
           <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
@@ -1423,247 +1421,251 @@ function BoxGenerator() {
               </button>
             </div>
 
-            {/* Top box editors (only when visible by viewMode) */}
-            {!hasTopBox && (
-              <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
-            )}
-            {hasTopBox && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'bottom'}>
-                <div hidden={sideFilter !== 'outside'}>
-                  <PolygonEditor
-                    ref={topOutsideEditorRef}
-                    zoomGroup={'top'}
-                    applyResetTransform={true}
-                    onChange={() => scheduleBuildTop()}
-                    onOutsave={(json) => { void saveAutosave({ topOutsideJson: json }); }}
-                    data={getTopEditorData(false)}
-                    label='Top Outside image'
-                    backgroundImg={topOutsideImgTransformed}
-                    rotation={topOutsideRotation}
-                    onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopOutsideImg(dataUrl); }}
-                    onDelete={() => {
-                      if (!confirm('Clear top outside image? This cannot be undone.')) return;
-                      setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
-                      void saveAutosave();
-                    }}
-                    onDeleteBox={() => {
-                      if (!confirm('Delete Top Box? This cannot be undone.')) return;
-                      // Clear all Top box images so autosave reflects removal
-                      setTopOutsideImgRaw('');
-                      setTopOutsideImgTransformed('');
-                      setTopInsideImgRaw('');
-                      setTopInsideImgTransformed('');
-                      // Clear legacy top mirrors used by autosave fallback
-                      setOutsideImgTopRaw('');
-                      setInsideImgTopRaw('');
-                      // Update UI state
-                      setHasTopBox(false);
-                      setSuppressAutoDemo(true);
-                      scheduleBuildTop();
-                      void saveAutosave();
-                    }}
-                  />
-                </div>
-                <div hidden={sideFilter !== 'inside'}>
-                  <PolygonEditor
-                    ref={topInsideEditorRef}
-                    zoomGroup={'top'}
-                    applyResetTransform={true}
-                    onChange={() => scheduleBuildTop()}
-                    onOutsave={(json) => { void saveAutosave({ topInsideJson: json }); }}
-                    data={getTopEditorData(true)}
-                    label='Top Inside image'
-                    backgroundImg={topInsideImgTransformed}
-                    rotation={topInsideRotation}
-                    onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopInsideImg(dataUrl); }}
-                    onDelete={() => {
-                      if (!confirm('Clear top inside image? This cannot be undone.')) return;
-                      setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
-                      void saveAutosave();
-                    }}
-                    onDeleteBox={() => {
-                      if (!confirm('Delete Top Box? This cannot be undone.')) return;
-                      // Clear all Top box images so autosave reflects removal
-                      setTopOutsideImgRaw('');
-                      setTopOutsideImgTransformed('');
-                      setTopInsideImgRaw('');
-                      setTopInsideImgTransformed('');
-                      // Clear legacy top mirrors used by autosave fallback
-                      setOutsideImgTopRaw('');
-                      setInsideImgTopRaw('');
-                      // Update UI state
-                      setHasTopBox(false);
-                      setSuppressAutoDemo(true);
-                      scheduleBuildTop();
-                      void saveAutosave();
-                    }}
-                  />
-                </div>
-                {/* per-box scale removed: replaced by global top-bottom ratio */}
-              </div>
-            )}
+            <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
 
-            {/* Mirror toggles between bottom and top */}
-            {hasBottomBox && hasTopBox && (
-              <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
-                <button onClick={async () => {
-                  setMirrorDirection('down');
-                  // Also copy TOP images down to BOTTOM
-                  setSuppressAutoDemo(true);
-                  // Mirror only the selected side
-                  if (sideFilter === 'outside') {
-                    // Pre-rotate raw outside image by rotation delta so bottom keeps its own rotation state
-                    const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                    if (topOutsideImgRaw) {
-                      const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
-                      setOutsideImgBottomRaw(rotated);
-                    }
-                    const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                    if (outsideEditorRef.current) {
-                      const target = outsideEditorRef.current.getCurrentJson().input_polygons;
-                      outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
-                    }
-                  } else if (sideFilter === 'inside') {
-                    // Pre-rotate raw inside image by rotation delta so bottom keeps its own rotation state
-                    const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                    if (topInsideImgRaw) {
-                      const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
-                      setInsideImgBottomRaw(rotated);
-                    }
-                    const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                    if (insideEditorRef.current) {
-                      const target = insideEditorRef.current.getCurrentJson().input_polygons;
-                      insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
-                    }
-                  }
-                  // Build once after mirroring
-                  scheduleBuildBottom();
-                }} title="Bottom mirrors from Top">↓</button>
-                <button onClick={async () => {
-                  setMirrorDirection('up');
-                  // Also copy BOTTOM images up to TOP
-                  setSuppressAutoDemo(true);
-                  // Mirror only the selected side
-                  if (sideFilter === 'outside') {
-                    // Pre-rotate raw outside image by rotation delta so top keeps its own rotation state
-                    const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                    if (outsideImgBottomRaw) {
-                      const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
-                      setTopOutsideImg(rotated);
-                    }
-                    const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                    if (topOutsideEditorRef.current) {
-                      const target = topOutsideEditorRef.current.getCurrentJson().input_polygons;
-                      topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
-                    }
-                  } else if (sideFilter === 'inside') {
-                    // Pre-rotate raw inside image by rotation delta so top keeps its own rotation state
-                    const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
-                    if (insideImgBottomRaw) {
-                      const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
-                      setTopInsideImg(rotated);
-                    }
-                    const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
-                    if (topInsideEditorRef.current) {
-                      const target = topInsideEditorRef.current.getCurrentJson().input_polygons;
-                      topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
-                    }
-                  }
-                  // Build once after mirroring
-                  scheduleBuildTop();
-                }} title="Top mirrors from Bottom">↑</button>
-              </div>
-            )}
 
-            {/* Bottom box editors (only when visible by viewMode) */}
-            {!hasBottomBox && (
-              <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
-            )}
-            {hasBottomBox && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'top'}>
-                <div hidden={sideFilter !== 'outside'}>
-                  <PolygonEditor
-                    ref={outsideEditorRef}
-                    zoomGroup={'bottom'}
-                    applyResetTransform={true}
-                    onChange={json => scheduleBuildBottom(json.input_polygons, undefined)}
-                    onOutsave={(json) => { void saveAutosave({ outsideJson: json }); }}
-                    data={getEditorData(false)}
-                    label='Bottom Outside image'
-                    backgroundImg={outsideImgTransformed}
-                    rotation={outsideRotation}
-                    onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgBottomRaw, transformMode, r, setOutsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setOutsideImg(dataUrl, false); }}
-                    onDelete={() => {
-                      if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
-                      setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuildBottom([], undefined); setSuppressAutoDemo(true);
-                      void saveAutosave();
-                    }}
-                    onDeleteBox={() => {
-                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
-                      // Clear all Bottom box images so autosave reflects removal
-                      setOutsideImgBottomRaw('');
-                      setOutsideImgTransformed('');
-                      setInsideImgBottomRaw('');
-                      setInsideImgTransformed('');
-                      // Update UI state
-                      setHasBottomBox(false);
-                      setSuppressAutoDemo(true);
-                      scheduleBuildBottom([], []);
-                      void saveAutosave();
-                    }}
-                  />
+              {/* Top box editors (only when visible by viewMode) */}
+              {!hasTopBox && (
+                <button className="menu-btn" onClick={() => setHasTopBox(true)}>Create Top Box</button>
+              )}
+              {hasTopBox && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'bottom'}>
+                  <div hidden={sideFilter !== 'outside'}>
+                    <PolygonEditor
+                      ref={topOutsideEditorRef}
+                      zoomGroup={'top'}
+                      applyResetTransform={true}
+                      onChange={() => scheduleBuildTop()}
+                      onOutsave={(json) => { void saveAutosave({ topOutsideJson: json }); }}
+                      data={getTopEditorData(false)}
+                      label='Top Outside image'
+                      backgroundImg={topOutsideImgTransformed}
+                      rotation={topOutsideRotation}
+                      onRotationChange={(r) => { setTopOutsideRotation(r); transformImage(topOutsideImgRaw, transformMode, r, setTopOutsideImgTransformed); }}
+                      onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopOutsideImg(dataUrl); }}
+                      onDelete={() => {
+                        if (!confirm('Clear top outside image? This cannot be undone.')) return;
+                        setTopOutsideImgRaw(''); setTopOutsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
+                        void saveAutosave();
+                      }}
+                      onDeleteBox={() => {
+                        if (!confirm('Delete Top Box? This cannot be undone.')) return;
+                        // Clear all Top box images so autosave reflects removal
+                        setTopOutsideImgRaw('');
+                        setTopOutsideImgTransformed('');
+                        setTopInsideImgRaw('');
+                        setTopInsideImgTransformed('');
+                        // Clear legacy top mirrors used by autosave fallback
+                        setOutsideImgTopRaw('');
+                        setInsideImgTopRaw('');
+                        // Update UI state
+                        setHasTopBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildTop();
+                        void saveAutosave();
+                      }}
+                    />
+                  </div>
+                  <div hidden={sideFilter !== 'inside'}>
+                    <PolygonEditor
+                      ref={topInsideEditorRef}
+                      zoomGroup={'top'}
+                      applyResetTransform={true}
+                      onChange={() => scheduleBuildTop()}
+                      onOutsave={(json) => { void saveAutosave({ topInsideJson: json }); }}
+                      data={getTopEditorData(true)}
+                      label='Top Inside image'
+                      backgroundImg={topInsideImgTransformed}
+                      rotation={topInsideRotation}
+                      onRotationChange={(r) => { setTopInsideRotation(r); transformImage(topInsideImgRaw, transformMode, r, setTopInsideImgTransformed); }}
+                      onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setTopInsideImg(dataUrl); }}
+                      onDelete={() => {
+                        if (!confirm('Clear top inside image? This cannot be undone.')) return;
+                        setTopInsideImgRaw(''); setTopInsideImgTransformed(''); scheduleBuildTop(); setSuppressAutoDemo(true);
+                        void saveAutosave();
+                      }}
+                      onDeleteBox={() => {
+                        if (!confirm('Delete Top Box? This cannot be undone.')) return;
+                        // Clear all Top box images so autosave reflects removal
+                        setTopOutsideImgRaw('');
+                        setTopOutsideImgTransformed('');
+                        setTopInsideImgRaw('');
+                        setTopInsideImgTransformed('');
+                        // Clear legacy top mirrors used by autosave fallback
+                        setOutsideImgTopRaw('');
+                        setInsideImgTopRaw('');
+                        // Update UI state
+                        setHasTopBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildTop();
+                        void saveAutosave();
+                      }}
+                    />
+                  </div>
+                  {/* per-box scale removed: replaced by global top-bottom ratio */}
                 </div>
-                <div hidden={sideFilter !== 'inside'}>
-                  <PolygonEditor
-                    ref={insideEditorRef}
-                    zoomGroup={'bottom'}
-                    applyResetTransform={true}
-                    onChange={json => scheduleBuildBottom(undefined, json.input_polygons)}
-                    onOutsave={(json) => { void saveAutosave({ insideJson: json }); }}
-                    data={getEditorData(true)}
-                    label='Bottom Inside image'
-                    backgroundImg={insideImgTransformed}
-                    rotation={insideRotation}
-                    onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgBottomRaw, transformMode, r, setInsideImgTransformed); }}
-                    onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setInsideImg(dataUrl, false); }}
-                    onDelete={() => {
-                      if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
-                      setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuildBottom(undefined, []); setSuppressAutoDemo(true);
-                      void saveAutosave();
-                    }}
-                    onDeleteBox={() => {
-                      if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
-                      // Clear all Bottom box images so autosave reflects removal
-                      setOutsideImgBottomRaw('');
-                      setOutsideImgTransformed('');
-                      setInsideImgBottomRaw('');
-                      setInsideImgTransformed('');
-                      // Update UI state
-                      setHasBottomBox(false);
-                      setSuppressAutoDemo(true);
-                      scheduleBuildBottom([], []);
-                      void saveAutosave();
-                    }}
-                  />
-                </div>
-                {/* per-box scale removed: replaced by global top-bottom ratio */}
-              </div>
-            )}
+              )}
 
-            {/* Helper text */}
-            <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.25em 0 0 0', lineHeight: 1.2, whiteSpace: 'normal', textAlign: 'center', display: 'inline-block', maxWidth: '40ch', overflowWrap: 'anywhere' }}>
-              Drag to move (auto group).
-              Shift+Drag scale.
-              Ctrl/Cmd+Drag rotate.
-              Drag empty area to marquee select.
+              {/* Mirror toggles between bottom and top */}
+              {hasBottomBox && hasTopBox && (
+                <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
+                  <button onClick={async () => {
+                    setMirrorDirection('down');
+                    // Also copy TOP images down to BOTTOM
+                    setSuppressAutoDemo(true);
+                    // Mirror only the selected side
+                    if (sideFilter === 'outside') {
+                      // Pre-rotate raw outside image by rotation delta so bottom keeps its own rotation state
+                      const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      if (topOutsideImgRaw) {
+                        const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
+                        setOutsideImgBottomRaw(rotated);
+                      }
+                      const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                      if (outsideEditorRef.current) {
+                        const target = outsideEditorRef.current.getCurrentJson().input_polygons;
+                        outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                      }
+                    } else if (sideFilter === 'inside') {
+                      // Pre-rotate raw inside image by rotation delta so bottom keeps its own rotation state
+                      const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      if (topInsideImgRaw) {
+                        const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
+                        setInsideImgBottomRaw(rotated);
+                      }
+                      const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                      if (insideEditorRef.current) {
+                        const target = insideEditorRef.current.getCurrentJson().input_polygons;
+                        insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                      }
+                    }
+                    // Build once after mirroring
+                    scheduleBuildBottom();
+                  }} title="Bottom mirrors from Top">↓</button>
+                  <button onClick={async () => {
+                    setMirrorDirection('up');
+                    // Also copy BOTTOM images up to TOP
+                    setSuppressAutoDemo(true);
+                    // Mirror only the selected side
+                    if (sideFilter === 'outside') {
+                      // Pre-rotate raw outside image by rotation delta so top keeps its own rotation state
+                      const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      if (outsideImgBottomRaw) {
+                        const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
+                        setTopOutsideImg(rotated);
+                      }
+                      const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                      if (topOutsideEditorRef.current) {
+                        const target = topOutsideEditorRef.current.getCurrentJson().input_polygons;
+                        topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                      }
+                    } else if (sideFilter === 'inside') {
+                      // Pre-rotate raw inside image by rotation delta so top keeps its own rotation state
+                      const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      if (insideImgBottomRaw) {
+                        const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
+                        setTopInsideImg(rotated);
+                      }
+                      const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
+                      if (topInsideEditorRef.current) {
+                        const target = topInsideEditorRef.current.getCurrentJson().input_polygons;
+                        topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                      }
+                    }
+                    // Build once after mirroring
+                    scheduleBuildTop();
+                  }} title="Top mirrors from Bottom">↑</button>
+                </div>
+              )}
+
+              {/* Bottom box editors (only when visible by viewMode) */}
+              {!hasBottomBox && (
+                <button className="menu-btn" onClick={() => setHasBottomBox(true)}>Create Bottom Box</button>
+              )}
+              {hasBottomBox && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75em', alignItems: 'center' }} hidden={viewMode === 'top'}>
+                  <div hidden={sideFilter !== 'outside'}>
+                    <PolygonEditor
+                      ref={outsideEditorRef}
+                      zoomGroup={'bottom'}
+                      applyResetTransform={true}
+                      onChange={json => scheduleBuildBottom(json.input_polygons, undefined)}
+                      onOutsave={(json) => { void saveAutosave({ outsideJson: json }); }}
+                      data={getEditorData(false)}
+                      label='Bottom Outside image'
+                      backgroundImg={outsideImgTransformed}
+                      rotation={outsideRotation}
+                      onRotationChange={(r) => { setOutsideRotation(r); transformImage(outsideImgBottomRaw, transformMode, r, setOutsideImgTransformed); }}
+                      onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setOutsideImg(dataUrl, false); }}
+                      onDelete={() => {
+                        if (!confirm('Clear bottom outside image? This cannot be undone.')) return;
+                        setOutsideImgBottomRaw(''); setOutsideImgTransformed(''); scheduleBuildBottom([], undefined); setSuppressAutoDemo(true);
+                        void saveAutosave();
+                      }}
+                      onDeleteBox={() => {
+                        if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                        // Clear all Bottom box images so autosave reflects removal
+                        setOutsideImgBottomRaw('');
+                        setOutsideImgTransformed('');
+                        setInsideImgBottomRaw('');
+                        setInsideImgTransformed('');
+                        // Update UI state
+                        setHasBottomBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildBottom([], []);
+                        void saveAutosave();
+                      }}
+                    />
+                  </div>
+                  <div hidden={sideFilter !== 'inside'}>
+                    <PolygonEditor
+                      ref={insideEditorRef}
+                      zoomGroup={'bottom'}
+                      applyResetTransform={true}
+                      onChange={json => scheduleBuildBottom(undefined, json.input_polygons)}
+                      onOutsave={(json) => { void saveAutosave({ insideJson: json }); }}
+                      data={getEditorData(true)}
+                      label='Bottom Inside image'
+                      backgroundImg={insideImgTransformed}
+                      rotation={insideRotation}
+                      onRotationChange={(r) => { setInsideRotation(r); transformImage(insideImgBottomRaw, transformMode, r, setInsideImgTransformed); }}
+                      onUploadImage={(dataUrl) => { setSuppressAutoDemo(true); setInsideImg(dataUrl, false); }}
+                      onDelete={() => {
+                        if (!confirm('Clear bottom inside image? This cannot be undone.')) return;
+                        setInsideImgBottomRaw(''); setInsideImgTransformed(''); scheduleBuildBottom(undefined, []); setSuppressAutoDemo(true);
+                        void saveAutosave();
+                      }}
+                      onDeleteBox={() => {
+                        if (!confirm('Delete Bottom Box (both canvases)? This cannot be undone.')) return;
+                        // Clear all Bottom box images so autosave reflects removal
+                        setOutsideImgBottomRaw('');
+                        setOutsideImgTransformed('');
+                        setInsideImgBottomRaw('');
+                        setInsideImgTransformed('');
+                        // Update UI state
+                        setHasBottomBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildBottom([], []);
+                        void saveAutosave();
+                      }}
+                    />
+                  </div>
+                  {/* per-box scale removed: replaced by global top-bottom ratio */}
+                </div>
+              )}
+
+              {/* Helper text */}
+              <div style={{ fontSize: '0.65em', color: '#aaa', margin: '0.25em 0 0 0', lineHeight: 1.2, whiteSpace: 'normal', textAlign: 'center', display: 'inline-block', maxWidth: '40ch', overflowWrap: 'anywhere' }}>
+                Drag to move (auto group).
+                Shift+Drag scale.
+                Ctrl/Cmd+Drag rotate.
+                Drag empty area to marquee select.
+              </div>
             </div>
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 300 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 450 }}>
             {/* Canvas frame */}
             <div style={{ gridColumn: 1, gridRow: 1, width: '100%', position: 'relative', aspectRatio: '3 / 4' }}>
               {/* Toolbar on top of canvas */}
@@ -1814,160 +1816,160 @@ function BoxGenerator() {
           const refOutsideBottom = basePath + 'assets/reference_outside_bottom.png';
           const refInside = basePath + 'assets/reference_inside.png';
           return (
-        <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '3em', marginBottom: '2em' }}>
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
-            <div style={{ color: '#fff'}}>Outside Reference <b>Top</b> </div>
-            <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
-              <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideTop} width={120} alt="Outside Top Reference" />
-            </a>
-            <div style={{ color: '#fff'}}>Outside Reference <b>Bottom</b> </div>  
-            <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
-              <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
-            </a>
-          </div>
-          <div style={{ flex: '0 1 300px' }}>
-            {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
-            <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '300', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
-                {SHOW_TEMPLATES && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
-                  <TemplateSelect onTemplate={setTemplate} />
-                </div>}
-                {SHOW_TRANSFORMS && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
-                  <span style={{ color: '#fff' }}>Transform:</span>
-                  <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
-                    <option value="none">None</option>
-                    <option value="scale">Scale</option>
-                    <option value="tile">Tile (Fill A4)</option>
-                    <option value="tile4">Tile 4x (2x2)</option>
-                    <option value="tile8">Tile 8x (4x2)</option>
-                  </select>
-                </div>}
-                {/* Rotation selectors moved into each PolygonEditor sidebar */}
-                <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
-                  <span style={{ color: '#fff' }}>Output DPI:</span>
-                  <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
-                    <option value={200}>200</option>
-                    <option value={300}>300</option>
-                    <option value={600}>600</option>
-                  </select>
-                </div>
-                {/* buttons moved below grid */}
+            <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '3em', marginBottom: '2em' }}>
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5em', alignItems: 'center' }}>
+                <div style={{ color: '#fff' }}>Outside Reference <b>Top</b> </div>
+                <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
+                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideTop} width={120} alt="Outside Top Reference" />
+                </a>
+                <div style={{ color: '#fff' }}>Outside Reference <b>Bottom</b> </div>
+                <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
+                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
+                </a>
               </div>
-              <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.25em' }}>
-                    <label
-                      title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                      style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={withFoldLines}
-                        onChange={e => setWithFoldLines(e.target.checked)}
-                        title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                        aria-label={"With fold helper lines"}
-                      />
-                      With fold helper lines
-                    </label>
-                    <label
-                      title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
-                      style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={withCutLines}
-                        onChange={e => setWithCutLines(e.target.checked)}
-                        title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
-                        aria-label={"With cut lines"}
-                      />
-                      With cut lines
-                    </label>
-                  </div>
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                    <div
-                      title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
-                      style={{ color: '#fff', fontSize: '0.9em' }}
-                    >
-                      Scale: {scalePercent}%
+              <div style={{ flex: '0 1 300px' }}>
+                {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
+                <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '300', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
+                    {SHOW_TEMPLATES && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
+                      <TemplateSelect onTemplate={setTemplate} />
+                    </div>}
+                    {SHOW_TRANSFORMS && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                      <span style={{ color: '#fff' }}>Transform:</span>
+                      <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                        <option value="none">None</option>
+                        <option value="scale">Scale</option>
+                        <option value="tile">Tile (Fill A4)</option>
+                        <option value="tile4">Tile 4x (2x2)</option>
+                        <option value="tile8">Tile 8x (4x2)</option>
+                      </select>
+                    </div>}
+                    {/* Rotation selectors moved into each PolygonEditor sidebar */}
+                    <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
+                      <span style={{ color: '#fff' }}>Output DPI:</span>
+                      <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
+                        <option value={200}>200</option>
+                        <option value={300}>300</option>
+                        <option value={600}>600</option>
+                      </select>
                     </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={30}
-                      step={0.5}
-                      value={scalePercent}
-                      onChange={e => {
-                        // prevent negative values: clamp to 0 or above
-                        const v = Math.max(0, Number(e.target.value));
-                        setScalePercent(v);
-                      }}
-                      title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
-                      aria-label={"Reduce the box size by percentage"}
-                      style={{ width: '85%' }}
-                    />
+                    {/* buttons moved below grid */}
                   </div>
-                  {/* Printed area growth slider */}
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                    <div
-                      title={"Expands the printed areas by this percentage of the page/image max dimension. It is best to print a little more than needed to counteract inacurracies while cutting or folding the sheet."}
-                      style={{ color: '#fff', fontSize: '0.9em' }}
-                    >
-                      Printed area growth: {triangleOffsetPct}%
+                  <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.25em' }}>
+                        <label
+                          title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                          style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={withFoldLines}
+                            onChange={e => setWithFoldLines(e.target.checked)}
+                            title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                            aria-label={"With fold helper lines"}
+                          />
+                          With fold helper lines
+                        </label>
+                        <label
+                          title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
+                          style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={withCutLines}
+                            onChange={e => setWithCutLines(e.target.checked)}
+                            title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
+                            aria-label={"With cut lines"}
+                          />
+                          With cut lines
+                        </label>
+                      </div>
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                        <div
+                          title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                          style={{ color: '#fff', fontSize: '0.9em' }}
+                        >
+                          Scale: {scalePercent}%
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={30}
+                          step={0.5}
+                          value={scalePercent}
+                          onChange={e => {
+                            // prevent negative values: clamp to 0 or above
+                            const v = Math.max(0, Number(e.target.value));
+                            setScalePercent(v);
+                          }}
+                          title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                          aria-label={"Reduce the box size by percentage"}
+                          style={{ width: '85%' }}
+                        />
+                      </div>
+                      {/* Printed area growth slider */}
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                        <div
+                          title={"Expands the printed areas by this percentage of the page/image max dimension. It is best to print a little more than needed to counteract inacurracies while cutting or folding the sheet."}
+                          style={{ color: '#fff', fontSize: '0.9em' }}
+                        >
+                          Printed area growth: {triangleOffsetPct}%
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={10}
+                          step={0.5}
+                          value={triangleOffsetPct}
+                          onChange={e => {
+                            const v = Math.max(0, Number(e.target.value));
+                            setTriangleOffsetPct(v);
+                          }}
+                          title={"Increase triangle size by a fixed offset of this percentage times max(width,height)."}
+                          aria-label={"Triangle growth percent"}
+                          style={{ width: '85%' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '1em', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '0.5em' }}>
+                        {SHOW_RUN_MAPPING &&
+                          <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
+                            {loading ? 'Processing...' : 'Run Mapping'}
+                          </button>}
+                        <button
+                          style={{ alignSelf: 'center' }}
+                          onClick={() => {
+                            if (pdfLoading && !pdfCancelling) {
+                              cancelPdfGeneration();
+                            } else {
+                              void handleRunThenDownloadDual();
+                            }
+                          }}
+                          className="menu-btn"
+                          disabled={pdfCancelling}
+                        >
+                          {pdfCancelling ? 'Cancelling...' : (pdfLoading ? 'Cancel' : 'Download')}
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={10}
-                      step={0.5}
-                      value={triangleOffsetPct}
-                      onChange={e => {
-                        const v = Math.max(0, Number(e.target.value));
-                        setTriangleOffsetPct(v);
-                      }}
-                      title={"Increase triangle size by a fixed offset of this percentage times max(width,height)."}
-                      aria-label={"Triangle growth percent"}
-                      style={{ width: '85%' }}
-                    />
+                    {/* simple progress bar shown while PDF is being generated */}
+                    {(pdfLoading || pdfProgress > 0) && (
+                      <div style={{ width: '90%', maxWidth: 360, marginTop: 8 }}>
+                        <div style={{ height: 10, background: '#2b2b2b', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ width: `${pdfProgress}%`, height: '100%', background: '#4caf50', transition: 'width 200ms ease' }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '1em', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '0.5em' }}>
-                    {SHOW_RUN_MAPPING &&
-                    <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
-                      {loading ? 'Processing...' : 'Run Mapping'}
-                    </button>}
-                    <button
-                      style={{ alignSelf: 'center'}}
-                      onClick={() => {
-                        if (pdfLoading && !pdfCancelling) {
-                          cancelPdfGeneration();
-                        } else {
-                          void handleRunThenDownloadDual();
-                        }
-                      }}
-                      className="menu-btn"
-                      disabled={pdfCancelling}
-                    >
-                      {pdfCancelling ? 'Cancelling...' : (pdfLoading ? 'Cancel' : 'Download')}
-                    </button>
-                  </div>
-                </div>
-                {/* simple progress bar shown while PDF is being generated */}
-                {(pdfLoading || pdfProgress > 0) && (
-                  <div style={{ width: '90%', maxWidth: 360, marginTop: 8 }}>
-                    <div style={{ height: 10, background: '#2b2b2b', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ width: `${pdfProgress}%`, height: '100%', background: '#4caf50', transition: 'width 200ms ease' }} />
-                    </div>
-                  </div>
-                )}
+                </section>
               </div>
-            </section>
-          </div>
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
-            <div style={{ color: '#fff'}}>Inside Reference</div>
-            <a href={refInside} download={"reference_inside.png"} title="Download Inside reference">
-              <img style={{ background: '#fff', cursor: 'pointer' }} src={refInside} width={120} alt="Inside Reference" />
-            </a>
-          </div>
-        </div>
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5em', alignItems: 'center' }}>
+                <div style={{ color: '#fff' }}>Inside Reference</div>
+                <a href={refInside} download={"reference_inside.png"} title="Download Inside reference">
+                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refInside} width={120} alt="Inside Reference" />
+                </a>
+              </div>
+            </div>
           );
         })()}
 
