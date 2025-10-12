@@ -97,25 +97,11 @@ button:focus-visible {
   width: 320px;
   max-width: 90%;
 }
-/* Mobile reading: rotate and adjust rules page */
+/* Mobile reading adjustments */
 @media (max-width: 600px) {
   .mtg-rules-content {
-    /* Single column and rotate landscape for easier reading */
+    /* Single column on narrow screens */
     column-count: 1 !important;
-    /* Only adjust layout, actual rotation handled on .App */
-  }
-  body {
-    overflow: hidden;
-  }
-  .App {
-    transform: rotate(90deg) translate(0, -100%);
-    transform-origin: top left;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vh;
-    height: 100vw;
-    overflow: auto;
   }
 }
 .modal-header {

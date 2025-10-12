@@ -1388,7 +1388,7 @@ function BoxGenerator() {
       <div className="App">
         {/* Fixed header for all pages */}
         <Header />
-        <div style={{ color: '#fff', margin: '2em auto 2em auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
+        <div style={{ color: '#fff', margin: '2em auto 2em auto', fontSize: '1.1em', textAlign: 'center' }}>
           Build your own Card Deck Box! <br />
           This tool generates printable templates from your images. <br />
           Perfect for holding a standard deck of 60 cards.
@@ -1405,7 +1405,7 @@ function BoxGenerator() {
         </div>
 
         {/* 3D cube preview + 2D Editors (canvases on the left) */}
-        <div className="images" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+        <div className="images" style={{ display: 'flex', gap: '2.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
           <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
@@ -1665,7 +1665,7 @@ function BoxGenerator() {
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0', minWidth: 450 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0'}}>
             {/* Canvas frame */}
             <div style={{ gridColumn: 1, gridRow: 1, width: '100%', position: 'relative', aspectRatio: '3 / 4' }}>
               {/* Toolbar on top of canvas */}
