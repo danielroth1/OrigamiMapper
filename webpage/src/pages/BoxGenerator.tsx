@@ -1834,7 +1834,7 @@ function BoxGenerator() {
                     </select>
                   </div>}
                   {/* Rotation selectors moved into each PolygonEditor sidebar */}
-                  <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5em', width: '100%' }}>
                     <span style={{ color: '#fff' }}>Output DPI:</span>
                     <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
                       <option value={200}>200</option>

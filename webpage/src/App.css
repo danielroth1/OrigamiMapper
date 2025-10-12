@@ -1,7 +1,8 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  /* Remove global padding so header and hero text aren't offset from the left */
+  padding: 1em;
   text-align: center;
 }
 
@@ -291,9 +292,7 @@ footer {
 
 @media (max-width: 700px) {
   /* Remove global page padding on mobile to eliminate left/right gap */
-  #root {
-    padding: 1em;
-  }
+  #root { padding: 1em; }
 
   /* Keep the desktop menu appearance on small screens: left and right
      groups remain vertical columns, logo is reduced, and spacing tightened. */
