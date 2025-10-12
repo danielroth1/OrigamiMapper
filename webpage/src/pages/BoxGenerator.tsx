@@ -101,8 +101,10 @@ function BoxGenerator() {
   // 3D open percentage and per-box scales (percent like global Scale slider)
   const [openPercent, setOpenPercent] = useState<number>(50);
   // Note: Preview ignores global scalePercent; PDF export applies scalePercent per page
-  // Top-Bottom ratio slider: 0..100 where 50 is neutral (no override). Values <50 favor Top, >50 favor Bottom.
-  const [topBottomRatio, setTopBottomRatio] = useState<number>(52);
+  // Top-Bottom ratio slider: range [-50, 50] where 0 is neutral. Negative reduces Top, positive reduces Bottom.
+  // Top-Bottom balance slider: range [-50, 50]
+  // < 0 => scale down Top; > 0 => scale down Bottom; 0 => neutral
+  const [topBottomRatio, setTopBottomRatio] = useState<number>(2);
   // Mirroring state: 'down' means bottom mirrors from top, 'up' means top mirrors from bottom
   const [, setMirrorDirection] = useState<'none' | 'down' | 'up'>('none');
   const [suppressAutoDemo, setSuppressAutoDemo] = useState(false);
@@ -1301,10 +1303,10 @@ function BoxGenerator() {
       const outerScales: number[] = [];
       const innerScales: number[] = [];
 
-      const ratio = topBottomRatio; // 0..100
+      const ratio = topBottomRatio; // -50..50
       const factors = (() => {
-        if (ratio < 50) return { top: 1 - (50.0 - ratio) / 50, bottom: 1 };
-        if (ratio > 50) return { top: 1, bottom: 1 - (ratio - 50.0) / 50 };
+        if (ratio < 0) return { top: 1 - (-ratio) / 50, bottom: 1 };
+        if (ratio > 0) return { top: 1, bottom: 1 - (ratio) / 50 };
         return { top: 1, bottom: 1 };
       })();
 
@@ -1731,9 +1733,9 @@ function BoxGenerator() {
               }}>
                 <div style={{ width: '100%', height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
                   {(() => {
-                    const ratio = topBottomRatio; // 0..100
-                    const topFactor = ratio < 50 ? (50 - ratio) / 50 : 0;
-                    const bottomFactor = ratio > 50 ? (ratio - 50) / 50 : 0;
+                    const ratio = topBottomRatio; // -50..50
+                    const topFactor = ratio < 0 ? (-ratio) / 50 : 0;    // fraction to reduce Top
+                    const bottomFactor = ratio > 0 ? (ratio) / 50 : 0;  // fraction to reduce Bottom
                     const previewTopScale = 1 - topFactor;
                     const previewBottomScale = 1 - bottomFactor;
                     return (
@@ -1784,18 +1786,18 @@ function BoxGenerator() {
             {/* Top-Bottom ratio slider under viewer */}
             <div style={{ gridColumn: 1, gridRow: 2, width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: move left to emphasize Top (Bottom reduced), right to emphasize Bottom (Top reduced)."}>
+                <div style={{ color: '#fff', fontSize: '0.8em' }} title={"Adjust relative scale: negative values reduce Top, positive values reduce Bottom. 0 is neutral."}>
                   Top-Bottom ratio: {topBottomRatio}
                 </div>
                 <input
                   type="range"
-                  min={10}
-                  max={90}
+                  min={-40}
+                  max={40}
                   step={1}
                   value={topBottomRatio}
                   onChange={e => setTopBottomRatio(Number(e.target.value))}
                   aria-label="Top-Bottom ratio"
-                  title={"Move left to increase Top relative scale and reduce Bottom to 0. Move right to increase Bottom and reduce Top to 0. Center is neutral."}
+                  title={"< 0 reduces Top, > 0 reduces Bottom, 0 is neutral."}
                   style={{ width: '100%' }}
                 />
               </div>
