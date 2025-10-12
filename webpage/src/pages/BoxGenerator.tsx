@@ -1814,10 +1814,11 @@ function BoxGenerator() {
           return (
         <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '3em', marginBottom: '2em' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection:'column', gap: '0.5em', alignItems: 'center'}}>
-            <div style={{ color: '#fff'}}>Outside Reference</div>
+            <div style={{ color: '#fff'}}>Outside Reference <b>Top</b> </div>
             <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
               <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideTop} width={120} alt="Outside Top Reference" />
             </a>
+            <div style={{ color: '#fff'}}>Outside Reference <b>Bottom</b> </div>  
             <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
               <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
             </a>
