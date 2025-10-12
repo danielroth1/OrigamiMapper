@@ -1903,13 +1903,13 @@ function BoxGenerator() {
                       style={{ width: '85%' }}
                     />
                   </div>
-                  {/* Triangle growth slider */}
+                  {/* Printed area growth slider */}
                   <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
                     <div
-                      title={"Increase the size of triangles by this percentage of the page/image max dimension. Applied to both input and output triangles."}
+                      title={"Expands the printed areas by this percentage of the page/image max dimension. It is best to print a little more than needed to counteract inacurracies while cutting or folding the sheet."}
                       style={{ color: '#fff', fontSize: '0.9em' }}
                     >
-                      Triangle growth: {triangleOffsetPct}%
+                      Printed area growth: {triangleOffsetPct}%
                     </div>
                     <input
                       type="range"
