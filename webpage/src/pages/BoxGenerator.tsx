@@ -1394,7 +1394,7 @@ function BoxGenerator() {
           Perfect for holding a standard deck of 60 cards.
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', marginBottom: '1em' }}>
+        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center', marginBottom: '1em' }}>
           <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
             <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
           </button>
@@ -1665,7 +1665,7 @@ function BoxGenerator() {
           </div>
 
           {/* Right column: Cube viewer with toolbar and open slider */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12, flex: '1 1 0'}}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', justifyContent: 'stretch', alignItems: 'stretch', gap: 12}}>
             {/* Canvas frame */}
             <div style={{ gridColumn: 1, gridRow: 1, width: '100%', position: 'relative', aspectRatio: '3 / 4' }}>
               {/* Toolbar on top of canvas */}
@@ -1808,7 +1808,7 @@ function BoxGenerator() {
 
         </div>
 
-        {/* Settings / Export controls / Reference images */}
+        {/* Settings first, then a horizontal scrollable Reference gallery */}
         {(() => {
           // Build asset URLs using Vite base path so it works in dev and production (GH Pages)
           const basePath = (import.meta as any).env?.BASE_URL || '/';
@@ -1816,159 +1816,160 @@ function BoxGenerator() {
           const refOutsideBottom = basePath + 'assets/reference_outside_bottom.png';
           const refInside = basePath + 'assets/reference_inside.png';
           return (
-            <div className="reference-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2em', marginTop: '3em', marginBottom: '2em' }}>
-              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5em', alignItems: 'center' }}>
-                <div style={{ color: '#fff' }}>Outside Reference <b>Top</b> </div>
-                <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
-                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideTop} width={120} alt="Outside Top Reference" />
-                </a>
-                <div style={{ color: '#fff' }}>Outside Reference <b>Bottom</b> </div>
-                <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
-                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refOutsideBottom} width={120} alt="Outside Bottom Reference" />
-                </a>
-              </div>
-              <div style={{ flex: '0 1 300px' }}>
-                {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
-                <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: '300', boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gridTemplateColumns: '1fr 1fr', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start' }}>
-                    {SHOW_TEMPLATES && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
-                      <TemplateSelect onTemplate={setTemplate} />
-                    </div>}
-                    {SHOW_TRANSFORMS && <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
-                      <span style={{ color: '#fff' }}>Transform:</span>
-                      <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
-                        <option value="none">None</option>
-                        <option value="scale">Scale</option>
-                        <option value="tile">Tile (Fill A4)</option>
-                        <option value="tile4">Tile 4x (2x2)</option>
-                        <option value="tile8">Tile 8x (4x2)</option>
-                      </select>
-                    </div>}
-                    {/* Rotation selectors moved into each PolygonEditor sidebar */}
-                    <div style={{ width: '100%', display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
-                      <span style={{ color: '#fff' }}>Output DPI:</span>
-                      <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
-                        <option value={200}>200</option>
-                        <option value={300}>300</option>
-                        <option value={600}>600</option>
-                      </select>
-                    </div>
-                    {/* buttons moved below grid */}
+            <div style={{ marginTop: '3em', marginBottom: '2em' }}>
+              {/* Uploads are handled inside each PolygonEditor to avoid duplicate inputs */}
+              <section className="template-run-card" style={{ background: '#181818', borderRadius: '12px', padding: '1em', margin: '0 auto', maxWidth: 400, boxShadow: '0 2px 12px #0006', display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.75em', width: '100%', alignItems: 'start', justifyItems: 'start', flexWrap: 'wrap' }}>
+                  {SHOW_TEMPLATES && <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'start' }}>
+                    <TemplateSelect onTemplate={setTemplate} />
+                  </div>}
+                  {SHOW_TRANSFORMS && <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'start', gap: '0.5em' }}>
+                    <span style={{ color: '#fff' }}>Transform:</span>
+                    <select value={transformMode} onChange={e => setTransformMode(e.target.value as any)} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '90px' }}>
+                      <option value="none">None</option>
+                      <option value="scale">Scale</option>
+                      <option value="tile">Tile (Fill A4)</option>
+                      <option value="tile4">Tile 4x (2x2)</option>
+                      <option value="tile8">Tile 8x (4x2)</option>
+                    </select>
+                  </div>}
+                  {/* Rotation selectors moved into each PolygonEditor sidebar */}
+                  <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '0.5em' }}>
+                    <span style={{ color: '#fff' }}>Output DPI:</span>
+                    <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
+                      <option value={200}>200</option>
+                      <option value={300}>300</option>
+                      <option value={600}>600</option>
+                    </select>
                   </div>
-                  <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.25em' }}>
-                        <label
+                </div>
+                <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.25em' }}>
+                      <label
+                        title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
+                        style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={withFoldLines}
+                          onChange={e => setWithFoldLines(e.target.checked)}
                           title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                          style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={withFoldLines}
-                            onChange={e => setWithFoldLines(e.target.checked)}
-                            title={"Add fold lines that show how to fold the paper. The lines will not be visible in the finished box."}
-                            aria-label={"With fold helper lines"}
-                          />
-                          With fold helper lines
-                        </label>
-                        <label
+                          aria-label={"With fold helper lines"}
+                        />
+                        With fold helper lines
+                      </label>
+                      <label
+                        title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
+                        style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={withCutLines}
+                          onChange={e => setWithCutLines(e.target.checked)}
                           title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
-                          style={{ color: '#fff', fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '0.5em' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={withCutLines}
-                            onChange={e => setWithCutLines(e.target.checked)}
-                            title={"Add guide lines indicating where the printed sheet should be trimmed. Useful because many printers cannot print to the paper edge."}
-                            aria-label={"With cut lines"}
-                          />
-                          With cut lines
-                        </label>
-                      </div>
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                        <div
-                          title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
-                          style={{ color: '#fff', fontSize: '0.9em' }}
-                        >
-                          Scale: {scalePercent}%
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={30}
-                          step={0.5}
-                          value={scalePercent}
-                          onChange={e => {
-                            // prevent negative values: clamp to 0 or above
-                            const v = Math.max(0, Number(e.target.value));
-                            setScalePercent(v);
-                          }}
-                          title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
-                          aria-label={"Reduce the box size by percentage"}
-                          style={{ width: '85%' }}
+                          aria-label={"With cut lines"}
                         />
+                        With cut lines
+                      </label>
+                    </div>
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                      <div
+                        title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                        style={{ color: '#fff', fontSize: '0.9em' }}
+                      >
+                        Scale: {scalePercent}%
                       </div>
-                      {/* Printed area growth slider */}
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
-                        <div
-                          title={"Expands the printed areas by this percentage of the page/image max dimension. It is best to print a little more than needed to counteract inacurracies while cutting or folding the sheet."}
-                          style={{ color: '#fff', fontSize: '0.9em' }}
-                        >
-                          Printed area growth: {triangleOffsetPct}%
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={10}
-                          step={0.5}
-                          value={triangleOffsetPct}
-                          onChange={e => {
-                            const v = Math.max(0, Number(e.target.value));
-                            setTriangleOffsetPct(v);
-                          }}
-                          title={"Increase triangle size by a fixed offset of this percentage times max(width,height)."}
-                          aria-label={"Triangle growth percent"}
-                          style={{ width: '85%' }}
-                        />
+                      <input
+                        type="range"
+                        min={0}
+                        max={30}
+                        step={0.5}
+                        value={scalePercent}
+                        onChange={e => {
+                          const v = Math.max(0, Number(e.target.value));
+                          setScalePercent(v);
+                        }}
+                        title={"Reduce the box size by this percentage. The value is applied to each side of the page when generating the PDF."}
+                        aria-label={"Reduce the box size by percentage"}
+                        style={{ width: '85%' }}
+                      />
+                    </div>
+                    {/* Printed area growth slider */}
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em' }}>
+                      <div
+                        title={"Expands the printed areas by this percentage of the page/image max dimension. It is best to print a little more than needed to counteract inacurracies while cutting or folding the sheet."}
+                        style={{ color: '#fff', fontSize: '0.9em' }}
+                      >
+                        Printed area growth: {triangleOffsetPct}%
                       </div>
-                      <div style={{ display: 'flex', gap: '1em', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '0.5em' }}>
-                        {SHOW_RUN_MAPPING &&
-                          <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
-                            {loading ? 'Processing...' : 'Run Mapping'}
-                          </button>}
-                        <button
-                          style={{ alignSelf: 'center' }}
-                          onClick={() => {
-                            if (pdfLoading && !pdfCancelling) {
-                              cancelPdfGeneration();
-                            } else {
-                              void handleRunThenDownloadDual();
-                            }
-                          }}
-                          className="menu-btn"
-                          disabled={pdfCancelling}
-                        >
-                          {pdfCancelling ? 'Cancelling...' : (pdfLoading ? 'Cancel' : 'Download')}
-                        </button>
+                      <input
+                        type="range"
+                        min={0}
+                        max={10}
+                        step={0.5}
+                        value={triangleOffsetPct}
+                        onChange={e => {
+                          const v = Math.max(0, Number(e.target.value));
+                          setTriangleOffsetPct(v);
+                        }}
+                        title={"Increase triangle size by a fixed offset of this percentage times max(width,height)."}
+                        aria-label={"Triangle growth percent"}
+                        style={{ width: '85%' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '1em', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '0.5em' }}>
+                      {SHOW_RUN_MAPPING &&
+                        <button onClick={() => handleRun(false)} disabled={loading || pdfLoading} className="menu-btn">
+                          {loading ? 'Processing...' : 'Run Mapping'}
+                        </button>}
+                      <button
+                        style={{ alignSelf: 'center' }}
+                        onClick={() => {
+                          if (pdfLoading && !pdfCancelling) {
+                            cancelPdfGeneration();
+                          } else {
+                            void handleRunThenDownloadDual();
+                          }
+                        }}
+                        className="menu-btn"
+                        disabled={pdfCancelling}
+                      >
+                        {pdfCancelling ? 'Cancelling...' : (pdfLoading ? 'Cancel' : 'Download')}
+                      </button>
+                    </div>
+                  </div>
+                  {(pdfLoading || pdfProgress > 0) && (
+                    <div style={{ width: '90%', maxWidth: 360, marginTop: 8 }}>
+                      <div style={{ height: 10, background: '#2b2b2b', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ width: `${pdfProgress}%`, height: '100%', background: '#4caf50', transition: 'width 200ms ease' }} />
                       </div>
                     </div>
-                    {/* simple progress bar shown while PDF is being generated */}
-                    {(pdfLoading || pdfProgress > 0) && (
-                      <div style={{ width: '90%', maxWidth: 360, marginTop: 8 }}>
-                        <div style={{ height: 10, background: '#2b2b2b', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ width: `${pdfProgress}%`, height: '100%', background: '#4caf50', transition: 'width 200ms ease' }} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5em', alignItems: 'center' }}>
-                <div style={{ color: '#fff' }}>Inside Reference</div>
-                <a href={refInside} download={"reference_inside.png"} title="Download Inside reference">
-                  <img style={{ background: '#fff', cursor: 'pointer' }} src={refInside} width={120} alt="Inside Reference" />
-                </a>
-              </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Horizontal scrollable references gallery */}
+              <section className="reference-scroller" aria-label="Reference images">
+                <figure className="reference-card">
+                  <a href={refOutsideTop} download={"reference_outside_top.png"} title="Download Outside Top reference">
+                    <img src={refOutsideTop} alt="Outside Top Reference" />
+                  </a>
+                  <figcaption>Outside Reference Top</figcaption>
+                </figure>
+                <figure className="reference-card">
+                  <a href={refOutsideBottom} download={"reference_outside_bottom.png"} title="Download Outside Bottom reference">
+                    <img src={refOutsideBottom} alt="Outside Bottom Reference" />
+                  </a>
+                  <figcaption>Outside Reference Bottom</figcaption>
+                </figure>
+                <figure className="reference-card">
+                  <a href={refInside} download={"reference_inside.png"} title="Download Inside reference">
+                    <img src={refInside} alt="Inside Reference" />
+                  </a>
+                  <figcaption>Inside Reference</figcaption>
+                </figure>
+              </section>
             </div>
           );
         })()}
