@@ -78,13 +78,15 @@ function BoxGenerator() {
   const [transformMode, setTransformMode] = useState<'none' | 'scale' | 'tile' | 'tile4' | 'tile8'>('none');
   const [results, setResults] = useState<{ [key: string]: string }>({});
   const [outputDpi, setOutputDpi] = useState<number>(300);
-  const [scalePercent, setScalePercent] = useState(1); // percent (0..100+): amount to reduce the printed box on each side
+  const [scalePercent, setScalePercent] = useState(0.5); // percent (0..100+): amount to reduce the printed box on each side
   const [triangleOffsetPct, setTriangleOffsetPct] = useState(4); // percent (0..100): triangle growth offset relative to max(width,height)
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
   // Cancel flag for PDF generation
   const pdfCancelRef = useRef<boolean>(false);
+  // UI state for when user has requested cancel and we're waiting for it to complete
+  const [pdfCancelling, setPdfCancelling] = useState(false);
   const [withFoldLines, setWithFoldLines] = useState(true);
   const [withCutLines, setWithCutLines] = useState(true);
   // Bottom (existing) faces
@@ -1353,13 +1355,20 @@ function BoxGenerator() {
       }
     } finally {
       setLoading(false);
-      setTimeout(() => { setPdfLoading(false); setPdfProgress(0); }, 300);
+      // When the operation ends (success or cancel), clear progress and end cancelling state
+      setTimeout(() => {
+        setPdfLoading(false);
+        setPdfProgress(0);
+        setPdfCancelling(false);
+      }, 300);
     }
   };
 
   // Allow user to cancel an in-flight PDF generation
   const cancelPdfGeneration = () => {
     pdfCancelRef.current = true;
+    // Immediately reflect UI intent: disable button and show "Cancelling..."
+    setPdfCancelling(true);
   };
 
   const getCanvasHeight = () =>
@@ -1882,6 +1891,7 @@ function BoxGenerator() {
                       type="range"
                       min={0}
                       max={30}
+                      step={0.5}
                       value={scalePercent}
                       onChange={e => {
                         // prevent negative values: clamp to 0 or above
@@ -1924,15 +1934,16 @@ function BoxGenerator() {
                     <button
                       style={{ alignSelf: 'center'}}
                       onClick={() => {
-                        if (pdfLoading) {
+                        if (pdfLoading && !pdfCancelling) {
                           cancelPdfGeneration();
                         } else {
                           void handleRunThenDownloadDual();
                         }
                       }}
                       className="menu-btn"
+                      disabled={pdfCancelling}
                     >
-                      {pdfLoading ? 'Cancel' : 'Download'}
+                      {pdfCancelling ? 'Cancelling...' : (pdfLoading ? 'Cancel' : 'Download')}
                     </button>
                   </div>
                 </div>
