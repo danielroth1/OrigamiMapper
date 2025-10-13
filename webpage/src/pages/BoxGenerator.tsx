@@ -17,6 +17,8 @@ import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 
 const SHOW_TEMPLATES = false;
+const GENERATE_DEMO_IN_DEBUG = false;
+
 // Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
 // - context: short message about the action (e.g., "Save project (.mapper)")
 // - defaultBase: fallback base name (without extension)
@@ -566,7 +568,7 @@ function BoxGenerator() {
   useEffect(() => {
     // Debug gate: only run when in dev mode or explicit VITE_DEBUG flag
     const isDebug = (import.meta as any).env?.DEV || (import.meta as any).env?.VITE_DEBUG === 'true';
-    if (!isDebug) return; // skip in production unless flag set
+    if (!isDebug || !GENERATE_DEMO_IN_DEBUG) return; // skip in production unless flag set
     if (suppressAutoDemo) return; // user explicitly deleted images; don't auto-reload them
     // Only attempt if neither image is already set (avoid overriding user uploads)
     if ((outsideImgTopRaw && insideImgTopRaw) && (outsideImgBottomRaw && insideImgBottomRaw) && (topOutsideImgRaw && topInsideImgRaw)) return;

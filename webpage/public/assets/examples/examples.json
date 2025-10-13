@@ -1,0 +1,18 @@
+{
+  "suggestions": [
+    { "url": "/assets/examples/suggestions/AllSeasons1.jpg", "label": "All Seasons 1" },
+    { "url": "/assets/examples/suggestions/AllSeasons2.jpeg", "label": "All Seasons 2" },
+    { "url": "/assets/examples/suggestions/AllSeasons3.jpeg", "label": "All Seasons 3" },
+    { "url": "/assets/examples/suggestions/AllSeasons4.jpeg", "label": "All Seasons 4" },
+    { "url": "/assets/examples/suggestions/AllSeasons5.jpeg", "label": "All Seasons 5" },
+    { "url": "/assets/examples/suggestions/AllSeasons6.jpeg", "label": "All Seasons 6" },
+    { "url": "/assets/examples/suggestions/Logos1.jpeg", "label": "Logos 1" },
+    { "url": "/assets/examples/suggestions/Logos2.webp", "label": "Logos 2" },
+    { "url": "/assets/examples/suggestions/Skull.jpeg", "label": "Skull" },
+    { "url": "/assets/examples/suggestions/SkullAwakening.jpeg", "label": "Skull Awakening" },
+    { "url": "/assets/examples/suggestions/World.jpeg", "label": "World" },
+    { "url": "/assets/examples/suggestions/reference_inside.png", "label": "Reference Inside" },
+    { "url": "/assets/examples/suggestions/reference_outside_bottom.png", "label": "Reference Outside Bottom" },
+    { "url": "/assets/examples/suggestions/reference_outside_top.png", "label": "Reference Outside Top" }
+  ]
+}
