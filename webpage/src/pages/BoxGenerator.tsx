@@ -310,8 +310,9 @@ function BoxGenerator() {
     const inPolys = insidePolys
       ?? insideEditorRef.current?.getCurrentJson().input_polygons
       ?? getEditorData(true).input_polygons;
-    buildFaceTextures(outPolys, outsideImgTransformed).then(tex => setOutsideFaces(tex));
-    buildFaceTextures(inPolys, insideImgTransformed).then(tex => setInsideFaces(tex));
+    // Use refs to avoid stale state captured by debounced callbacks
+    buildFaceTextures(outPolys, outsideImgTransformedRef.current).then(tex => setOutsideFaces(tex));
+    buildFaceTextures(inPolys, insideImgTransformedRef.current).then(tex => setInsideFaces(tex));
   };
 
   // Build-only-top helper
@@ -323,9 +324,10 @@ function BoxGenerator() {
       ?? getTopEditorData(false).input_polygons;
     const topInPolys = topInsideEditorRef.current?.getCurrentJson().input_polygons
       ?? getTopEditorData(true).input_polygons;
-    if (hasTopBox) {
-      buildFaceTextures(outsidePolys ?? topOutPolys, topOutsideImgTransformed).then(tex => setTopOutsideFaces(tex));
-      buildFaceTextures(insidePolys ?? topInPolys, topInsideImgTransformed).then(tex => setTopInsideFaces(tex));
+    if (hasTopBoxRef.current) {
+      // Use refs so the debounced timeout cannot see old image values
+      buildFaceTextures(outsidePolys ?? topOutPolys, topOutsideImgTransformedRef.current).then(tex => setTopOutsideFaces(tex));
+      buildFaceTextures(insidePolys ?? topInPolys, topInsideImgTransformedRef.current).then(tex => setTopInsideFaces(tex));
     } else {
       setTopOutsideFaces({});
       setTopInsideFaces({});
@@ -443,6 +445,19 @@ function BoxGenerator() {
   const [topInsideImgTransformed, setTopInsideImgTransformed] = useState('');
   const [topOutsideRotation, setTopOutsideRotation] = useState<0 | 90 | 180 | 270>(0);
   const [topInsideRotation, setTopInsideRotation] = useState<0 | 90 | 180 | 270>(0);
+
+  // Always-current refs to avoid stale-closure reads in debounced callbacks
+  const outsideImgTransformedRef = useRef(outsideImgTransformed);
+  const insideImgTransformedRef = useRef(insideImgTransformed);
+  const topOutsideImgTransformedRef = useRef(topOutsideImgTransformed);
+  const topInsideImgTransformedRef = useRef(topInsideImgTransformed);
+  const hasTopBoxRef = useRef(hasTopBox);
+
+  useEffect(() => { outsideImgTransformedRef.current = outsideImgTransformed; }, [outsideImgTransformed]);
+  useEffect(() => { insideImgTransformedRef.current = insideImgTransformed; }, [insideImgTransformed]);
+  useEffect(() => { topOutsideImgTransformedRef.current = topOutsideImgTransformed; }, [topOutsideImgTransformed]);
+  useEffect(() => { topInsideImgTransformedRef.current = topInsideImgTransformed; }, [topInsideImgTransformed]);
+  useEffect(() => { hasTopBoxRef.current = hasTopBox; }, [hasTopBox]);
   const setTopOutsideImg = (dataUrl: string) => {
     setTopOutsideImgRaw(dataUrl);
     // Keep autosave-compatible mirror in legacy top raw as well
