@@ -113,10 +113,10 @@ export const mirrorInsidePolygons = (
     }
   };
   // Swap L<->R with rotation; rotate U/V/H in place; no translation or special U-shifts
-  copyFromTo('R', 'L', false);
-  copyFromTo('L', 'R', false);
+  copyFromTo('R', 'L', true);
+  copyFromTo('L', 'R', true);
   copyFromTo('U', 'U', true);
-  copyFromTo('V', 'V', true);
-  copyFromTo('H', 'H', true);
+  copyFromTo('H', 'V', true);
+  copyFromTo('V', 'H', true);
   return t;
 };
