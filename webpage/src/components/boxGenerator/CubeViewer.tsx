@@ -129,8 +129,29 @@ export default function CubeViewer({
   const clampedOpen = Math.max(0, Math.min(100, openPercent || 0));
   const maxScaledH = Math.max(height * Math.max(0.01, bottomScale), height * Math.max(0.01, topScale));
   const totalSep = (clampedOpen / 100) * (2.5 * maxScaledH);
-  const bottomY = -totalSep / 2;
-  const topY = totalSep / 2;
+  // Linear Y separation (always computed linearly so early phase [0,45] is unchanged)
+  const bottomYLinear = -totalSep / 2;
+  const topYLinear = totalSep / 2;
+
+  // Curved phase configuration
+  // Curve begins at 45 and ends at 100. Movement follows a parabola in the YZ plane (plane normal/rotation axis = (1,0,0)).
+  // Boxes also rotate around X axis (clockwise for top, counter-clockwise for bottom) from 0° at 45 to 60° at 100.
+  const CURVE_START = 45;
+  const curveT = clampedOpen <= CURVE_START ? 0 : (clampedOpen - CURVE_START) / (100 - CURVE_START);
+  const thetaMax = THREE.MathUtils.degToRad(90);
+  const theta = curveT * thetaMax; // additional rotation around X
+  // Parabolic offset along Z: z = k * t^2, symmetric for top/bottom to move away from each other
+  const curveStrength = 1.0 * maxScaledH; // tweakable intensity of the curve
+  const zOffset = curveStrength * curveT * curveT;
+
+  // Final positions (stay in the YZ plane; X remains 0). For 0..45, curveT=0 so z=0 and no extra rotation.
+  const bottomPos: [number, number, number] = [0, bottomYLinear, -zOffset];
+  const topPos: [number, number, number] = [0, topYLinear, -zOffset];
+
+  // Final rotations
+  const bottomRot: [number, number, number] = [theta, 0, 0]; // CCW around +X
+  const baseTopRotX = Math.PI; // keep top inverted as before
+  const topRot: [number, number, number] = [baseTopRotX - theta, Math.PI, 0]; // CW around +X
 
   return (
     <Canvas
@@ -143,13 +164,13 @@ export default function CubeViewer({
       <primitive object={useMemo(() => { const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3, 4, 5); return light; }, [])} />
       {/* Bottom box (or single box when top not provided) */}
       {bottomOut || bottomIn ? (
-        <group position={[0, bottomY, 0]} scale={[bottomScale, bottomScale, bottomScale]}>
+        <group position={bottomPos} rotation={bottomRot} scale={[bottomScale, bottomScale, bottomScale]}>
           <TexturedOpenBox outsideFaces={bottomOut} insideFaces={bottomIn} width={width} height={height} />
         </group>
       ) : null}
       {/* Top box (render only if provided) */}
       {topOut || topIn ? (
-        <group position={[0, topY, 0]} scale={[topScale, topScale, topScale]} rotation={[Math.PI, Math.PI, 0]}>
+        <group position={topPos} scale={[topScale, topScale, topScale]} rotation={topRot}>
           <TexturedOpenBox outsideFaces={topOut} insideFaces={topIn} width={width} height={height} />
         </group>
       ) : null}
