@@ -18,6 +18,8 @@ import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoC
 
 const SHOW_TEMPLATES = false;
 const GENERATE_DEMO_IN_DEBUG = false;
+// Shared localStorage key to remember last used base filename across Save/Download/Load
+const LS_KEY = 'om.lastFileBase';
 
 // Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
 // - context: short message about the action (e.g., "Save project (.mapper)")
@@ -25,7 +27,6 @@ const GENERATE_DEMO_IN_DEBUG = false;
 // - extension: desired extension without dot (e.g., 'pdf', 'mapper')
 const pickDownloadFilename = (opts: { context: string; defaultBase: string; extension: string }): string | null => {
   const { context, defaultBase, extension } = opts;
-  const LS_KEY = 'om.lastFileBase';
   const lastBaseRaw = (typeof localStorage !== 'undefined') ? (localStorage.getItem(LS_KEY) || '') : '';
   // If defaultBase has a suffix like _front/_back, keep it as a suffix suggestion, but prefer the stored base for consistency
   const suffixMatch = /_(front|back)$/i.exec(defaultBase);
@@ -913,6 +914,15 @@ function BoxGenerator() {
   const onMapperFileSelected = async (file: File | null) => {
     if (!file) return;
     try {
+      // Remember this file's base name for subsequent saves/downloads
+      try {
+        const rawName = file.name || '';
+        const withoutExt = rawName.replace(/\.[^.]+$/, '');
+        if (withoutExt && typeof localStorage !== 'undefined') {
+          localStorage.setItem(LS_KEY, withoutExt);
+        }
+      } catch { /* ignore */ }
+
       const ab = await file.arrayBuffer();
       const zip = await JSZip.loadAsync(ab);
       // read box.json
