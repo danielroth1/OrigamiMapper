@@ -1184,13 +1184,44 @@ function BoxGenerator() {
             canvases.forEach(c => { const a = c.width * c.height; if (typeof (c as any).toDataURL === 'function' && a > bestArea) { best = c; bestArea = a; } });
             return best;
         };
+        // Helper: robust existence check (dev server may return index.html with 200)
+        const previewExists = async (url: string): Promise<boolean> => {
+          try {
+            const res = await fetch(withBase(url), { cache: 'no-store' });
+            if (!res.ok) return false;
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            // If server reports image/* we accept
+            if (ct.startsWith('image/')) return true;
+            // If it's clearly html, it's the SPA fallback
+            if (ct.includes('text/html')) return false;
+            // Fallback: inspect a small slice of body text
+            const blob = await res.blob();
+            if (blob.type.startsWith('image/')) return true;
+            if (blob.size < 32 * 1024) { // small fallback html likely
+              try {
+                const text = await blob.text();
+                if (/<!doctype html>/i.test(text) || /<html/i.test(text)) return false;
+              } catch { /* ignore */ }
+            }
+            // If we can't prove it's html and we have some bytes, assume does not exist (force regen)
+            return false;
+          } catch {
+            return false;
+          }
+        };
         for (const proj of list) {
           if (single && !proj.file.includes(single)) continue;
           const mapperPath = proj.file;
           const fetchUrl = withBase(mapperPath);
-          const previewPath = proj.preview || mapperPath.replace(/\.mapper$/i, '.preview.png');
-          const fileName = previewPath.split('/').pop() || 'preview.png';
-          if (log) console.log(`[PreviewGen] Loading ${mapperPath}`);
+          // Expected preview path: either provided or derived by replacing .mapper with .preview.webp (project spec)
+          const previewPath = (proj.preview || mapperPath.replace(/\.mapper$/i, '.preview.webp')).replace(/\.preview\.(png|jpg|jpeg)$/i, '.preview.webp');
+          const fileName = previewPath.split('/').pop() || 'preview.webp';
+          // Skip generation if preview already exists (robust check)
+          if (await previewExists(previewPath)) {
+            if (log) console.log(`[PreviewGen] Skipping existing preview: ${withBase(previewPath)}`);
+            continue;
+          }
+          if (log) console.log(`[PreviewGen] Loading ${mapperPath} (will generate ${fileName})`);
           try {
             const r = await fetch(fetchUrl, { cache: 'no-store' });
             if (!r.ok) throw new Error('Mapper fetch failed ' + r.status);
@@ -1286,6 +1317,10 @@ function BoxGenerator() {
             if (outputFormat === 'webp') {
               const baseNoExt = fileName.replace(/\.[^.]+$/, '');
               finalName = baseNoExt + '.webp';
+            } else if (outputFormat === 'png') {
+              // If user explicitly requests png override extension
+              const baseNoExt = fileName.replace(/\.[^.]+$/, '');
+              finalName = baseNoExt + '.png';
             }
             const a = document.createElement('a');
             a.download = finalName;
