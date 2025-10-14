@@ -727,6 +727,13 @@ function BoxGenerator() {
     insideJson?: OrigamiMapperTypes.TemplateJson | null;
     topOutsideJson?: OrigamiMapperTypes.TemplateJson | null;
     topInsideJson?: OrigamiMapperTypes.TemplateJson | null;
+    // Optional immediate raw image overrides to capture state changes before UI settles
+    overrideRaw?: {
+      outsideTop?: string | null;
+      insideTop?: string | null;
+      outsideBottom?: string | null;
+      insideBottom?: string | null;
+    } | null;
   }) => {
     try {
       const outsideJson = (overrides && 'outsideJson' in (overrides || {})) ? overrides?.outsideJson : (outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : null);
@@ -734,17 +741,22 @@ function BoxGenerator() {
       const topOutsideJson = (overrides && 'topOutsideJson' in (overrides || {})) ? overrides?.topOutsideJson : (topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : null);
       const topInsideJson = (overrides && 'topInsideJson' in (overrides || {})) ? overrides?.topInsideJson : (topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : null);
       // Persist rotated images (bake rotation into the saved data)
-      const bakedTopOutside = (topOutsideImgRaw || outsideImgTopRaw)
-        ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
+      const rawTopOutside = (overrides?.overrideRaw?.outsideTop ?? (topOutsideImgRaw || outsideImgTopRaw)) || '';
+      const rawTopInside = (overrides?.overrideRaw?.insideTop ?? (topInsideImgRaw || insideImgTopRaw)) || '';
+      const rawBottomOutside = (overrides?.overrideRaw?.outsideBottom ?? outsideImgBottomRaw) || '';
+      const rawBottomInside = (overrides?.overrideRaw?.insideBottom ?? insideImgBottomRaw) || '';
+
+      const bakedTopOutside = rawTopOutside
+        ? await rotateDataUrlDegrees(rawTopOutside, topOutsideRotation)
         : '';
-      const bakedTopInside = (topInsideImgRaw || insideImgTopRaw)
-        ? await rotateDataUrlDegrees((topInsideImgRaw || insideImgTopRaw), topInsideRotation)
+      const bakedTopInside = rawTopInside
+        ? await rotateDataUrlDegrees(rawTopInside, topInsideRotation)
         : '';
-      const bakedBottomOutside = outsideImgBottomRaw
-        ? await rotateDataUrlDegrees(outsideImgBottomRaw, outsideRotation)
+      const bakedBottomOutside = rawBottomOutside
+        ? await rotateDataUrlDegrees(rawBottomOutside, outsideRotation)
         : '';
-      const bakedBottomInside = insideImgBottomRaw
-        ? await rotateDataUrlDegrees(insideImgBottomRaw, insideRotation)
+      const bakedBottomInside = rawBottomInside
+        ? await rotateDataUrlDegrees(rawBottomInside, insideRotation)
         : '';
       const outsideTopBlob = await dataUrlToBlob(bakedTopOutside || null);
       const insideTopBlob = await dataUrlToBlob(bakedTopInside || null);
@@ -1596,26 +1608,43 @@ function BoxGenerator() {
                     if (sideFilter === 'outside') {
                       // Pre-rotate raw outside image by rotation delta so bottom keeps its own rotation state
                       const deltaOut = (((topOutsideRotation - outsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      let newBottomOut: string | null = null;
                       if (topOutsideImgRaw) {
                         const rotated = deltaOut ? await rotateDataUrlDegrees(topOutsideImgRaw, deltaOut) : topOutsideImgRaw;
+                        newBottomOut = rotated;
                         setOutsideImgBottomRaw(rotated);
                       }
                       const srcOut = topOutsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                       if (outsideEditorRef.current) {
                         const target = outsideEditorRef.current.getCurrentJson().input_polygons;
-                        outsideEditorRef.current.setFromJson({ ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                        const newBottomOutsideJson = { ...getEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) };
+                        outsideEditorRef.current.setFromJson(newBottomOutsideJson);
+                        // Save immediately with overrides so autosave reflects mirrored image and polygons
+                        void saveAutosave({
+                          outsideJson: newBottomOutsideJson,
+                          topOutsideJson: topOutsideEditorRef.current?.getCurrentJson() ?? null,
+                          overrideRaw: { outsideBottom: newBottomOut }
+                        });
                       }
                     } else if (sideFilter === 'inside') {
                       // Pre-rotate raw inside image by rotation delta so bottom keeps its own rotation state
                       const deltaIn = (((topInsideRotation - insideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      let newBottomIn: string | null = null;
                       if (topInsideImgRaw) {
                         const rotated = deltaIn ? await rotateDataUrlDegrees(topInsideImgRaw, deltaIn) : topInsideImgRaw;
+                        newBottomIn = rotated;
                         setInsideImgBottomRaw(rotated);
                       }
                       const srcIn = topInsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                       if (insideEditorRef.current) {
                         const target = insideEditorRef.current.getCurrentJson().input_polygons;
-                        insideEditorRef.current.setFromJson({ ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                        const newBottomInsideJson = { ...getEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) };
+                        insideEditorRef.current.setFromJson(newBottomInsideJson);
+                        void saveAutosave({
+                          insideJson: newBottomInsideJson,
+                          topInsideJson: topInsideEditorRef.current?.getCurrentJson() ?? null,
+                          overrideRaw: { insideBottom: newBottomIn }
+                        });
                       }
                     }
                     // Build once after mirroring
@@ -1629,26 +1658,42 @@ function BoxGenerator() {
                     if (sideFilter === 'outside') {
                       // Pre-rotate raw outside image by rotation delta so top keeps its own rotation state
                       const deltaOut = (((outsideRotation - topOutsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      let newTopOut: string | null = null;
                       if (outsideImgBottomRaw) {
                         const rotated = deltaOut ? await rotateDataUrlDegrees(outsideImgBottomRaw, deltaOut) : outsideImgBottomRaw;
+                        newTopOut = rotated;
                         setTopOutsideImg(rotated);
                       }
                       const srcOut = outsideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                       if (topOutsideEditorRef.current) {
                         const target = topOutsideEditorRef.current.getCurrentJson().input_polygons;
-                        topOutsideEditorRef.current.setFromJson({ ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) });
+                        const newTopOutsideJson = { ...getTopEditorData(false), input_polygons: mirrorOutsidePolygons(srcOut, target) };
+                        topOutsideEditorRef.current.setFromJson(newTopOutsideJson);
+                        void saveAutosave({
+                          outsideJson: outsideEditorRef.current?.getCurrentJson() ?? null,
+                          topOutsideJson: newTopOutsideJson,
+                          overrideRaw: { outsideTop: newTopOut }
+                        });
                       }
                     } else if (sideFilter === 'inside') {
                       // Pre-rotate raw inside image by rotation delta so top keeps its own rotation state
                       const deltaIn = (((insideRotation - topInsideRotation) % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+                      let newTopIn: string | null = null;
                       if (insideImgBottomRaw) {
                         const rotated = deltaIn ? await rotateDataUrlDegrees(insideImgBottomRaw, deltaIn) : insideImgBottomRaw;
+                        newTopIn = rotated;
                         setTopInsideImg(rotated);
                       }
                       const srcIn = insideEditorRef.current?.getCurrentJson().input_polygons ?? [];
                       if (topInsideEditorRef.current) {
                         const target = topInsideEditorRef.current.getCurrentJson().input_polygons;
-                        topInsideEditorRef.current.setFromJson({ ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) });
+                        const newTopInsideJson = { ...getTopEditorData(true), input_polygons: mirrorInsidePolygons(srcIn, target) };
+                        topInsideEditorRef.current.setFromJson(newTopInsideJson);
+                        void saveAutosave({
+                          insideJson: insideEditorRef.current?.getCurrentJson() ?? null,
+                          topInsideJson: newTopInsideJson,
+                          overrideRaw: { insideTop: newTopIn }
+                        });
                       }
                     }
                     // Build once after mirroring

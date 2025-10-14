@@ -129,6 +129,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     setCanRevert(historyRef.current.length > 0);
     if (typeof onChange === 'function' && prev) {
       try { onChange({ ...data, input_polygons: clonePolygons(prev) }); } catch { }
+      // Also request an autosave immediately after undo
+      const json = { ...data, input_polygons: clonePolygons(prev) };
+      if (typeof onOutsave === 'function') {
+        try { onOutsave(json); } catch { }
+      }
+      // Emit a matching outsave event for any external listeners
+      try {
+        window.dispatchEvent(new CustomEvent('polygonEditor:outsave', { detail: { json, label } }));
+      } catch { }
     }
   };
   const handleReset = () => {
