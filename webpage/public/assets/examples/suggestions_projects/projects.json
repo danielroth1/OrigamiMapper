@@ -1,0 +1,24 @@
+{
+  "projects": [
+    {
+      "file": "/assets/examples/suggestions_projects/FourSeasons.mapper",
+      "title": "Four Seasons",
+      "preview": "/assets/examples/suggestions_projects/FourSeasons.preview.png"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/FourSeasons2.mapper",
+      "title": "Four Seasons 2",
+      "preview": "/assets/examples/suggestions_projects/FourSeasons2.preview.png"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/art.mapper",
+      "title": "Art Deck Box",
+      "preview": "/assets/examples/suggestions_projects/art.preview.png"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/death.mapper",
+      "title": "Death Theme",
+      "preview": "/assets/examples/suggestions_projects/death.preview.png"
+    }
+  ]
+}

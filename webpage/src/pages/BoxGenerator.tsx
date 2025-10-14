@@ -15,6 +15,7 @@ import boxData from '../templates/box.json';
 import Header from '../components/Header';
 import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
+import SuggestedProjects from '../components/boxGenerator/SuggestedProjects';
 
 const SHOW_TEMPLATES = false;
 const GENERATE_DEMO_IN_DEBUG = false;
@@ -1482,6 +1483,25 @@ function BoxGenerator() {
                 </div>
               </div>
             )}
+          </div>
+          {/* Suggested Mapper Projects placed directly under the Introduction panel (always visible) */}
+          <div style={{ marginTop: '0.9em' }}>
+            <SuggestedProjects
+              onSelect={async (fileUrl: string) => {
+                try {
+                  const res = await fetch(fileUrl, { cache: 'no-store' });
+                  if (!res.ok) throw new Error('Failed to fetch project: ' + res.status);
+                  const blob = await res.blob();
+                  const urlParts = fileUrl.split('/');
+                  const nameGuess = urlParts[urlParts.length - 1] || 'project.mapper';
+                  const file = new File([blob], nameGuess, { type: 'application/zip' });
+                  await onMapperFileSelected(file);
+                } catch (err) {
+                  console.warn('Failed to load suggested project', err);
+                  alert('Failed to load suggested project: ' + String((err as any)?.message || err));
+                }
+              }}
+            />
           </div>
         </section>
 
