@@ -19,6 +19,26 @@
       "file": "/assets/examples/suggestions_projects/death.mapper",
       "title": "Death Theme",
       "preview": "/assets/examples/suggestions_projects/death.preview.webp"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/house.mapper",
+      "title": "House",
+      "preview": "/assets/examples/suggestions_projects/house.preview.webp"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/gift.mapper",
+      "title": "Gift Box",
+      "preview": "/assets/examples/suggestions_projects/gift.preview.webp"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/chess.mapper",
+      "title": "Chess Board",
+      "preview": "/assets/examples/suggestions_projects/chess.preview.webp"
+    },
+    {
+      "file": "/assets/examples/suggestions_projects/wooden_box.mapper",
+      "title": "Wooden Box",
+      "preview": "/assets/examples/suggestions_projects/wooden_box.preview.webp"
     }
   ]
 }

@@ -39,11 +39,13 @@ interface PolygonEditorProps {
   onDelete?: () => void;
   // optional callback invoked to delete the entire box (parent controls removal)
   onDeleteBox?: () => void;
+  // optional callback invoked to delete the box WITHOUT confirmation (used in Load image placeholder)
+  onDeleteBoxNoConfirm?: () => void;
   // optional callback when user uploads an image from inside this editor
   onUploadImage?: (dataUrl: string) => void;
 }
 
-const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, zoomGroup, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onDeleteBox, onUploadImage }, ref) => {
+const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ data, backgroundImg, label, zoomGroup, applyResetTransform, rotation, onRotationChange, onChange, onOutsave, onDelete, onDeleteBox, onDeleteBoxNoConfirm, onUploadImage }, ref) => {
   // Debug flag removed; use SHOW_IMPORT_EXPORT_JSON constant for Import/Export visibility
   // Track modifier keys to reflect pressed state on the UI buttons.
   const [shiftKeyDown, setShiftKeyDown] = useState(false);
@@ -1154,12 +1156,32 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     <div style={{ textAlign: 'center', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {/* Placeholder if no image present */}
       {!backgroundImg && (
-        <div className="upload-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ImageUpload label={`Load image`} onImage={(data) => {
-            // Mark that polygons should reset on the next background update for this user-initiated upload
-            resetOnUserUploadRef.current = true;
-            if (typeof onUploadImage === 'function') onUploadImage(data);
-          }} />
+        <div className="upload-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5em', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ maxWidth: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ImageUpload label={`Load image`} onImage={(data) => {
+              // Mark that polygons should reset on the next background update for this user-initiated upload
+              resetOnUserUploadRef.current = true;
+              if (typeof onUploadImage === 'function') onUploadImage(data);
+            }} />
+          </div>
+          {typeof onDeleteBoxNoConfirm === 'function' && (
+            <button
+              type="button"
+              onClick={() => { onDeleteBoxNoConfirm(); }}
+              title="Remove this box"
+              style={{
+                fontSize: '0.75em',
+                padding: '0.4em 0.8em',
+                borderRadius: 8,
+                background: '#3b0000',
+                color: '#fff',
+                border: '1px solid #660000',
+                cursor: 'pointer'
+              }}
+            >
+              Remove box
+            </button>
+          )}
         </div>
       )}
       {/* Main Grid */}

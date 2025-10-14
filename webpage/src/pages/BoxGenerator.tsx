@@ -1752,6 +1752,19 @@ function BoxGenerator() {
                         scheduleBuildTop();
                         void saveAutosave();
                       }}
+                      onDeleteBoxNoConfirm={() => {
+                        // Same as onDeleteBox but without confirmation (used from Load image placeholder)
+                        setTopOutsideImgRaw('');
+                        setTopOutsideImgTransformed('');
+                        setTopInsideImgRaw('');
+                        setTopInsideImgTransformed('');
+                        setOutsideImgTopRaw('');
+                        setInsideImgTopRaw('');
+                        setHasTopBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildTop();
+                        void saveAutosave();
+                      }}
                     />
                   </div>
                   <div hidden={sideFilter !== 'inside'}>
@@ -1783,6 +1796,18 @@ function BoxGenerator() {
                         setOutsideImgTopRaw('');
                         setInsideImgTopRaw('');
                         // Update UI state
+                        setHasTopBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildTop();
+                        void saveAutosave();
+                      }}
+                      onDeleteBoxNoConfirm={() => {
+                        setTopOutsideImgRaw('');
+                        setTopOutsideImgTransformed('');
+                        setTopInsideImgRaw('');
+                        setTopInsideImgTransformed('');
+                        setOutsideImgTopRaw('');
+                        setInsideImgTopRaw('');
                         setHasTopBox(false);
                         setSuppressAutoDemo(true);
                         scheduleBuildTop();
@@ -1936,6 +1961,16 @@ function BoxGenerator() {
                         scheduleBuildBottom([], []);
                         void saveAutosave();
                       }}
+                      onDeleteBoxNoConfirm={() => {
+                        setOutsideImgBottomRaw('');
+                        setOutsideImgTransformed('');
+                        setInsideImgBottomRaw('');
+                        setInsideImgTransformed('');
+                        setHasBottomBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildBottom([], []);
+                        void saveAutosave();
+                      }}
                     />
                   </div>
                   <div hidden={sideFilter !== 'inside'}>
@@ -1964,6 +1999,16 @@ function BoxGenerator() {
                         setInsideImgBottomRaw('');
                         setInsideImgTransformed('');
                         // Update UI state
+                        setHasBottomBox(false);
+                        setSuppressAutoDemo(true);
+                        scheduleBuildBottom([], []);
+                        void saveAutosave();
+                      }}
+                      onDeleteBoxNoConfirm={() => {
+                        setOutsideImgBottomRaw('');
+                        setOutsideImgTransformed('');
+                        setInsideImgBottomRaw('');
+                        setInsideImgTransformed('');
                         setHasBottomBox(false);
                         setSuppressAutoDemo(true);
                         scheduleBuildBottom([], []);

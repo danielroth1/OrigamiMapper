@@ -298,7 +298,6 @@ export default function ImageUpload({ label, onImage, inputId, examples, maxRece
         </div>
       )}
 
-      <div style={{ marginBottom: 8, color: '#ddd' }}>{label}</div>
       <div
         onDragOver={handleDragOver}
         onDrop={handleDrop}
