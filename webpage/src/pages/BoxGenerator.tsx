@@ -20,6 +20,8 @@ const SHOW_TEMPLATES = false;
 const GENERATE_DEMO_IN_DEBUG = false;
 // Shared localStorage key to remember last used base filename across Save/Download/Load
 const LS_KEY = 'om.lastFileBase';
+// LocalStorage key for remembering whether the intro panel is expanded
+const INTRO_LS_KEY = 'om.introOpen';
 
 // Cross-browser filename picker: prompts for a file name, remembers last base across Save/Download
 // - context: short message about the action (e.g., "Save project (.mapper)")
@@ -92,6 +94,18 @@ function BoxGenerator() {
   const [pdfCancelling, setPdfCancelling] = useState(false);
   const [withFoldLines, setWithFoldLines] = useState(true);
   const [withCutLines, setWithCutLines] = useState(true);
+  // Collapsible intro state (persisted)
+  const [introOpen, setIntroOpen] = useState<boolean>(() => {
+    try {
+      const v = (typeof localStorage !== 'undefined') ? localStorage.getItem(INTRO_LS_KEY) : null;
+      if (v === '0') return false;
+      if (v === '1') return true;
+    } catch {}
+    return true; // default expanded
+  });
+  useEffect(() => {
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(INTRO_LS_KEY, introOpen ? '1' : '0'); } catch {}
+  }, [introOpen]);
   // Bottom (existing) faces
   const [outsideFaces, setOutsideFaces] = useState<FaceTextures>({});
   const [insideFaces, setInsideFaces] = useState<FaceTextures>({});
@@ -1415,11 +1429,49 @@ function BoxGenerator() {
       <div className="App">
         {/* Fixed header for all pages */}
         <Header />
-        <div className="intro-text">
-          Build your own Card Deck Box!
-          This tool generates printable templates from your images.
-          Perfect for holding a standard deck of 60 cards.
-        </div>
+        {/* Intro panel: collapsible with persisted state, visually highlighted */}
+        <section aria-label="Introduction" style={{ margin: '1em auto 1.25em', maxWidth: 980, width: 'calc(100% - 2em)' }}>
+          <div style={{ background: '#181818', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '0.75em 1em', borderBottom: '1px solid rgba(255,255,255,0.08)', borderTopLeftRadius: 12, borderTopRightRadius: 12, background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0))' }}>
+              <button
+                className="menu-btn"
+                onClick={() => setIntroOpen(v => !v)}
+                aria-expanded={introOpen}
+                aria-controls="intro-panel"
+                title={introOpen ? 'Collapse' : 'Expand'}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                {introOpen ? <IoChevronUpCircle style={{ marginLeft: 15, verticalAlign: 'middle' }} /> : <IoChevronDownCircle style={{ marginLeft: 15, verticalAlign: 'middle' }} />}
+                {introOpen ? 'Hide' : 'Show'}
+              </button>
+              <h2 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', margin: 0, color: '#fff', fontSize: '1.05em', fontWeight: 600, textAlign: 'center' }}>Introduction</h2>
+            </div>
+            {introOpen && (
+              <div id="intro-panel" style={{ padding: '0.75em 1em 1em' }}>
+                <div className="intro-text" style={{ marginBottom: '0.75em' }}>
+                  Build your own Card Deck Box!
+                  This tool generates printable templates from your images.
+                  Perfect for holding a standard deck of 60 cards.
+                </div>
+                {/* Intro video: YouTube embed (privacy-enhanced) */}
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '100%', margin: '0.25em 0 0.25em' }}>
+                    <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 18px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <iframe
+                        title="OrigamiMapper Box Generator Intro"
+                        src="https://www.youtube-nocookie.com/embed/E-NGbi4VIIs?rel=0"
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center', marginBottom: '1em' }}>
           <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
