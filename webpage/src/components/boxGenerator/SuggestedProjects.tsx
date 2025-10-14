@@ -25,6 +25,7 @@ const withBase = (u: string) => {
 export default function SuggestedProjects({ onSelect, manifestUrl = '/assets/examples/suggestions_projects/projects.json', heading = 'Suggested Projects' }: SuggestedProjectsProps) {
   const [projects, setProjects] = useState<SuggestedProjectItem[]>([]);
   const [hover, setHover] = useState<{ x: number; y: number; item: SuggestedProjectItem } | null>(null);
+  const [generating, setGenerating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -53,6 +54,43 @@ export default function SuggestedProjects({ onSelect, manifestUrl = '/assets/exa
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: '1.1em', fontWeight: 600, textAlign: 'center', letterSpacing: 0.3 }}>{heading}</h3>
         <div style={{ width: 180, maxWidth: '70%', height: 3, background: 'linear-gradient(90deg, rgba(255,255,255,0), #ffffff 50%, rgba(255,255,255,0))', borderRadius: 2 }} />
+        {(import.meta as any).env?.DEV && (
+          <button
+            type="button"
+            disabled={generating}
+            onClick={async () => {
+              if (generating) return;
+              setGenerating(true);
+              try {
+                const fn = (window as any).generateSuggestedProjectPreviews;
+                if (!fn) {
+                  alert('Helper not available. Ensure BoxGenerator with dev helper is loaded.');
+                } else {
+                  await fn({ log: true, transparent: true, outputFormat: 'webp', trim: true });
+                }
+              } catch (err) {
+                console.warn('Preview generation failed', err);
+                alert('Preview generation failed: ' + String((err as any)?.message || err));
+              } finally {
+                setGenerating(false);
+              }
+            }}
+            style={{
+              fontSize: '0.6em',
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: generating ? '#3a3a3a' : 'linear-gradient(135deg,#2a2a2a,#3c3c3c)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.18)',
+              cursor: generating ? 'default' : 'pointer',
+              letterSpacing: 0.5,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.4)'
+            }}
+            title="Generate & download preview PNGs (dev only) To make them available on the website: add these to /public/assets/examples/suggestions_projects/ and update the projects.json in the same folder"
+          >
+            {generating ? 'Generating...' : 'Generate Previews'}
+          </button>
+        )}
       </div>
       <div style={{ position: 'relative' }}>
         <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: 6, scrollbarWidth: 'thin' }}>
@@ -88,7 +126,7 @@ export default function SuggestedProjects({ onSelect, manifestUrl = '/assets/exa
                     src={preview}
                     alt={p.title}
                     loading="lazy"
-                    style={{ width: '100%', height: '70%', objectFit: 'cover', display: 'block', opacity: 0.9 }}
+                    style={{ width: '90%', height: '90%', objectFit: 'scale-down', display: 'block', opacity: 1.0 }}
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.35'; }}
                   />
                 ) : (

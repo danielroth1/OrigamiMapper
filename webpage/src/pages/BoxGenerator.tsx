@@ -1127,6 +1127,183 @@ function BoxGenerator() {
     }
   };
 
+  // -------------------------------------------------------------
+  // DEV-ONLY automation (Option C): expose global helpers to generate
+  // preview PNGs for all suggested projects.
+  // Usage (in browser console while running dev server):
+  //   await window.generateSuggestedProjectPreviews({ openPercent: 60, ratio: 0 });
+  // Optional params: manifestUrl, openPercent, ratio, settleMs, betweenMs, log, single
+  // -------------------------------------------------------------
+  if ((import.meta as any).env?.DEV) {
+    (window as any).onMapperFileSelected = onMapperFileSelected;
+    (window as any).generateSuggestedProjectPreviews = async (options?: {
+      manifestUrl?: string;
+      openPercent?: number;
+      ratio?: number;
+      settleMs?: number;
+      betweenMs?: number;
+      log?: boolean;
+      single?: string; // only process entries whose file path contains this substring
+      transparent?: boolean; // capture with transparent bg
+      outputFormat?: 'png' | 'webp'; // default png
+      webpQuality?: number; // 0..1 quality for webp (default 0.9)
+      trim?: boolean; // auto-trim transparent borders (default true when transparent)
+      alphaThreshold?: number; // 0..255 threshold for non-empty pixel (default 4)
+    }) => {
+      const {
+        manifestUrl = '/assets/examples/suggestions_projects/projects.json',
+        openPercent: optOpen = 55,
+        ratio: optRatio = 0,
+        settleMs = 900,
+        betweenMs = 250,
+        log = true,
+        single,
+        transparent = false,
+        outputFormat = 'png',
+        webpQuality = 0.9,
+        trim = transparent, // default enable trim when transparent
+        alphaThreshold = 4
+      } = options || {};
+      const base = (import.meta as any).env?.BASE_URL || '/';
+      const withBase = (u: string) => /^(https?:|data:)/i.test(u) ? u : (u.startsWith('/') ? base + u.slice(1) : base + u);
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+      try {
+        if (log) console.log('[PreviewGen] Fetching manifest...');
+        const res = await fetch(withBase(manifestUrl), { cache: 'no-store' });
+        if (!res.ok) throw new Error('Manifest fetch failed ' + res.status);
+        const manifest = await res.json();
+        const list: Array<{ file: string; preview?: string }> = Array.isArray(manifest?.projects) ? manifest.projects : [];
+        if (list.length === 0) { console.warn('[PreviewGen] No projects in manifest'); return; }
+        if (log) console.log(`[PreviewGen] ${list.length} project(s) found.`);
+        const findCanvas = () => {
+          const byId = document.getElementById('cube-viewer-canvas') as HTMLCanvasElement | null;
+            if (byId && typeof (byId as any).toDataURL === 'function') return byId;
+            // Fallback: pick largest canvas; sometimes r3f recreates the element before onCreated fires
+            const canvases = Array.from(document.querySelectorAll('canvas')) as HTMLCanvasElement[];
+            let best: HTMLCanvasElement | null = null; let bestArea = 0;
+            canvases.forEach(c => { const a = c.width * c.height; if (typeof (c as any).toDataURL === 'function' && a > bestArea) { best = c; bestArea = a; } });
+            return best;
+        };
+        for (const proj of list) {
+          if (single && !proj.file.includes(single)) continue;
+          const mapperPath = proj.file;
+          const fetchUrl = withBase(mapperPath);
+          const previewPath = proj.preview || mapperPath.replace(/\.mapper$/i, '.preview.png');
+          const fileName = previewPath.split('/').pop() || 'preview.png';
+          if (log) console.log(`[PreviewGen] Loading ${mapperPath}`);
+          try {
+            const r = await fetch(fetchUrl, { cache: 'no-store' });
+            if (!r.ok) throw new Error('Mapper fetch failed ' + r.status);
+            const blob = await r.blob();
+            const f = new File([blob], mapperPath.split('/').pop() || 'project.mapper', { type: 'application/zip' });
+            await onMapperFileSelected(f);
+            setOpenPercent(Math.max(0, Math.min(100, optOpen)));
+            setTopBottomRatio(Math.max(-50, Math.min(50, optRatio)));
+            setViewMode('both');
+            // Wait requested settle ms plus two animation frames to ensure r3f has rendered a stable frame
+            await delay(settleMs);
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            let dataUrl: string | null = null;
+            let usedToggle = false;
+            // Prefer offscreen render target capture (Strategy B) if available
+            const captureRT = (window as any).__captureCubeViewerFrame;
+            if (typeof captureRT === 'function') {
+              try {
+                dataUrl = await captureRT({
+                  transparent,
+                  format: outputFormat,
+                  quality: webpQuality
+                });
+              } catch (e) {
+                if (log) console.warn('[PreviewGen] Offscreen capture failed, falling back', e);
+                dataUrl = null;
+              }
+            }
+            if (!dataUrl) {
+              // Fallback: direct canvas capture (legacy path)
+              const toggle = (window as any).__toggleCubePreviewTransparency;
+              if (transparent && typeof toggle === 'function') { toggle(true); usedToggle = true; }
+              const canvas = findCanvas();
+              if (!canvas) { console.warn('[PreviewGen] Canvas not found for', mapperPath); continue; }
+              try { const gl = (canvas as any).getContext?.('webgl2') || (canvas as any).getContext?.('webgl'); if (gl) { gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(4)); } } catch {}
+              if (outputFormat === 'webp') {
+                dataUrl = (canvas as HTMLCanvasElement).toDataURL('image/webp', Math.min(1, Math.max(0, webpQuality)) || 0.9);
+              } else {
+                dataUrl = (canvas as HTMLCanvasElement).toDataURL('image/png');
+              }
+              // Restore opaque background after capture only if we toggled it
+              if (usedToggle && transparent && typeof toggle === 'function') toggle(false);
+            }
+            if (!dataUrl) { console.warn('[PreviewGen] Capture failed for', mapperPath); continue; }
+            // Trim transparent edges if requested
+            if (trim && dataUrl.startsWith('data:image/')) {
+              try {
+                const img = new Image();
+                const loadP = new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = (e) => rej(e); });
+                img.src = dataUrl;
+                await loadP;
+                const w = img.naturalWidth; const h = img.naturalHeight;
+                const off = document.createElement('canvas'); off.width = w; off.height = h;
+                const ctx = off.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0);
+                  const imgData = ctx.getImageData(0, 0, w, h);
+                  const data = imgData.data;
+                  let minX = w, minY = h, maxX = -1, maxY = -1;
+                  for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                      const i = (y * w + x) * 4;
+                      const a = data[i + 3];
+                      if (a > alphaThreshold) {
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
+                      }
+                    }
+                  }
+                  if (maxX >= minX && maxY >= minY) {
+                    const tw = maxX - minX + 1; const th = maxY - minY + 1;
+                    const trimmed = document.createElement('canvas'); trimmed.width = tw; trimmed.height = th;
+                    const tctx = trimmed.getContext('2d');
+                    if (tctx) {
+                      tctx.drawImage(off, minX, minY, tw, th, 0, 0, tw, th);
+                      dataUrl = outputFormat === 'webp'
+                        ? trimmed.toDataURL('image/webp', Math.min(1, Math.max(0, webpQuality)) || 0.9)
+                        : trimmed.toDataURL('image/png');
+                    }
+                  } else if (log) {
+                    console.warn('[PreviewGen] Trim skipped: no opaque pixels for', mapperPath);
+                  }
+                }
+              } catch (trimErr) {
+                if (log) console.warn('[PreviewGen] Trim failed for', mapperPath, trimErr);
+              }
+            }
+            // Offscreen path doesn't modify visible background; fallback path handled restoration above
+            // Adjust file name extension for webp
+            let finalName = fileName;
+            if (outputFormat === 'webp') {
+              const baseNoExt = fileName.replace(/\.[^.]+$/, '');
+              finalName = baseNoExt + '.webp';
+            }
+            const a = document.createElement('a');
+            a.download = finalName;
+            a.href = dataUrl;
+            document.body.appendChild(a); a.click(); a.remove();
+            if (log) console.log('[PreviewGen] Captured', finalName, transparent ? '(transparent)' : '', trim ? '(trimmed)' : '');
+            await delay(betweenMs);
+          } catch (inner) {
+            console.warn('[PreviewGen] Failed', mapperPath, inner);
+          }
+        }
+        if (log) console.log('[PreviewGen] Done.');
+      } catch (err) {
+        console.error('[PreviewGen] Fatal', err);
+      }
+    };
+  }
+
   // Wire autosave: debounce changes
   const autosaveTimer = useRef<number | null>(null);
   useEffect(() => {

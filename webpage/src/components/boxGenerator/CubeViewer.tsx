@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
 import { Stats, OrbitControls, Edges } from '@react-three/drei';
 import * as THREE from 'three';
-import { useMemo } from 'react';
 
 // (Legacy OpenBox removed; replaced by TexturedOpenBox below.)
 
@@ -153,11 +153,146 @@ export default function CubeViewer({
   const baseTopRotX = Math.PI; // keep top inverted as before
   const topRot: [number, number, number] = [baseTopRotX - theta, Math.PI, 0]; // CW around +X
 
+  // Keep refs to WebGL renderer & scene so we can toggle transparency for screenshot capture
+  const glRef = useRef<any>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const rtRef = useRef<THREE.WebGLRenderTarget | null>(null);
+
+  // Expose a dev-only global to toggle transparent background when generating previews
+  if ((import.meta as any).env?.DEV) {
+    (window as any).__toggleCubePreviewTransparency = (enable: boolean) => {
+      if (!glRef.current || !sceneRef.current) return;
+      try {
+        if (enable) {
+          // Remove background so clear uses transparent pixels
+            (sceneRef.current as any).background = null;
+            glRef.current.setClearColor(0x000000, 0); // fully transparent
+        } else {
+            glRef.current.setClearColor(0x0f0f10, 1);
+            // Optionally keep no explicit scene background to allow CSS backdrop; leave null
+        }
+      } catch {}
+    };
+
+    // Strategy B: offscreen render target capture with guaranteed transparency
+    (window as any).__captureCubeViewerFrame = async (opts?: {
+      width?: number; // logical pixels desired (not DPR adjusted). Defaults to onscreen canvas width
+      height?: number; // logical pixels desired. Defaults to onscreen canvas height
+      transparent?: boolean; // default true
+      format?: 'png' | 'webp';
+      quality?: number; // for webp 0..1
+      dpr?: number; // override device pixel ratio for higher-res capture
+    }): Promise<string | null> => {
+      const renderer: THREE.WebGLRenderer | null = glRef.current;
+      const scene = sceneRef.current;
+      const cam = cameraRef.current;
+      if (!renderer || !scene || !cam) return null;
+      const {
+        width,
+        height,
+        transparent = true,
+        format = 'png',
+        quality = 0.9,
+        dpr
+      } = opts || {};
+      // Determine capture size
+      const targetSize = new THREE.Vector2();
+      renderer.getSize(targetSize);
+      const baseW = Math.max(2, Math.floor(width || targetSize.x));
+      const baseH = Math.max(2, Math.floor(height || targetSize.y));
+      const pixelRatio = dpr || renderer.getPixelRatio();
+      const rtW = Math.floor(baseW * pixelRatio);
+      const rtH = Math.floor(baseH * pixelRatio);
+
+      // (Re)create render target if size changed
+      if (!rtRef.current || rtRef.current.width !== rtW || rtRef.current.height !== rtH) {
+        if (rtRef.current) rtRef.current.dispose();
+        rtRef.current = new THREE.WebGLRenderTarget(rtW, rtH, {
+          depthBuffer: true,
+          stencilBuffer: false,
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+        });
+      }
+      const rt = rtRef.current;
+
+      // Save renderer state
+      const prevTarget = renderer.getRenderTarget();
+      const prevAutoClear = renderer.autoClear;
+      const prevClearColor = new THREE.Color();
+      const prevClearAlpha = renderer.getClearAlpha();
+      (renderer as any).getClearColor(prevClearColor);
+      const prevSceneBg = scene.background;
+
+      try {
+        if (transparent) {
+          scene.background = null;
+          renderer.setClearColor(0x000000, 0);
+        }
+        // Else keep existing scene.background / clear color
+        renderer.autoClear = true;
+        renderer.setRenderTarget(rt);
+        renderer.clear(true, true, true);
+        renderer.render(scene, cam);
+
+        // Read pixels
+        const buffer = new Uint8Array(rtW * rtH * 4);
+        renderer.readRenderTargetPixels(rt, 0, 0, rtW, rtH, buffer);
+        // Put into offscreen 2D canvas (unflip + scale down if DPR>1)
+        const canvas = document.createElement('canvas');
+        canvas.width = baseW; canvas.height = baseH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        // Create ImageData at full RT size, then draw scaled if DPR>1
+        const fullCanvas = pixelRatio === 1 ? canvas : document.createElement('canvas');
+        if (pixelRatio !== 1) { fullCanvas.width = rtW; fullCanvas.height = rtH; }
+        const fctx = fullCanvas.getContext('2d');
+        if (!fctx) return null;
+        const imgData = fctx.createImageData(rtW, rtH);
+        // Flip Y while copying (WebGL origin is bottom-left) -> iterate rows
+        for (let y = 0; y < rtH; y++) {
+          const srcRow = rtH - 1 - y;
+            const srcStart = srcRow * rtW * 4;
+            const dstStart = y * rtW * 4;
+            imgData.data.set(buffer.subarray(srcStart, srcStart + rtW * 4), dstStart);
+        }
+        fctx.putImageData(imgData, 0, 0);
+        if (pixelRatio !== 1) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(fullCanvas, 0, 0, rtW, rtH, 0, 0, baseW, baseH);
+        }
+        const mime = format === 'webp' ? 'image/webp' : 'image/png';
+        const dataUrl = canvas.toDataURL(mime, format === 'webp' ? Math.min(1, Math.max(0, quality)) : undefined);
+        return dataUrl;
+      } catch (e) {
+        console.warn('[CubeViewer] capture failed', e);
+        return null;
+      } finally {
+        // Restore renderer state
+        renderer.setRenderTarget(prevTarget);
+        renderer.autoClear = prevAutoClear;
+        renderer.setClearColor(prevClearColor, prevClearAlpha);
+        scene.background = prevSceneBg;
+      }
+    };
+  }
+
   return (
     <Canvas
       camera={{ position: [camPos.x, camPos.y, camPos.z] }}
-      // enable antialias via GL props; configure encoding/toneMapping in onCreated with casts
-      gl={{ antialias: true }}
+      // alpha true so we can capture transparency; preserveDrawingBuffer for toDataURL stability
+      gl={{ antialias: true, preserveDrawingBuffer: true, alpha: true }}
+      onCreated={(state) => {
+        try {
+          const dom = state.gl.domElement as HTMLCanvasElement;
+          dom.id = 'cube-viewer-canvas';
+          glRef.current = state.gl;
+          sceneRef.current = state.scene;
+          cameraRef.current = state.camera as any;
+          state.gl.setClearColor(0x0f0f10, 1); // default opaque background for normal UI
+        } catch { /* ignore */ }
+      }}
     >
       {/* neutral, not-overpowering lights so textures read correctly */}
       <primitive object={useMemo(() => new THREE.AmbientLight(0xffffff, 1.5), [])} />
