@@ -11,12 +11,12 @@ const byFace = (polys: OrigamiMapperTypes.Polygon[]) => {
 
 const rot180 = (cx: number, cy: number, x: number, y: number): [number, number] => [2 * cx - x, 2 * cy - y];
 
-// Normalize degrees to [-180, 180)
-const normAngleDeg = (a: number) => {
-  let ang = a;
-  ang = ((ang + 180) % 360 + 360) % 360 - 180;
-  return ang;
-};
+const normAngle = (a: number) => {
+    let ang = a;
+    const TWO_PI = Math.PI * 2;
+    ang = ((ang + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI; // normalize to [-PI, PI)
+    return ang;
+  };
 
 // Unified copy function used by both mirrorOutsidePolygons and mirrorInsidePolygons
 const applyCopyFromTo = (
@@ -66,7 +66,7 @@ const applyCopyFromTo = (
       return [rx + dxGroup, ry + dyGroup] as [number, number];
     });
     const baseRot = typeof srcPoly.rotation === 'number' ? srcPoly.rotation : 0;
-    const newRot = rotate ? normAngleDeg(baseRot + 180) : baseRot;
+    const newRot = rotate ? normAngle(baseRot + Math.PI) : baseRot;
     out[i] = { ...out[i], vertices: verts, rotation: newRot };
   }
 };
