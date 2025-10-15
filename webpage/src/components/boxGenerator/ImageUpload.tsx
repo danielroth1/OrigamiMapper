@@ -304,7 +304,7 @@ export default function ImageUpload({ label, onImage, inputId, examples, maxRece
         onPaste={handlePaste}
         tabIndex={0}
         role="button"
-        aria-label="Image drop area"
+        aria-label={label ? `${label} — image drop area` : 'Image drop area'}
         onClick={() => inputRef.current?.click()}
         style={{
           border: '2px dashed rgba(255,255,255,0.06)',

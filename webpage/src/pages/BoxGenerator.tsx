@@ -1478,22 +1478,53 @@ function BoxGenerator() {
       }
       if (withCutLines) {
         try {
-          const DPI = 96;
-          const pxW = Math.max(1, Math.round((innerW / 25.4) * DPI));
-          const pxH = Math.max(1, Math.round((innerH / 25.4) * DPI));
-          const c3 = document.createElement('canvas');
-          c3.width = pxW; c3.height = pxH;
-          const cx3 = c3.getContext('2d');
-          if (cx3) {
-            cx3.clearRect(0, 0, pxW, pxH);
-            cx3.strokeStyle = 'rgba(0,0,0,0.6)';
-            cx3.lineWidth = 1; cx3.setLineDash([2, 2]);
-            const inset = 0.5; cx3.strokeRect(inset, inset, pxW - 1, pxH - 1);
-            const overlay = c3.toDataURL('image/png');
-            if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
-            doc.addImage(overlay, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+          // Prefer vector drawing in PDF for perfect sharpness
+          const lineWidthMM = 0.2; // ~1px at 254 dpi; thin crisp stroke
+          const dashMM = 0.6; // ~2px at 254–300 dpi; similar to previous canvas dashes
+          const insetMM = lineWidthMM / 2; // keep stroke fully inside the content area
+          const rectX = x + insetMM;
+          const rectY = y + insetMM;
+          const rectW = Math.max(0, innerW - insetMM * 2);
+          const rectH = Math.max(0, innerH - insetMM * 2);
+
+          // Set dashed stroke if supported; fall back to solid
+          const anyDoc: any = doc as any;
+          const resetDash = () => {
+            if (typeof anyDoc.setLineDash === 'function') anyDoc.setLineDash([]);
+            if (typeof anyDoc.setLineDashPattern === 'function') anyDoc.setLineDashPattern([], 0);
+          };
+
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(lineWidthMM); // in mm
+          if (typeof anyDoc.setLineDash === 'function') {
+            anyDoc.setLineDash([dashMM, dashMM]);
+          } else if (typeof anyDoc.setLineDashPattern === 'function') {
+            anyDoc.setLineDashPattern([dashMM, dashMM], 0);
           }
-        } catch { }
+          doc.rect(rectX, rectY, rectW, rectH, 'D');
+          resetDash();
+        } catch {
+          // Fallback: render a high-DPI raster overlay to avoid pixelation
+          try {
+            const DPI = 300;
+            const mmPerInch = 25.4;
+            const pxW = Math.max(1, Math.round((innerW / mmPerInch) * DPI));
+            const pxH = Math.max(1, Math.round((innerH / mmPerInch) * DPI));
+            const c3 = document.createElement('canvas');
+            c3.width = pxW; c3.height = pxH;
+            const cx3 = c3.getContext('2d');
+            if (cx3) {
+              cx3.clearRect(0, 0, pxW, pxH);
+              cx3.strokeStyle = 'rgba(0,0,0,1)';
+              cx3.lineWidth = 1; cx3.setLineDash([2, 2]);
+              const inset = 0.5; // half-pixel inset for crisp 1px stroke
+              cx3.strokeRect(inset, inset, pxW - 1, pxH - 1);
+              const overlay = c3.toDataURL('image/png');
+              if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
+              doc.addImage(overlay, 'PNG', x, y, innerW, innerH, undefined, 'FAST');
+            }
+          } catch { }
+        }
       }
       if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       if (i < sequence.length - 1) doc.addPage();
