@@ -350,14 +350,7 @@ export async function runMappingJS(
       let cx = 0, cy = 0;
       for (let i = 0; i < n; i++) { cx += abs[i][0]; cy += abs[i][1]; }
       cx /= n; cy /= n;
-      const offs = offsetFrac * Math.max(w, h);
-      // Compute a uniform scale factor so average radius increases by offs
-      let ravg = 0;
-      for (let i = 0; i < n; i++) {
-        ravg += Math.hypot(abs[i][0] - cx, abs[i][1] - cy);
-      }
-      ravg /= n;
-      const factor = ravg > 0 ? (ravg + offs) / ravg : 1;
+      const factor = 1 + 2 * offsetFrac;
       const grown = abs.map(([x, y]) => {
         const dx = x - cx; const dy = y - cy;
         const gx = cx + dx * factor;
