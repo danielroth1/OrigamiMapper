@@ -248,7 +248,7 @@ function mapPolygonPixels(
           let blocked = false;
           for (let j = 0; j < excludeRects.length; j++) {
             const r = excludeRects[j];
-            if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) { blocked = true; break; }
+            if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) { blocked = true; break; }
           }
           if (blocked) continue;
         }
