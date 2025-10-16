@@ -876,56 +876,69 @@ function BoxGenerator() {
         extension: 'mapper'
       });
       if (!pickedName) return; // user cancelled
-      // Build combined JSONs (bottom and top) like handleRun does
-      // Bottom
-      const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : boxData;
-      const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : boxData;
-      const combinedJson = {
-        ...outsideJson,
-        input_polygons: [...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? [])],
-        output_polygons: [...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? [])]
-      };
-      // Top (use top-specific helpers if refs are not mounted yet)
-      const topOutsideJson = topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : getTopEditorData(false);
-      const topInsideJson = topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : getTopEditorData(true);
-      const combinedTopJson = {
-        ...topOutsideJson,
-        input_polygons: [...(topOutsideJson.input_polygons ?? []), ...(topInsideJson.input_polygons ?? [])],
-        output_polygons: [...(topOutsideJson.output_polygons ?? []), ...(topInsideJson.output_polygons ?? [])]
-      };
-
+      // Build combined JSONs for only the boxes that exist
       const zip = new JSZip();
-      // Single combined JSON containing both bottom and top
-      const mapperJson = { bottom: combinedJson, top: combinedTopJson };
+      const mapperJson: any = {};
+
+      if (hasBottomBox) {
+        const outsideJson = outsideEditorRef.current ? outsideEditorRef.current.getCurrentJson() : boxData;
+        const insideJson = insideEditorRef.current ? insideEditorRef.current.getCurrentJson() : boxData;
+        const combinedJson = {
+          ...outsideJson,
+          input_polygons: [...(outsideJson.input_polygons ?? []), ...(insideJson.input_polygons ?? [])],
+          output_polygons: [...(outsideJson.output_polygons ?? []), ...(insideJson.output_polygons ?? [])]
+        };
+        mapperJson.bottom = combinedJson;
+      }
+
+      if (hasTopBox) {
+        // Top (use top-specific helpers if refs are not mounted yet)
+        const topOutsideJson = topOutsideEditorRef.current ? topOutsideEditorRef.current.getCurrentJson() : getTopEditorData(false);
+        const topInsideJson = topInsideEditorRef.current ? topInsideEditorRef.current.getCurrentJson() : getTopEditorData(true);
+        const combinedTopJson = {
+          ...topOutsideJson,
+          input_polygons: [...(topOutsideJson.input_polygons ?? []), ...(topInsideJson.input_polygons ?? [])],
+          output_polygons: [...(topOutsideJson.output_polygons ?? []), ...(topInsideJson.output_polygons ?? [])]
+        };
+        mapperJson.top = combinedTopJson;
+      }
+
+      // Write JSON (may contain only bottom, only top, or both)
       zip.file('box.json', JSON.stringify(mapperJson, null, 2));
-      // add rotated-only images (bake rotation into the image files)
-      const bakedTopOutside2 = (topOutsideImgRaw || outsideImgTopRaw)
-        ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
-        : '';
-      const bakedTopInside2 = (topInsideImgRaw || insideImgTopRaw)
-        ? await rotateDataUrlDegrees((topInsideImgRaw || insideImgTopRaw), topInsideRotation)
-        : '';
-      const bakedBottomOutside2 = outsideImgBottomRaw
-        ? await rotateDataUrlDegrees(outsideImgBottomRaw, outsideRotation)
-        : '';
-      const bakedBottomInside2 = insideImgBottomRaw
-        ? await rotateDataUrlDegrees(insideImgBottomRaw, insideRotation)
-        : '';
-      if (bakedTopOutside2) {
-        const outBlob = await dataUrlToBlob(bakedTopOutside2);
-        if (outBlob) zip.file('outside_top.png', outBlob);
+
+      // Add rotated-only images (bake rotation into the image files) only for existing boxes
+      if (hasTopBox) {
+        const bakedTopOutside2 = (topOutsideImgRaw || outsideImgTopRaw)
+          ? await rotateDataUrlDegrees((topOutsideImgRaw || outsideImgTopRaw), topOutsideRotation)
+          : '';
+        const bakedTopInside2 = (topInsideImgRaw || insideImgTopRaw)
+          ? await rotateDataUrlDegrees((topInsideImgRaw || insideImgTopRaw), topInsideRotation)
+          : '';
+        if (bakedTopOutside2) {
+          const outBlob = await dataUrlToBlob(bakedTopOutside2);
+          if (outBlob) zip.file('outside_top.png', outBlob);
+        }
+        if (bakedTopInside2) {
+          const inBlob = await dataUrlToBlob(bakedTopInside2);
+          if (inBlob) zip.file('inside_top.png', inBlob);
+        }
       }
-      if (bakedTopInside2) {
-        const inBlob = await dataUrlToBlob(bakedTopInside2);
-        if (inBlob) zip.file('inside_top.png', inBlob);
-      }
-      if (bakedBottomOutside2) {
-        const outBlob = await dataUrlToBlob(bakedBottomOutside2);
-        if (outBlob) zip.file('outside_bottom.png', outBlob);
-      }
-      if (bakedBottomInside2) {
-        const inBlob = await dataUrlToBlob(bakedBottomInside2);
-        if (inBlob) zip.file('inside_bottom.png', inBlob);
+
+      if (hasBottomBox) {
+        const bakedBottomOutside2 = outsideImgBottomRaw
+          ? await rotateDataUrlDegrees(outsideImgBottomRaw, outsideRotation)
+          : '';
+        const bakedBottomInside2 = insideImgBottomRaw
+          ? await rotateDataUrlDegrees(insideImgBottomRaw, insideRotation)
+          : '';
+        if (bakedBottomOutside2) {
+          const outBlob = await dataUrlToBlob(bakedBottomOutside2);
+          if (outBlob) zip.file('outside_bottom.png', outBlob);
+        }
+        if (bakedBottomInside2) {
+          const inBlob = await dataUrlToBlob(bakedBottomInside2);
+          if (inBlob) zip.file('inside_bottom.png', inBlob);
+        }
       }
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, pickedName);
@@ -977,10 +990,10 @@ function BoxGenerator() {
               input_polygons: (bottom.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
             };
             // Stage bottom polygons for later
-            stagedBottomOutside = bottomOutsideParsed;
-            stagedBottomInside = bottomInsideParsed;
             const hasBottomPolys = (bottom.input_polygons ?? []).length > 0 || (bottom.output_polygons ?? []).length > 0;
             if (hasBottomPolys) {
+              stagedBottomOutside = bottomOutsideParsed;
+              stagedBottomInside = bottomInsideParsed;
               setHasBottomBox(true);
               loadedBottomFromMain = true;
             }
@@ -995,12 +1008,11 @@ function BoxGenerator() {
             };
             const hasTopPolys = (top.input_polygons ?? []).length > 0 || (top.output_polygons ?? []).length > 0;
             if (hasTopPolys) {
+              stagedTopOutside = topOutsideParsed;
+              stagedTopInside = topInsideParsed;
               setHasTopBox(true);
               loadedTopFromMain = true;
             }
-            // Stage top polygons for later
-            stagedTopOutside = topOutsideParsed;
-            stagedTopInside = topInsideParsed;
           } else {
             // Legacy format: parsed is a single combined JSON (bottom)
             const outsideParsed = {
@@ -1011,11 +1023,13 @@ function BoxGenerator() {
               ...parsed,
               input_polygons: (parsed.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
             };
-            // Stage legacy bottom polygons
-            stagedBottomOutside = outsideParsed;
-            stagedBottomInside = insideParsed;
             const hasBottomPolys = (parsed.input_polygons ?? []).length > 0 || (parsed.output_polygons ?? []).length > 0;
-            if (hasBottomPolys) setHasBottomBox(true);
+            if (hasBottomPolys) {
+              // Stage legacy bottom polygons
+              stagedBottomOutside = outsideParsed;
+              stagedBottomInside = insideParsed;
+              setHasBottomBox(true);
+            }
           }
         } catch (e) { console.warn('box.json parse error', e); }
       }
@@ -1032,9 +1046,12 @@ function BoxGenerator() {
             ...parsedTop,
             input_polygons: (parsedTop.input_polygons ?? []).filter((p: any) => String(p.id).includes('i'))
           };
-          setHasTopBox(true);
-          stagedTopOutside = topOutsideParsed;
-          stagedTopInside = topInsideParsed;
+          const hasTopPolys = (parsedTop.input_polygons ?? []).length > 0 || (parsedTop.output_polygons ?? []).length > 0;
+          if (hasTopPolys) {
+            setHasTopBox(true);
+            stagedTopOutside = topOutsideParsed;
+            stagedTopInside = topInsideParsed;
+          }
         } catch (e) { console.warn('box_top.json parse error', e); }
       }
       // images
@@ -1106,10 +1123,12 @@ function BoxGenerator() {
         setInsideImgBottomRaw(botInRaw);
         setOutsideImgTransformed(botOutT);
         setInsideImgTransformed(botInT);
-        // Ensure visibility
-        if (topOutRaw || topInRaw) setHasTopBox(true);
+        // Ensure visibility based on loaded content
+  if (topOutRaw || topInRaw || loadedTopFromMain) setHasTopBox(true);
+  if (!topOutRaw && !topInRaw && !loadedTopFromMain) setHasTopBox(false);
+        // Bottom box exists only if we loaded images or polygons for it
         if (botOutRaw || botInRaw || loadedBottomFromMain) setHasBottomBox(true);
-        if (!botOutRaw && !botInRaw && !loadedBottomFromMain) setHasBottomBox(true);
+        if (!botOutRaw && !botInRaw && !loadedBottomFromMain) setHasBottomBox(false);
       });
       // In production builds the Top editors may not be mounted yet when we setFromJson above.
       // Re-apply after mount.
@@ -1812,6 +1831,7 @@ function BoxGenerator() {
                         // Clear legacy top mirrors used by autosave fallback
                         setOutsideImgTopRaw('');
                         setInsideImgTopRaw('');
+                        
                         // Update UI state
                         setHasTopBox(false);
                         setSuppressAutoDemo(true);
