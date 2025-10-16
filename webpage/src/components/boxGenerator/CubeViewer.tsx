@@ -128,25 +128,73 @@ export default function CubeViewer({
   // Compute vertical separation based on openPercent and scaled box heights
   const clampedOpen = Math.max(0, Math.min(100, openPercent || 0));
   const maxScaledH = Math.max(height * Math.max(0.01, bottomScale), height * Math.max(0.01, topScale));
-  const totalSep = (clampedOpen / 100) * (2.5 * maxScaledH);
-  // Linear Y separation (always computed linearly so early phase [0,45] is unchanged)
-  const bottomYLinear = -totalSep / 2;
-  const topYLinear = totalSep / 2;
+  const openFactor = clampedOpen / 100;
+
+  // Y separation: linear up to CURVE_START; after that, ease quickly toward a predefined target value.
+  // Target half separation (post-curve plateau). Tweak this to taste.
+  // Uses box height scale so it doesn't depend on openPercent after CURVE_START.
+  const POST_CURVE_TARGET_HALF_SEP = 1 * maxScaledH; // plateau ~80% of max height
 
   // Curved phase configuration
-  // Curve begins at 45 and ends at 100. Movement follows a parabola in the YZ plane (plane normal/rotation axis = (1,0,0)).
-  // Boxes also rotate around X axis (clockwise for top, counter-clockwise for bottom) from 0° at 45 to 60° at 100.
-  const CURVE_START = 45;
-  const curveT = clampedOpen <= CURVE_START ? 0 : (clampedOpen - CURVE_START) / (100 - CURVE_START);
-  const thetaMax = THREE.MathUtils.degToRad(90);
-  const theta = curveT * thetaMax; // additional rotation around X
-  // Parabolic offset along Z: z = k * t^2, symmetric for top/bottom to move away from each other
-  const curveStrength = 1.0 * maxScaledH; // tweakable intensity of the curve
-  const zOffset = curveStrength * curveT * curveT;
+  // const curveT = clampedOpen <= CURVE_START ? 0 : (clampedOpen - CURVE_START) / (100 - CURVE_START);
+  
+  // Curve uses normalized openFactor in [0,1] and a start point CURVE_START in [0,1].
+  // Before CURVE_START we keep linear growth (y = openFactor * maxScaledH).
+  // After CURVE_START we smoothly approach the plateau (maxScaledH) using a
+  // cubic Hermite interpolation to guarantee C1 continuity (value and slope match)
+  // at the join. This prevents the sudden acceleration previously observed.
+  const CURVE_START = 0.55; // 0..1 - start flattening earlier for stronger slowdown
+  const s = Math.min(Math.max(CURVE_START, 0), 1);
+  const curveT = openFactor <= s ? 0 : (openFactor - s) / (1 - s); // normalized t in 0..1 after start
+  // Optional: additional rotation around X (computed from curveT if needed)
+  // Quintic easing with a shape parameter that keeps C1 continuity at the join and flattens at the end.
+  // We construct g(t) for t in [0,1] such that: g(0)=0, g(1)=1, g'(0)=1 (slope match), g'(1)=0 (flat plateau),
+  // and g''(0)=alpha (shape control), g''(1)=0. Larger alpha -> quicker rise toward 1.
+  // Safe range for alpha is roughly [0, 4].
+  const quinticEasing = (t: number, alpha: number) => {
+    const a = alpha / 2;
+    const b = 4 - (3 * alpha) / 2;
+    const c = -7 + (3 * alpha) / 2;
+    const d = 3 - alpha / 2;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const t4 = t3 * t;
+    const t5 = t4 * t;
+    // g(t) = t + a t^2 + b t^3 + c t^4 + d t^5
+    return t + a * t2 + b * t3 + c * t4 + d * t5;
+  };
+  // Parabolic Z offset (optional) kept small; reuse curveT if desired
+  const zOffset = 0; // e.g. 0.1 * maxScaledH * curveT * curveT
+
+  // Compute half separation: linear until s, then use quintic easing with a tunable
+  // shape parameter (curveStrength) for a smooth yet adjustable approach to the plateau.
+  // Mapping: x in [s,1] -> t in [0,1].
+  let halfSep: number;
+  if (openFactor <= s) {
+    halfSep = openFactor * maxScaledH;
+  } else {
+    // alpha controls early curvature (g''(0)=alpha). Use a small negative value
+    // for stronger immediate deceleration after the join while keeping C1.
+    const alpha = Math.max(-0.8, Math.min(4, -0.4));
+    // Optional t-compression to slow progress further while preserving g'(0)=1 overall:
+    // tAdj = t / (1 + beta t) has tAdj(0)=0 and dtAdj/dt|0 = 1.
+    const beta = 1.6; // increase to slow more strongly (1.0..2.5 typical)
+    const tAdj = curveT / (1 + beta * curveT);
+    const g = quinticEasing(tAdj, alpha);
+    // Start at s*maxScaledH and end at maxScaledH; interpolate via g
+    halfSep = maxScaledH * (s + (1 - s) * g);
+  }
+  // Optionally clamp to a post-curve plateau (keeps it from overshooting)
+  halfSep = Math.min(halfSep, POST_CURVE_TARGET_HALF_SEP);
+  const bottomY = -halfSep;
+  const topY = halfSep;
 
   // Final positions (stay in the YZ plane; X remains 0). For 0..45, curveT=0 so z=0 and no extra rotation.
-  const bottomPos: [number, number, number] = [0, bottomYLinear, -zOffset];
-  const topPos: [number, number, number] = [0, topYLinear, -zOffset];
+  const bottomPos: [number, number, number] = [0, bottomY, -zOffset];
+  const topPos: [number, number, number] = [0, topY, -zOffset];
+
+  const thetaMax = THREE.MathUtils.degToRad(90);
+  const theta = curveT * thetaMax; // additional rotation around X
 
   // Final rotations
   const bottomRot: [number, number, number] = [theta, 0, 0]; // CCW around +X
