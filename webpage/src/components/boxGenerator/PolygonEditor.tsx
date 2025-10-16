@@ -1131,6 +1131,100 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
     link.click();
   };
 
+  // Download the current background image. Attempts to fetch the resource and
+  // create an object URL so cross-origin/data URLs are handled more reliably.
+  const handleDownloadBackground = async () => {
+    if (!backgroundImg) return;
+    try {
+      const res = await fetch(backgroundImg);
+      const blob = await res.blob();
+
+  // Default project base: prefer the shared LS_KEY used by BoxGenerator ('om.lastFileBase')
+  const LS_KEY = 'om.lastFileBase';
+  let storedBase = '';
+  try { if (typeof localStorage !== 'undefined') { storedBase = (localStorage.getItem(LS_KEY) || '').trim(); } } catch { storedBase = ''; }
+  // Fallback to label/data if localStorage empty
+  const fallbackName = (label && String(label).trim()) ? String(label).trim() : (data && (((data as any).name) || ((data as any).title)) ? String((data as any).name || (data as any).title) : 'project');
+  // Remove common 'image' token from names (user asked to omit the 'image' part)
+  const cleanFallback = fallbackName.replace(/\bimage\b/ig, '').trim() || 'project';
+      const projectBase = storedBase || cleanFallback.replace(/\s+/g, '_');
+      const zone = zoomGroup ? String(zoomGroup) : 'unknown';
+      // Determine inside/outside: prefer explicit label, else infer from data polygons
+      const insideOrOutside = (() => {
+        try {
+          if (label && /inside/i.test(String(label))) return 'inside';
+          if (label && /outside/i.test(String(label))) return 'outside';
+          const polys = (data && (data as any).input_polygons) || [];
+          if (Array.isArray(polys) && polys.length > 0) {
+            let insideCount = 0;
+            for (const p of polys) if (String(p.id).includes('i')) insideCount++;
+            return (insideCount * 2) >= polys.length ? 'inside' : 'outside';
+          }
+        } catch { }
+        return 'outside';
+      })();
+      const defaultBase = `${projectBase}_${zone}_${insideOrOutside}`;
+
+      // Infer extension from path or content-type
+      let ext = '';
+      try {
+        const u = new URL(backgroundImg);
+        let last = u.pathname.split('/').pop() || '';
+        last = last.split('?')[0].split('#')[0];
+        const m = last.match(/\.([a-zA-Z0-9]+)$/);
+        if (m) ext = m[1];
+      } catch {
+        // ignore; backgroundImg might be a data URL or relative path
+      }
+      try {
+        if (!ext) {
+          const ct = (res.headers.get('Content-Type') || blob.type || '').toLowerCase();
+          const m2 = ct.match(/image\/([a-z0-9+.-]+)/);
+          if (m2 && m2[1]) ext = m2[1];
+        }
+      } catch { }
+      if (!ext) ext = 'png';
+      // sanitize ext
+      ext = ext.split('+')[0].split('.')[0];
+      if (ext === 'jpeg') ext = 'jpg';
+
+      // Ask user for base filename (extension is fixed)
+  const userInput = window.prompt('Filename (extension will be kept as .' + ext + '):', defaultBase);
+      if (userInput === null) return; // user cancelled
+      let base = String(userInput).trim();
+      // strip any trailing extension the user might have typed
+      base = base.replace(/\.[a-zA-Z0-9]+$/, '');
+      if (!base) base = projectBase;
+      // remove problematic characters
+      base = base.replace(/[^a-zA-Z0-9_\- ]/g, '_');
+      // Remove any trailing _top/_bottom/_inside/_outside that user may have added,
+      // we'll enforce the final format: <base>_<top|bottom>_<inside|outside>
+      const baseClean = base.replace(/(_(top|bottom|inside|outside))$/i, '');
+      // Persist user's chosen base (without suffixes)
+      try {
+        const baseForStore = (baseClean || projectBase || 'project');
+        if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, baseForStore);
+      } catch { }
+      const filename = `${baseClean}_${zone}_${insideOrOutside}.${ext}`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = decodeURIComponent(filename);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // Fallback: open in new tab so user can manually save
+      try {
+        window.open(backgroundImg, '_blank');
+      } catch {
+        alert('Unable to download image.');
+      }
+    }
+  };
+
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1244,7 +1338,15 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
               )}
               <button
                 type="button"
-                title="Clear background image"
+                title="Download image"
+                onClick={handleDownloadBackground}
+                style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: backgroundImg ? 'pointer' : 'not-allowed', opacity: backgroundImg ? 1 : 0.4 }}
+              >
+                <IoDownload color="#fff" size={18} style={{ transform: 'scaleX(-1)' }} />
+              </button>
+              <button
+                type="button"
+                title="Clear image"
                 onClick={() => { if (typeof onDelete === 'function') onDelete(); }}
                 style={{ padding: '0 0', width: 34, height: 34, borderRadius: 6, border: 'none', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
