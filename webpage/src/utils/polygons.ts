@@ -90,6 +90,50 @@ const computeOBB = (polys: OrigamiMapperTypes.Polygon[]): OBB | null => {
   return { cx, cy, ux: evx, uy: evy, vx: mvx, vy: mvy, hu, hv, ang };
 };
 
+// Compute the 4 corners of an OBB
+const obbCorners = (obb: OBB): [number, number][] => {
+  const { cx, cy, ux, uy, vx, vy, hu, hv } = obb;
+  const c1: [number, number] = [cx + ux * hu + vx * hv, cy + uy * hu + vy * hv];
+  const c2: [number, number] = [cx + ux * hu - vx * hv, cy + uy * hu - vy * hv];
+  const c3: [number, number] = [cx - ux * hu + vx * hv, cy - uy * hu + vy * hv];
+  const c4: [number, number] = [cx - ux * hu - vx * hv, cy - uy * hu - vy * hv];
+  return [c1, c2, c3, c4];
+};
+
+// Check if all OBB corners are outside the [0,1]x[0,1] canvas
+const isObbFullyOutsideCanvas = (obb: OBB): boolean => {
+  const corners = obbCorners(obb);
+  return corners.every(([x, y]) => x < 0 || x > 1 || y < 0 || y > 1);
+};
+
+// Calculate an axis-aligned shift to move the OBB back toward the [0,1] canvas
+// with a small penetration so that ~10% of the polygon group's size is inside the canvas.
+const computeShiftToCanvas = (obb: OBB): { dx: number; dy: number } => {
+  const corners = obbCorners(obb);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of corners) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const width = Math.max(maxX - minX, 0);
+  const height = Math.max(maxY - minY, 0);
+  const PEN = 0.10; // 10% penetration
+  let dx = 0, dy = 0;
+  // If fully to the left, move right so maxX touches 0
+  if (maxX < 0) dx = -maxX + PEN * width;
+  // If fully to the right, move left so minX touches 1
+  else if (minX > 1) dx = (1 - minX) - PEN * width;
+  // Otherwise horizontally overlapping; no shift required
+
+  // If fully below, move up so maxY touches 0
+  if (maxY < 0) dy = -maxY + PEN * height;
+  // If fully above, move down so minY touches 1
+  else if (minY > 1) dy = (1 - minY) - PEN * height;
+  // Otherwise vertically overlapping; no shift required
+
+  return { dx, dy };
+};
+
 // Unified copy function used by both mirrorOutsidePolygons and mirrorInsidePolygons
 const applyCopyFromTo = (
   s: Record<string, OrigamiMapperTypes.Polygon[]>,
@@ -159,6 +203,20 @@ const applyCopyFromTo = (
     const angDelta = srcAng - tgtAng + (rotate ? Math.PI : 0);
     const newRot = normAngle(baseRot + angDelta);
     t[i] = { ...t[i], vertices: verts, rotation: newRot };
+  }
+
+  // After transforming the target face, ensure the group is not fully outside the canvas
+  const updatedTgtGroup: OrigamiMapperTypes.Polygon[] = t.filter(p => p.id[0] === tgtLetter);
+  const obbNew = computeOBB(updatedTgtGroup);
+  if (obbNew && isObbFullyOutsideCanvas(obbNew)) {
+    const { dx, dy } = computeShiftToCanvas(obbNew);
+    if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+      for (let i = 0; i < t.length; i++) {
+        if (t[i].id[0] !== tgtLetter) continue;
+        const shiftedVerts = t[i].vertices.map(([x, y]) => [x + dx, y + dy] as [number, number]);
+        t[i] = { ...t[i], vertices: shiftedVerts };
+      }
+    }
   }
 };
 
