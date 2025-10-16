@@ -7,6 +7,7 @@ import type { OrigamiMapperTypes } from '../../OrigamiMapperTypes';
 import { mirrorOutsidePolygons, mirrorInsidePolygons } from '../../utils/polygons';
 import ImageUpload from './ImageUpload';
 import { IoDownload, IoFolderOpen, IoCaretBackSharp, IoRefreshCircle, IoTrash, IoMagnetOutline, IoResizeOutline, IoGridOutline, IoCloseCircleOutline, IoReloadOutline } from 'react-icons/io5';
+import { useArrowKeyMovement } from './hooks/useArrowKeyMovement';
 
 // Toggle Import/Export JSON buttons in the editor toolbars
 const SHOW_IMPORT_EXPORT_JSON = false;
@@ -101,6 +102,8 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // Defer attaching the keyboard move effect until after width/height are available
   const mountRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -212,6 +215,23 @@ const PolygonEditor = forwardRef<PolygonEditorHandle, PolygonEditorProps>(({ dat
   const width = canvasSize.w;
   const height = canvasSize.h;
   const editorIdRef = useRef<string>(Math.random().toString(36).slice(2));
+  // Attach arrow key movement hook
+  useArrowKeyMovement({
+    width,
+    height,
+    backgroundImg,
+    data,
+    label,
+    selectedIdsRef,
+    polygonsRef,
+    setPolygons,
+    onChange,
+    onOutsave,
+    pushHistory,
+    tapStepPx: 1,
+    holdDelayMs: 100,
+    holdSpeedPxPerSec: 50,
+  });
 
   // Sync zoom across editors in the same group
   useEffect(() => {
