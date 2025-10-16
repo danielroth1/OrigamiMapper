@@ -1589,8 +1589,8 @@ function BoxGenerator() {
     setLoading(true);
     try {
       const runs: Array<Promise<{ [k: string]: string }>> = [];
-      if (hasBottomBox) runs.push(runMappingForBox('bottom'));
       if (hasTopBox) runs.push(runMappingForBox('top'));
+      if (hasBottomBox) runs.push(runMappingForBox('bottom'));
       const dicts = await Promise.all(runs);
       if (pdfCancelRef.current) throw new Error('PDF_CANCELLED');
       setPdfProgress(50);
@@ -1618,8 +1618,8 @@ function BoxGenerator() {
 
       // Determine mapping from dict order to box which
       let idx = 0;
-      if (hasBottomBox) { pushPagesWithScale('bottom', dicts[idx]); idx++; }
       if (hasTopBox) { pushPagesWithScale('top', dicts[idx]); idx++; }
+      if (hasBottomBox) { pushPagesWithScale('bottom', dicts[idx]); idx++; }
       // Fallback: if no boxes, still allow blank pages (or just abort)
       if (outerPages.length === 0 && innerPages.length === 0) {
         setPdfLoading(false); setPdfProgress(0); setLoading(false); return;
