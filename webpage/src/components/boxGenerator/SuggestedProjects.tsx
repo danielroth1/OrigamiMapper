@@ -22,7 +22,7 @@ const withBase = (u: string) => {
   return base + u;
 };
 
-export default function SuggestedProjects({ onSelect, manifestUrl = '/assets/examples/suggestions_projects/projects.json', heading = 'Suggested Projects' }: SuggestedProjectsProps) {
+export default function SuggestedProjects({ onSelect, manifestUrl = '/assets/examples/suggestions_projects/projects.json', heading = 'Themes' }: SuggestedProjectsProps) {
   const [projects, setProjects] = useState<SuggestedProjectItem[]>([]);
   const [hover, setHover] = useState<{ x: number; y: number; item: SuggestedProjectItem } | null>(null);
   const [generating, setGenerating] = useState(false);
