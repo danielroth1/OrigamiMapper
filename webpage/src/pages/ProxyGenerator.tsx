@@ -5,7 +5,6 @@ import { computeAutoBgFromDataUrl, mmToPt } from './BackgroundImageUtils';
 import { IoLeafSharp, IoSkullSharp, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
 import { GiSun } from 'react-icons/gi';
 import { BsFire } from 'react-icons/bs';
-import Header from '../components/Header';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
 import CardConfigForm from '../components/proxyGenerator/CardConfigForm';
@@ -843,9 +842,7 @@ const ProxyGenerator: React.FC = () => {
 
 
   return (
-    <div className="App">
-      <Header />
-      <div style={{ display: 'flex', maxWidth: '900px', margin: '2em auto', background: '#181818', borderRadius: '12px', padding: '2em', color: '#fff', boxShadow: '0 2px 12px #0006', gap: 0 }}>
+    <div className="content-container" style={{ display: 'flex', gap: 0 }}>
         <SavedCardsSidebar
           savedCards={savedCards}
           onLoadCard={(card, idx) => handleLoadCard(card, idx)}
@@ -943,7 +940,6 @@ const ProxyGenerator: React.FC = () => {
           />
         </div>
       </div>
-    </div>
   );
 };
 

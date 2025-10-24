@@ -12,7 +12,6 @@ import { runMappingJS } from '../OrigamiMapperJS';
 import { ImageTransform } from '../components/ImageTransform';
 import PolygonEditor, { type PolygonEditorHandle } from '../components/boxGenerator/PolygonEditor';
 import boxData from '../templates/box.json';
-import Header from '../components/Header';
 import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 import SuggestedProjects from '../components/boxGenerator/SuggestedProjects';
@@ -1687,42 +1686,46 @@ function BoxGenerator() {
 
   return (
     <>
-      <div className="App">
-        {/* Fixed header for all pages */}
-        <Header />
-
-        {/* Suggested Mapper Projects placed directly under the Introduction panel (always visible) */}
-        <div style={{ margin: '1em auto 1.25em', maxWidth: 980, width: 'calc(100% - 2em)' }}>
-          <SuggestedProjects
-            onSelect={async (fileUrl: string) => {
-              try {
-                const res = await fetch(fileUrl, { cache: 'no-store' });
-                if (!res.ok) throw new Error('Failed to fetch project: ' + res.status);
-                const blob = await res.blob();
-                const urlParts = fileUrl.split('/');
-                const nameGuess = urlParts[urlParts.length - 1] || 'project.mapper';
-                const file = new File([blob], nameGuess, { type: 'application/zip' });
-                await onMapperFileSelected(file);
-              } catch (err) {
-                console.warn('Failed to load suggested project', err);
-                alert('Failed to load suggested project: ' + String((err as any)?.message || err));
-              }
-            }}
-          />
+  {/* Main content container with same background as ProxyGenerator */}
+  <div className="content-container">
+          {/* Intro text */}
+          <div style={{ color: '#fff', margin: '2em auto 2em auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
+          Build your own Card Deck Box! <br />
+          This tool generates printable templates from your images. <br />
+          Perfect for holding a standard deck of 60 cards.
         </div>
+          {/* Suggested Mapper Projects placed directly under the Introduction panel (always visible) */}
+          <div style={{ margin: '0 0 1.25em', maxWidth: 980, width: '100%' }}>
+            <SuggestedProjects
+              onSelect={async (fileUrl: string) => {
+                try {
+                  const res = await fetch(fileUrl, { cache: 'no-store' });
+                  if (!res.ok) throw new Error('Failed to fetch project: ' + res.status);
+                  const blob = await res.blob();
+                  const urlParts = fileUrl.split('/');
+                  const nameGuess = urlParts[urlParts.length - 1] || 'project.mapper';
+                  const file = new File([blob], nameGuess, { type: 'application/zip' });
+                  await onMapperFileSelected(file);
+                } catch (err) {
+                  console.warn('Failed to load suggested project', err);
+                  alert('Failed to load suggested project: ' + String((err as any)?.message || err));
+                }
+              }}
+            />
+          </div>
 
-        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center', marginBottom: '1em' }}>
-          <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
-            <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
-          </button>
-          <button onClick={() => mapperInputRef.current?.click()} disabled={loading || pdfLoading} className="menu-btn" title="Load project (.mapper)">
-            <IoCloudUpload style={{ verticalAlign: 'middle', marginRight: 8 }} /> Load
-          </button>
-          <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
-        </div>
+          <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center', justifyContent: 'center', marginBottom: '1em' }}>
+            <button onClick={() => saveToMapperFile()} disabled={loading || pdfLoading} className="menu-btn" title="Save project (.mapper)">
+              <IoSave style={{ verticalAlign: 'middle', marginRight: 8 }} /> Save
+            </button>
+            <button onClick={() => mapperInputRef.current?.click()} disabled={loading || pdfLoading} className="menu-btn" title="Load project (.mapper)">
+              <IoCloudUpload style={{ verticalAlign: 'middle', marginRight: 8 }} /> Load
+            </button>
+            <input ref={mapperInputRef} type="file" accept=".mapper,application/zip" style={{ display: 'none' }} onChange={e => onMapperFileSelected(e.target.files?.[0] ?? null)} />
+          </div>
 
-        {/* 3D cube preview + 2D Editors (canvases on the left) */}
-        <div className="images" style={{ display: 'flex', gap: '2.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
+          {/* 3D cube preview + 2D Editors (canvases on the left) */}
+          <div className="images" style={{ display: 'flex', gap: '2.5em', alignItems: 'flex-start', justifyContent: 'center', width: '100%' }}>
           {/* Left column: Editors and controls */}
           <div ref={viewerFrameRef} style={{ display: 'flex', flexDirection: 'column', gap: '1em', alignItems: 'center', justifyContent: 'flex-start' }}>
             {/* Side filter toggle and create box buttons */}
@@ -2348,8 +2351,9 @@ function BoxGenerator() {
           <ImagePreview src={results.output_page1} label="Output Page 1" />
           <ImagePreview src={results.output_page2} label="Output Page 2" />
         </div>}
+      </div>
 
-        <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
+      <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
           <div>
             <br />
             <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>GitHub</a>
@@ -2359,7 +2363,6 @@ function BoxGenerator() {
             <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
           </div>
         </footer>
-      </div>
     </>
   );
 }

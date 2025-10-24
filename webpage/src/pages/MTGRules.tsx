@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import Header from '../components/Header';
 import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
 import { IoCloudDownloadOutline, IoPrintSharp, IoShareSocial } from 'react-icons/io5';
@@ -92,12 +91,8 @@ const MTGRules: React.FC = () => {
   };
 
   return (
-  <div className="App">
-    <Header />
-    
-  <div ref={contentRef} className="mtg-rules-content" style={{
-        maxWidth: '900px',
-        margin: '2em auto',
+    <div className="content-container">
+      <div ref={contentRef} className="mtg-rules-content" style={{
         background: 'linear-gradient(135deg, #232526 0%, #414345 100%)',
         color: '#f8f8f8',
         borderRadius: '18px',

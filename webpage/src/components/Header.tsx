@@ -3,15 +3,9 @@ import { Link } from 'react-router-dom';
 
 const Header: React.FC = () => (
   <header className="App-header">
-    <div className="menu-bar" style={{ 
-      display: 'grid', 
-      gridTemplateColumns: '1fr auto 1fr', 
-      alignItems: 'center', 
-      gap: '2em',
-      marginBottom: '2em',
-      justifyItems: 'center'
-    }}>
-      <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em', justifySelf: 'start' }}>
+    <div className="menu-bar">
+      <div className="nav-inner" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '2em', marginBottom: '2em', justifyItems: 'center' }}>
+        <div className="menu-left" style={{ display: 'flex', flexDirection: 'column', gap: '1em', justifySelf: 'start' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
           <button className="menu-btn" style={{ minWidth: '100px' }}>Box Generator</button>
         </Link>
@@ -24,13 +18,14 @@ const Header: React.FC = () => (
             Magic the Gathering, Pokémon Cards, One Piece, Flesh and Blood, Digimon, Poker, and Yu-Gi-Oh!
           </span>
       </div>
-      <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em', justifySelf: 'end' }}>
+        <div className="menu-right" style={{ display: 'flex', flexDirection: 'column', gap: '1em', justifySelf: 'end' }}>
         <Link to="/template-images" style={{ textDecoration: 'none' }}>
           <button className="menu-btn" style={{ minWidth: '100px' }}>Template Images</button>
         </Link>
         <Link to="/mtg-rules" style={{ textDecoration: 'none' }}>
           <button className="menu-btn" style={{ minWidth: '100px' }}>MTG Booklet</button>
         </Link>
+      </div>
       </div>
     </div>
   </header>
