@@ -1355,6 +1355,25 @@ function BoxGenerator() {
   // Load autosave on mount
   useEffect(() => { void loadAutosave(); }, []);
 
+  // Load default Gift Box theme on mount if no autosave
+  useEffect(() => {
+    const loadDefaultTheme = async () => {
+      try {
+        const res = await fetch('/assets/examples/suggestions_projects/gift.mapper', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to fetch default theme');
+        const blob = await res.blob();
+        const file = new File([blob], 'gift.mapper', { type: 'application/zip' });
+        await onMapperFileSelected(file);
+      } catch (err) {
+        console.warn('Failed to load default theme', err);
+      }
+    };
+    // Only load if no images are set (assuming fresh start)
+    if (!outsideImgTopRaw && !insideImgTopRaw && !outsideImgBottomRaw && !insideImgBottomRaw) {
+      void loadDefaultTheme();
+    }
+  }, []);
+
   // Keep viewMode valid if boxes are created/deleted
   useEffect(() => {
     if (!hasTopBox && !hasBottomBox) {
@@ -1689,7 +1708,7 @@ function BoxGenerator() {
   {/* Main content container with same background as ProxyGenerator */}
   <div className="content-container">
           {/* Intro text */}
-          <div style={{ color: '#fff', margin: '2em auto 2em auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
+          <div style={{ color: '#fff', margin: '0 auto 2em auto', fontSize: '1.1em', maxWidth: '600px', textAlign: 'center' }}>
           Build your own Card Deck Box! <br />
           This tool generates printable templates from your images. <br />
           Perfect for holding a standard deck of 60 cards.
