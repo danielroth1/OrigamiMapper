@@ -119,7 +119,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
           </div>
         </div>
       )}
-      <div style={{ width: '120px', background: '#222', borderRadius: '8px', padding: '0.5em', boxShadow: '0 2px 8px #0002', height: '420px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+      <div style={{ width: '150px', background: '#222', borderRadius: '8px', padding: 0, boxShadow: '0 2px 8px #0002', height: '420px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
       <h3 style={{ fontSize: '1em', marginBottom: '1em', color: '#fff', flex: 'none' }}>Saved Cards</h3>
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1em' }}>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

@@ -842,28 +842,28 @@ const ProxyGenerator: React.FC = () => {
 
 
   return (
-    <div className="content-container" style={{ display: 'flex', gap: 0 }}>
-        <SavedCardsSidebar
-          savedCards={savedCards}
-          onLoadCard={(card, idx) => handleLoadCard(card, idx)}
-          onExportAllPDF={handleExportAllPDF}
-          currentCardIdx={currentCardIdx}
-          onLoadProject={handleLoadProject}
-          onReorder={(newSaved) => {
-            // preserve the selected card if possible
-            const prevSelected = currentCardIdx;
-            setSavedCards(newSaved);
-            if (prevSelected === null) {
-              setCurrentCardIdx(null);
-            } else {
-              // try to find the previously selected card by reference equality
-              const prev = savedCards[prevSelected];
-              const newIdx = newSaved.findIndex(s => s === prev);
-              setCurrentCardIdx(newIdx === -1 ? null : newIdx);
-            }
-          }}
-        />
-        <div style={{ flex: 1 }}>
+    <div className="content-container" style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: '1em' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 0 }}>
+          <SavedCardsSidebar
+            savedCards={savedCards}
+            onLoadCard={(card, idx) => handleLoadCard(card, idx)}
+            onExportAllPDF={handleExportAllPDF}
+            currentCardIdx={currentCardIdx}
+            onLoadProject={handleLoadProject}
+            onReorder={(newSaved) => {
+              // preserve the selected card if possible
+              const prevSelected = currentCardIdx;
+              setSavedCards(newSaved);
+              if (prevSelected === null) {
+                setCurrentCardIdx(null);
+              } else {
+                // try to find the previously selected card by reference equality
+                const prev = savedCards[prevSelected];
+                const newIdx = newSaved.findIndex(s => s === prev);
+                setCurrentCardIdx(newIdx === -1 ? null : newIdx);
+              }
+            }}
+          />
           <CardPreview
             ref={cardRef}
             cardData={cardData}
@@ -874,6 +874,8 @@ const ProxyGenerator: React.FC = () => {
             onImageOffsetChange={(x:number,y:number) => setCardData(prev => ({ ...prev, imageOffsetX: x, imageOffsetY: y }))}
             onImageZoomChange={(z:number) => setCardData(prev => ({ ...prev, imageZoom: z }))}
           />
+        </div>
+        <div>
           <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
             <button
               type="button"
