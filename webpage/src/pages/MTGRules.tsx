@@ -43,7 +43,7 @@ const MTGRules: React.FC = () => {
         height: pxToPt(canvas.height),
       });
       const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -283,6 +283,16 @@ const MTGRules: React.FC = () => {
         <p><strong>Note:</strong> This booklet is a summary. For official rules, refer to the <a href="https://media.wizards.com/images/magic/resources/rules/EN_MTGM14_PrintedRulebook_LR.pdf" target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9' }}>MTG Comprehensive Rules</a>.</p>
                   <div>Tolarian Community College</div><a href="https://www.youtube.com/watch?v=wif9ppH5JpI" target="_blank" rel="noopener noreferrer">MTG Learn How to Play</a>
       </div>
+                    <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
+          <div>
+            <br />
+            <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>GitHub</a>
+            |
+            <a href="https://blog.mailbase.info" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Blog</a>
+            |
+            <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
+          </div>
+        </footer>
     </div>
   );
 };

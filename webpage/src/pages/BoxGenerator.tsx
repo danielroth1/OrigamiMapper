@@ -15,6 +15,7 @@ import boxData from '../templates/box.json';
 import '../App.css';
 import { IoSave, IoCloudUpload, IoSwapHorizontal, IoCube, IoChevronUpCircle, IoChevronDownCircle } from 'react-icons/io5';
 import SuggestedProjects from '../components/boxGenerator/SuggestedProjects';
+import OutputDpiSelect from '../components/boxGenerator/OutputDpiSelect';
 
 const SHOW_TEMPLATES = false;
 const GENERATE_DEMO_IN_DEBUG = false;
@@ -2247,14 +2248,7 @@ function BoxGenerator() {
                     </select>
                   </div>}
                   {/* Rotation selectors moved into each PolygonEditor sidebar */}
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5em', width: '100%' }}>
-                    <span style={{ color: '#fff' }}>Output DPI:</span>
-                    <select value={outputDpi} onChange={e => setOutputDpi(Number(e.target.value))} style={{ padding: '0.3em', borderRadius: '6px', minWidth: '80px' }}>
-                      <option value={200}>200</option>
-                      <option value={300}>300</option>
-                      <option value={600}>600</option>
-                    </select>
-                  </div>
+                  <OutputDpiSelect value={outputDpi} onChange={setOutputDpi} />
                 </div>
                 <div style={{ width: '100%', display: 'flex', gap: '1em', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em' }}>
