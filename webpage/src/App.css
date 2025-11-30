@@ -14,8 +14,8 @@ body {
 
 /* Shared page content container used across pages to ensure consistent width and styling */
 .content-container {
-  width: 1200px;
-  max-width: calc(100% - 2em);
+  max-width: 1200px;
+  width: calc(100% - 2em);
   box-sizing: border-box;
   margin: 2em auto;
   background: #181818;
@@ -188,6 +188,13 @@ body {
   .brand img { width: 170px; max-width: 70vw; }
   .nav-group { flex-wrap: wrap; justify-content: center; }
   .nav-link { height: 34px; margin: 2px; }
+
+  .content-container {
+    padding: 1em;
+    margin: 0.5em auto;
+    width: calc(100vw - 1em);
+    max-width: calc(100vw - 1em);
+  }
 }
 
 .menu-left a, .menu-right a {
@@ -313,37 +320,363 @@ footer {
 
 @media (max-width: 700px) {
   /* Remove global page padding on mobile to eliminate left/right gap */
-  #root { padding: 1em; }
+  #root { 
+    padding: 0.5em;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 
-  /* Keep the desktop menu appearance on small screens: left and right
-     groups remain vertical columns, logo is reduced, and spacing tightened. */
+  /* Mobile-optimized layout: stack everything vertically */
   .menu-bar {
-    flex-direction: row; /* keep horizontal layout */
-    gap: 0.75em;
-    padding: 0.5em 0;
+    flex-direction: column;
+    gap: 1em;
+    padding: 1em 0.5em;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: nowrap;
+    justify-content: center;
   }
+  
+  /* Stack navigation vertically on mobile */
+  .nav-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    gap: 1em !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
   .menu-left, .menu-right {
-    flex-direction: column; /* keep buttons stacked like desktop */
-    gap: 0.5em;
-    margin: 0;
-    align-items: flex-start;
-  }
-  .App-logo {
-    width: 180px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    width: 100%;
+    max-width: 300px;
     margin: 0 auto;
+    align-items: stretch;
   }
+  
+  .menu-btn {
+    width: 100% !important;
+    padding: 1em 0.5em;
+    font-size: 1.1em;
+    min-height: 48px; /* Better touch target */
+  }
+  
+  .App-logo {
+    width: 90vw !important;
+    max-width: 280px !important;
+    margin: 0 auto;
+    order: -1; /* Logo first on mobile */
+  }
+  
+  /* Content containers full width on mobile */
+  .content-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 1em 0;
+    padding: 1em;
+    border-radius: 8px;
+  }
+  
+  /* Upload cards full width */
+  .upload-card, .template-run-card {
+    max-width: 100%;
+    width: 100%;
+    padding: 1em;
+    margin: 1em 0;
+  }
+  
+  /* Images stack vertically */
   .images {
     flex-direction: column !important;
     gap: 1em !important;
+    width: 100% !important;
   }
+  
   .images img {
-    width: 90vw !important;
-    max-width: 320px;
+    width: 100% !important;
+    max-width: 100%;
     height: auto;
   }
+  
+  /* Navigation grid stacks on mobile */
+  .nav-grid {
+    grid-template-columns: 1fr;
+    gap: 1em;
+    padding: 1em 0.5em;
+  }
+  
+  .brand img { 
+    width: 90vw;
+    max-width: 240px;
+  }
+  
+  .nav-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75em;
+  }
+  
+  .nav-link {
+    width: 100%;
+    max-width: 300px;
+    justify-content: center;
+    padding: 0.75em 1em;
+    min-height: 48px;
+  }
+  
+  /* Reference cards optimized for mobile scrolling */
+  .reference-scroller {
+    gap: 1rem;
+    padding: 0.5rem 0;
+  }
+  
+  .reference-card {
+    flex: 0 0 85vw;
+    max-width: 300px;
+  }
+  
+  /* Forms and inputs full width */
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Buttons larger touch targets */
+  button,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    padding: 0.75em 1em;
+    font-size: 1em;
+  }
+  
+  /* Preview images responsive */
+  .preview-img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Reduce hover zoom on mobile (touch devices) */
+  .reference-row img:hover {
+    transform: scale(1.5);
+  }
+  
+  /* Footer readable on mobile */
+  footer {
+    padding: 1em 0.5em;
+    font-size: 0.9em;
+  }
+  
+  /* Image controls section - stack vertically on mobile */
+  .ptg-config-form > div > div[style*="flexWrap"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100%;
+  }
+  
+  /* All inline flex containers with gap become vertical */
+  div[style*="display: flex"][style*="gap"] > div {
+    width: 100%;
+  }
+  
+  /* Select boxes full width on mobile */
+  select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Color inputs remain visible but take full row */
+  input[type="color"] {
+    width: 60px !important;
+    height: 40px !important;
+  }
+  
+  /* Labels in flex containers */
+  div[style*="display: flex"] label {
+    min-width: fit-content;
+  }
+  
+  /* PokeMana form mobile styles */
+  form[style*="flexDirection: column"] > div[style*="display: flex"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+  
+  form[style*="flexDirection: column"] input[type="text"],
+  form[style*="flexDirection: column"] select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  
+  form[style*="flexDirection: column"] label {
+    width: 100%;
+    text-align: left;
+  }
+  
+  /* SavedCardsSidebar mobile optimization */
+  div[style*="width: 150px"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin-bottom: 1em;
+    padding: 1em !important;
+    box-sizing: border-box;
+  }
+  
+  /* Sidebar actions buttons */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    width: 100%;
+    padding-top: 0.5em;
+  }
+  
+  .action-button {
+    width: 100% !important;
+    padding: 1em !important;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+  
+  /* Modal backdrop and dialog */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1em;
+    box-sizing: border-box;
+  }
+  
+  .modal {
+    background: #222;
+    border-radius: 12px;
+    padding: 1.5em;
+    width: 90vw;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+  
+  .modal-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 1em;
+  }
+  
+  .modal-body {
+    margin-bottom: 1em;
+  }
+  
+  .modal-body .input-field {
+    width: 100%;
+    padding: 0.75em;
+    font-size: 1em;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #333;
+    color: #fff;
+  }
+  
+  .modal-footer {
+    display: flex;
+    gap: 0.75em;
+    justify-content: flex-end;
+  }
+  
+  .modal-footer button {
+    padding: 0.75em 1.5em;
+    min-height: 44px;
+  }
+}
+
+/* Modal styles for desktop too */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #222;
+  border-radius: 12px;
+  padding: 1.5em;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 1em;
+}
+
+.modal-body {
+  margin-bottom: 1em;
+}
+
+.modal-body .input-field {
+  width: 100%;
+  padding: 0.75em;
+  font-size: 1em;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #333;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1em;
+  justify-content: flex-end;
+}
+
+.action-button {
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.7em 1.2em;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.action-button:hover {
+  background: #444;
+  filter: drop-shadow(0 0 2em #3940ca);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
 }
 
 

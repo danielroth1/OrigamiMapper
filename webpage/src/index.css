@@ -97,6 +97,16 @@ button:focus-visible {
   width: 320px;
   max-width: 90%;
 }
+
+/* Defensive: if a backdrop is accidentally left mounted it should not block
+   interactions across the entire app. Allow pointer-events only on the modal
+   itself so the modal buttons still work and clicks pass through the backdrop. */
+.modal-backdrop {
+  pointer-events: none;
+}
+.modal-backdrop .modal {
+  pointer-events: auto;
+}
 /* Mobile reading adjustments */
 @media (max-width: 600px) {
   .mtg-rules-content {

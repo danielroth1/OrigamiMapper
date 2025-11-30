@@ -228,36 +228,41 @@ export const PowerToughnessSection: React.FC<CardFormProps> = ({
   onChange
 }) => {
   return (
-    <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
-      <label>
+    <div className="ptg-pt-section">
+      <label className="ptg-pt-toggle">
         <input
           type="checkbox"
           name="showPT"
           checked={cardData.showPT !== false}
           onChange={onChange}
-          style={{ marginRight: '0.5em' }}
           disabled={cardData.pwEnabled === true}
         />
         Power / Toughness enabled
       </label>
-      <label>Power:</label>
-      <input 
-        type="number" 
-        name="power" 
-        value={cardData.power || 0} 
-        onChange={onChange} 
-        style={{ width: '60px' }} 
-        disabled={cardData.showPT === false || cardData.pwEnabled === true} 
-      />
-      <label>Toughness:</label>
-      <input 
-        type="number" 
-        name="toughness" 
-        value={cardData.toughness || 0} 
-        onChange={onChange} 
-        style={{ width: '60px' }} 
-        disabled={cardData.showPT === false || cardData.pwEnabled === true} 
-      />
+      <div className="ptg-pt-field">
+        <label htmlFor="power-input">Power:</label>
+        <input
+          id="power-input"
+          type="number"
+          name="power"
+          value={cardData.power || 0}
+          onChange={onChange}
+          className="ptg-pt-number"
+          disabled={cardData.showPT === false || cardData.pwEnabled === true}
+        />
+      </div>
+      <div className="ptg-pt-field">
+        <label htmlFor="toughness-input">Toughness:</label>
+        <input
+          id="toughness-input"
+          type="number"
+          name="toughness"
+          value={cardData.toughness || 0}
+          onChange={onChange}
+          className="ptg-pt-number"
+          disabled={cardData.showPT === false || cardData.pwEnabled === true}
+        />
+      </div>
     </div>
   );
 };

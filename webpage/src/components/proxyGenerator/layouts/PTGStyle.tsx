@@ -175,8 +175,8 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
     ref={ref}
     style={{
       margin: '0 auto',
-      width: '300px',
-      height: '420px',
+      width: 'min(300px, 90vw)',
+      height: 'calc(min(300px, 90vw) * 1.4)',
       background: frame.cardFrame,
       // Prefer an explicit outerBorder. Only fall back to cardFrame when it's a solid color (hex).
       border: outerBorderStyle,

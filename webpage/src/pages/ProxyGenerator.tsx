@@ -8,6 +8,7 @@ import { BsFire } from 'react-icons/bs';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
 import CardConfigForm from '../components/proxyGenerator/CardConfigForm';
+import './ProxyGenerator.css';
 import blackFrame from '../cardStyles/black.json';
 import black2Frame from '../cardStyles/black2.json';
 import whiteFrame from '../cardStyles/white.json';
@@ -235,14 +236,17 @@ const ProxyGenerator: React.FC = () => {
     }
   };
 
+  const manaIcon = (Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, sizeClass: string) =>
+    (color: string) => <Icon className={`mana-icon ${sizeClass}`} style={{ color }} />;
+
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
-  R: (color) => <BsFire style={{ fontSize: '1.6em', color, verticalAlign: 'middle' }} />,
-    U: (color) => <IoWater style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-    G: (color) => <IoLeafSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-  W: (color) => <GiSun style={{ fontSize: '1.6em', color, verticalAlign: 'middle' }} />,  
-    B: (color) => <IoSkullSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-  Y: (color) => <IoFlashSharp style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />,
-  A: (color) => <IoCog style={{ fontSize: '1.4em', color, verticalAlign: 'middle' }} />
+    R: manaIcon(BsFire, 'mana-icon--lg'),
+    W: manaIcon(GiSun, 'mana-icon--lg'),
+    U: manaIcon(IoWater, 'mana-icon--md'),
+    G: manaIcon(IoLeafSharp, 'mana-icon--md'),
+    B: manaIcon(IoSkullSharp, 'mana-icon--md'),
+    Y: manaIcon(IoFlashSharp, 'mana-icon--md'),
+    A: manaIcon(IoCog, 'mana-icon--md'),
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -842,8 +846,8 @@ const ProxyGenerator: React.FC = () => {
 
 
   return (
-    <div className="content-container" style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: '1em' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 0 }}>
+    <div className="content-container proxy-generator-page">
+        <div className="proxy-generator-layout">
           <SavedCardsSidebar
             savedCards={savedCards}
             onLoadCard={(card, idx) => handleLoadCard(card, idx)}
@@ -864,7 +868,7 @@ const ProxyGenerator: React.FC = () => {
               }
             }}
           />
-          <div style={{ marginLeft: '-160px' }}>
+          <div className="card-preview-wrapper">
             <CardPreview
               ref={cardRef}
               cardData={cardData}
@@ -878,55 +882,34 @@ const ProxyGenerator: React.FC = () => {
           </div>
         </div>
         <div>
-          <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', margin: '1em 0' }}>
+          <div className="proxy-action-bar">
             <button
               type="button"
               onClick={handleExportSinglePNG}
-              style={{
-                padding: '0.6em 1.2em',
-                background: '#222',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px #0003'
-              }}
+              className="proxy-action-button"
             >
               Export Card as PNG
             </button>
             <button
               type="button"
               onClick={() => {
-                setSavedCards(prev => [...prev, { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] }]);
-                setCurrentCardIdx(savedCards.length); // select the new card
+                // Use functional update so we can compute the new index atomically
+                setSavedCards(prev => {
+                  const newCard = { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] };
+                  const newArr = [...prev, newCard];
+                  // select the newly added card
+                  setCurrentCardIdx(newArr.length - 1);
+                  return newArr;
+                });
               }}
-              style={{
-                padding: '0.6em 1.2em',
-                background: '#222',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px #0003'
-              }}
+              className="proxy-action-button"
             >
               Add Card
             </button>
             <button
               type="button"
               onClick={handleRemoveCard}
-              style={{
-                padding: '0.6em 1.2em',
-                background: 'rgba(73, 0, 0, 1)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px #0003'
-              }}
+              className="proxy-action-button proxy-action-button--remove"
             >
               Remove Card
             </button>
@@ -943,14 +926,13 @@ const ProxyGenerator: React.FC = () => {
             onImage={handleImageUpload}
           />
         </div>
-              <footer style={{ color: '#bbb', textAlign: 'center', padding: '1.5em 0', marginTop: '1em', fontSize: '1em' }}>
-          <div>
-            <br />
-            <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>GitHub</a>
-            |
-            <a href="https://blog.mailbase.info" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Blog</a>
-            |
-            <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" style={{ color: '#bbb', fontSize: '0.9em', textDecoration: 'underline', margin: '0 0.5em' }}>Datenschutz</a>
+              <footer className="proxy-footer">
+          <div className="proxy-footer-links">
+            <a href="https://github.com/danielroth1/OrigamiMapper" target="_blank" rel="noopener noreferrer" className="proxy-footer-link">GitHub</a>
+            <span className="proxy-footer-separator">|</span>
+            <a href="https://blog.mailbase.info" target="_blank" rel="noopener noreferrer" className="proxy-footer-link">Blog</a>
+            <span className="proxy-footer-separator">|</span>
+            <a href="https://blog.mailbase.info/datenschutz/" target="_blank" rel="noopener noreferrer" className="proxy-footer-link">Datenschutz</a>
           </div>
         </footer>
       </div>

@@ -119,73 +119,61 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
           </div>
         </div>
       )}
-      <div style={{ width: '150px', background: '#222', borderRadius: '8px', padding: 0, boxShadow: '0 2px 8px #0002', height: '420px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-      <h3 style={{ fontSize: '1em', marginBottom: '1em', color: '#fff', flex: 'none' }}>Saved Cards</h3>
-      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1em' }}>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {savedCards.map((card, idx) => {
-            const isActive = idx === currentCardIdx;
-            // Map card style to color
-            const styleColorMap: Record<string, string> = {
-              Black: '#d61ed0ff',
-              Black2: '#b600aaff',
-              White: '#eee',
-              Blue: '#2196f3',
-              Red: '#e53935',
-              Green: '#43a047',
-              Yellow: '#fbc02d',
-              Artifact: '#b0bec5',
-            };
-            const fontColor = styleColorMap[card.color] || '#fff';
-            // Card style (template type) is stored in the 'template' property, not color or card.data
-            const cardStyleType = card.template || 'PTG Style';
-            return (
-              <li key={idx} style={{ marginBottom: '0.5em' }}>
-                <button
-                  draggable={true}
-                  onDragStart={(e) => handleDragStart(e, idx)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  style={{
-                    width: '100%',
-                    background: '#333',
-                    color: fontColor,
-                    border: isActive ? '2px solid #fff' : 'none',
-                    borderRadius: '6px',
-                    padding: '0.3em',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontSize: '0.8em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontWeight: 'normal',
-                    boxSizing: 'border-box'
-                  }}
-                  onClick={() => onLoadCard(card, idx)}
-                >
-                  <span>{card.data.name && card.data.name.length > 13 ? card.data.name.slice(0, 13) + '…' : card.data.name}</span>
-                  <span style={{ color: fontColor, fontSize: '0.75em', marginLeft: '0.5em' }}>{cardStyleType}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="saved-cards-sidebar">
+        <h3 className="saved-cards-title">Saved Cards</h3>
+        <div className="saved-cards-list">
+          <ul className="saved-cards-items">
+            {savedCards.map((card, idx) => {
+              const isActive = idx === currentCardIdx;
+              // Map card style to color
+              const styleColorMap: Record<string, string> = {
+                Black: 'hsla(303, 29%, 33%, 1.00)',
+                Black2: 'hsla(304, 100%, 78%, 1.00)',
+                White: '#eee',
+                Blue: '#2196f3',
+                Red: '#e53935',
+                Green: '#43a047',
+                Yellow: '#fbc02d',
+                Artifact: '#b0bec5',
+              };
+              const fontColor = styleColorMap[card.color] || '#fff';
+              // Card style (template type) is stored in the 'template' property, not color or card.data
+              const cardStyleType = card.template || 'PTG Style';
+              const displayName = card.data.name || 'Untitled Card';
+              return (
+                <li key={idx} className="saved-cards-item">
+                  <button
+                    type="button"
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className={`saved-card-button${isActive ? ' saved-card-button--active' : ''}`}
+                    style={{ color: fontColor }}
+                    onClick={() => onLoadCard(card, idx)}
+                  >
+                    <span className="saved-card-name" title={displayName}>{displayName}</span>
+                    <span className="saved-card-template" style={{ color: fontColor }}>{cardStyleType}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="saved-cards-actions">
+          <input type="file" accept="application/json" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+          <button type="button" onClick={openSaveModal} className="action-button">
+            Save Project
+          </button>
+          <button type="button" onClick={triggerLoadProject} className="action-button">
+            Load Project
+          </button>
+          <button type="button" onClick={onExportAllPDF} className="action-button">
+            Export PDF
+          </button>
+        </div>
       </div>
-      <div className="actions">
-        <input type="file" accept="application/json" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-        <button type="button" onClick={openSaveModal} className="action-button">
-          Save Project
-        </button>
-        <button type="button" onClick={triggerLoadProject} className="action-button">
-          Load Project
-        </button>
-        <button type="button" onClick={onExportAllPDF} className="action-button">
-          Export PDF
-        </button>
-      </div>
-    </div>
     </>
   );
 };

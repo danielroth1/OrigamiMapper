@@ -23,12 +23,32 @@
   font-size: 0.92rem;
 }
 
-/* Power/Toughness row forced single line */
-.ptg-pt-row { flex-wrap: nowrap; gap: 0.7rem; }
-.ptg-pt-row .ptg-pt-group { display: flex; align-items: center; gap: 0.35rem; }
-.ptg-pt-row .ptg-pt-group label { font-size: 0.8rem; }
-@media (max-width: 560px) { /* allow wrap on very small screens */
-  .ptg-pt-row { flex-wrap: wrap; }
+/* Power/Toughness row */
+.ptg-pt-row { flex-wrap: wrap; gap: 0.7rem; }
+
+.ptg-pt-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ptg-pt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.ptg-pt-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ptg-pt-number {
+  width: 70px;
+  text-align: center;
 }
 
 /* Wider text inputs naturally fill space */
@@ -273,4 +293,198 @@ textarea {
 }
 @media (max-width: 640px) {
   .ptg-pw-abilities { grid-template-columns: 1fr; }
+}
+
+/* Mobile-specific optimizations for ProxyGenerator form */
+@media (max-width: 700px) {
+  .ptg-config-form {
+    padding: 1rem;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  /* Stack all rows vertically on mobile */
+  .ptg-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .ptg-row label {
+    width: 100%;
+    text-align: left;
+    margin-bottom: 0.25rem;
+  }
+
+  .ptg-row input,
+  .ptg-row select,
+  .ptg-row textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto;
+    box-sizing: border-box !important;
+  }
+
+  /* Top bar stacks vertically */
+  .ptg-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    width: 100%;
+    padding-bottom: 0.5rem;
+  }
+
+  .ptg-color-template-group,
+  .ptg-color-style-group {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  /* Mana selects wrap on mobile */
+  .ptg-mana-selects {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .ptg-mana-selects select,
+  .ptg-mana-selects input {
+    flex: 1 1 auto;
+    min-width: 70px;
+    box-sizing: border-box;
+  }
+
+  .ptg-mana-cost-input {
+    flex: 0 0 80px;
+    min-width: 80px;
+  }
+
+  /* Power/Toughness on mobile */
+  .ptg-pt-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .ptg-pt-toggle {
+    font-size: 0.95rem;
+    gap: 0.6rem;
+  }
+
+  .ptg-pt-field {
+    justify-content: space-between;
+  }
+
+  .ptg-pt-field label {
+    font-size: 0.9rem;
+  }
+
+  .ptg-pt-number {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left;
+  }
+
+  /* Planeswalker wrapper stacks */
+  .ptg-pw-wrapper {
+    flex-direction: column;
+    width: 100%;
+    gap: 1rem;
+  }
+
+  .ptg-pw-abilities {
+    width: 100%;
+  }
+
+  .ptg-pw-ability {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .ptg-pw-ability input {
+    width: 100% !important;
+    flex: 1 1 auto;
+    text-align: left;
+    padding: 0.5rem !important;
+  }
+
+  .ptg-pw-ability textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 80px;
+  }
+
+  /* Text inline (rules/flavor) stacks */
+  .ptg-text-inline {
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  /* Power/Toughness row stacks cleanly */
+  .ptg-pt-row > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.6rem !important;
+    width: 100%;
+  }
+
+  .ptg-pt-row > div label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .ptg-pt-row > div input[type="number"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ptg-text-inline .ptg-inline-field {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .ptg-text-inline .ptg-inline-field label {
+    text-align: left;
+    margin-bottom: 0.25rem;
+  }
+
+  .ptg-text-inline .ptg-inline-field textarea {
+    width: 100% !important;
+  }
+
+  /* Small inputs full width on mobile */
+  .ptg-small-input,
+  .ptg-very-small-input {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  /* Color select full width */
+  .ptg-color-style-group select#card-color-select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Checkbox labels wrap better */
+  .ptg-checkbox-label {
+    width: auto;
+    justify-content: flex-start;
+    font-size: 0.9rem;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+  }
 }
