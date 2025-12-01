@@ -1,0 +1,52 @@
+{
+  "groups": [
+    {
+      "id": "pictures",
+      "name": "Zombies",
+      "images": [
+        {
+          "id": "z1",
+          "filename": "SpaceZombie1.jpeg",
+          "title": "Space Zombie 1",
+          "description": "It's in Space and its living!"
+        },
+        {
+          "id": "z2",
+          "filename": "SpaceZombie2.jpeg",
+          "title": "Space Zombie 2",
+          "description": "Is it dead or alive?"
+        }
+      ]
+    },
+    {
+      "id": "cards",
+      "name": "Card Templates",
+      "images": [
+        {
+          "id": "card1",
+          "filename": "card-template-1.png",
+          "title": "Standard Card Layout",
+          "description": "Basic trading card template"
+        },
+        {
+          "id": "card2",
+          "filename": "card-template-2.png",
+          "title": "MTG-Style Card",
+          "description": "Magic the Gathering inspired layout"
+        }
+      ]
+    },
+    {
+      "id": "origami",
+      "name": "Origami Patterns",
+      "images": [
+        {
+          "id": "origami1",
+          "filename": "origami-pattern-1.png",
+          "title": "Crane Pattern",
+          "description": "Traditional origami crane fold pattern"
+        }
+      ]
+    }
+  ]
+}
