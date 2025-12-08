@@ -128,7 +128,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
               // Map card style to color
               const styleColorMap: Record<string, string> = {
                 Black: 'hsla(304, 100%, 78%, 1.00)',
-                Black2: 'hsla(0, 0%, 100%, 1.00)',
+                Black2: 'hsla(281, 100%, 60%, 1.00)',
                 White: '#eee',
                 Blue: '#2196f3',
                 Red: '#e53935',
