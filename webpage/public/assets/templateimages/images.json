@@ -16,35 +16,44 @@
           "title": "Space Zombie 2",
           "description": "Is it dead or alive?"
         }
-      ]
-    },
-    {
-      "id": "cards",
-      "name": "Card Templates",
-      "images": [
+        ,
         {
-          "id": "card1",
-          "filename": "card-template-1.png",
-          "title": "Standard Card Layout",
-          "description": "Basic trading card template"
-        },
-        {
-          "id": "card2",
-          "filename": "card-template-2.png",
-          "title": "MTG-Style Card",
-          "description": "Magic the Gathering inspired layout"
+          "id": "space_swamp",
+          "filename": "Space_Swamp.jpeg",
+          "title": "Space Swamp",
+          "description": "A surreal alien swamp beneath a lavender sky and a distant, glowing planet — starlit pools and jagged spires reflected in oily water. (Magic/Proxy card art.)"
         }
       ]
     },
     {
-      "id": "origami",
-      "name": "Origami Patterns",
+      "id": "Magic",
+      "name": "Some things are magical.",
       "images": [
         {
-          "id": "origami1",
-          "filename": "origami-pattern-1.png",
-          "title": "Crane Pattern",
-          "description": "Traditional origami crane fold pattern"
+          "id": "Sun_Water_Death_And_Nature",
+          "filename": "Sun_Water_Death_And_Nature.jpeg",
+          "title": "Sun Water Death And Nature",
+          "description": "The traditional powers of nature."
+        }
+        ,
+        {
+          "id": "wizard_ice",
+          "filename": "Wizard_of_the_Ice.jpeg",
+          "title": "Wizard of the Ice",
+          "description": "An ancient ice-mage who bends winter to their will — shimmering frost, glowing runes, and a quiet stare that freezes time."
+        }
+        
+      ]
+    },
+    {
+      "id": "cards",
+      "name": "Proxy Cards",
+      "images": [
+        {
+          "id": "hel_underworld_keeper",
+          "filename": "Hel_Underworlds_Keeper.jpeg",
+          "title": "Hel, Underworld's Keeper",
+          "description": "From the old German tales: Hel watches the threshold between worlds, a calm and terrible presence. Cloaked in half-shadow and half-bone, she guides the lost and judges the daring."
         }
       ]
     }

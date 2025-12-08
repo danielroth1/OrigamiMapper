@@ -19,7 +19,13 @@
   display: flex;
   flex-direction: column;
   gap: 1em;
-  max-height: 100%;
+  /* make the sidebar visually distinct and constrained height */
+  border: 1px solid rgba(255,255,255,0.06);
+  align-self: stretch;
+  min-height: 220px;
+  /* don't allow the sidebar to grow beyond the layout — cap its max height */
+  height: calc(440px);
+  overflow: hidden;
 }
 
 .saved-cards-title {
@@ -33,6 +39,10 @@
   flex: 1;
   overflow-y: auto;
   padding-right: 0.25em;
+  /* ensure visible area even when there are no items */
+  min-height: 160px;
+  /* ensure inner list scrolls when content is long */
+  max-height: 100%;
 }
 
 .saved-cards-items {
@@ -95,6 +105,9 @@
 
 .saved-cards-actions .action-button {
   width: 100%;
+  height: 29%;
+  padding-bottom: 1%;
+  padding-top: 1%;
 }
 
 .card-preview-wrapper {
@@ -179,6 +192,10 @@
   .saved-cards-sidebar {
     width: 100%;
     max-width: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    max-height: calc(100vh - 160px);
+    height: calc(100vh - 160px);
+    overflow: hidden;
   }
 
   .card-preview-wrapper {
@@ -201,7 +218,10 @@
 
   .saved-cards-sidebar {
     padding: 1em;
-    max-height: none;
+    height: calc(100vh - 120px);
+    align-self: stretch;
+    min-height: 220px;
+    overflow: hidden;
   }
 
   .saved-cards-list {

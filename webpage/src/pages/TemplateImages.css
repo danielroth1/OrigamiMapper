@@ -133,7 +133,7 @@
 }
 
 .modal-info {
-  padding: 2em;
+  padding: 1em;
   background: #1a1a1a;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -149,6 +149,21 @@
   color: #bbb;
   font-size: 1em;
   line-height: 1.6;
+  text-align: justify;
+  /* keep the paragraph block centered and limit line length for better readability */
+  max-width: 54ch;
+  margin-left: auto;
+  margin-right: auto;
+  /* center the last line visually on wider viewports */
+  text-align-last: center;
+}
+
+@media (max-width: 700px) {
+  .modal-info p {
+    max-width: 100%;
+    text-align-last: left;
+    text-align: left;
+  }
 }
 
 .modal-download-btn {
@@ -304,7 +319,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5em;
-  margin-top: 2em;
+  margin-top: 1em;
 }
 
 .image-card {
