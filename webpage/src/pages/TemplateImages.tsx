@@ -31,7 +31,8 @@ const TemplateImages: React.FC = () => {
     // Load the images.json file
     const loadImages = async () => {
       try {
-        const response = await fetch('/origami-mapper/assets/templateimages/images.json');
+        const base = (import.meta as any).env?.BASE_URL ?? '/';
+        const response = await fetch(`${base}assets/templateimages/images.json`);
         if (!response.ok) {
           throw new Error('Failed to load template images data');
         }
@@ -105,8 +106,9 @@ const TemplateImages: React.FC = () => {
   };
 
   const handleDownload = (filename: string) => {
+    const base = (import.meta as any).env?.BASE_URL ?? '/';
     const link = document.createElement('a');
-    link.href = `/origami-mapper/assets/templateimages/${filename}`;
+    link.href = `${base}assets/templateimages/${filename}`;
     link.download = filename;
     link.click();
   };
@@ -220,7 +222,7 @@ const TemplateImages: React.FC = () => {
               <div className="image-wrapper">
                 <img
                   ref={handleImageLoad}
-                  data-src={`/origami-mapper/assets/templateimages/${image.filename}`}
+                  data-src={`${(import.meta as any).env?.BASE_URL ?? '/'}assets/templateimages/${image.filename}`}
                   alt={image.title}
                   className="lazy-image"
                 />
@@ -309,7 +311,7 @@ const TemplateImages: React.FC = () => {
 
             {/* Image */}
             <img
-              src={`/origami-mapper/assets/templateimages/${selectedImage.image.filename}`}
+              src={`${(import.meta as any).env?.BASE_URL ?? '/'}assets/templateimages/${selectedImage.image.filename}`}
               alt={selectedImage.image.title}
               className="modal-image"
             />
@@ -340,7 +342,7 @@ const TemplateImages: React.FC = () => {
               <p>{selectedImage.image.description}</p>
               <div className="modal-download-link-wrapper">
                 <a
-                  href={`/origami-mapper/assets/templateimages/${selectedImage.image.filename}`}
+                  href={`${(import.meta as any).env?.BASE_URL ?? '/'}assets/templateimages/${selectedImage.image.filename}`}
                   download={selectedImage.image.filename}
                   className="modal-download-link"
                   aria-label={`Download ${selectedImage.image.title}`}

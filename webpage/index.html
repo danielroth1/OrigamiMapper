@@ -8,9 +8,9 @@
       // Load local pyodide when served from deployed base path, otherwise use CDN in dev
       (function(){
         try{
-          var isProd = location.pathname.indexOf('/origami-mapper/') === 0
-        } catch(e){ var isProd = false }
-        var src = isProd ? '/origami-mapper/assets/pyodide.js' : 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js'
+          var base = (window.__VITE_BASE__ || './');
+        } catch(e){ var base = './' }
+        var src = (base && base !== './') ? base + 'assets/pyodide.js' : 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js'
         var s = document.createElement('script')
         s.src = src
         document.head.appendChild(s)

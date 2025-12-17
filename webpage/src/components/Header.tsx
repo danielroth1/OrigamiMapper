@@ -14,7 +14,7 @@ const Header: React.FC = () => (
         </Link>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <img src="/origami-mapper/assets/logo.jpeg" className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />          <span style={{ display: 'none' }}>
+        <img src={`${(import.meta as any).env?.BASE_URL ?? '/'}assets/logo.jpeg`} className="App-logo" alt="logo" style={{ width: '380px', height: 'auto' }} />          <span style={{ display: 'none' }}>
             Magic the Gathering, Pokémon Cards, One Piece, Flesh and Blood, Digimon, Poker, and Yu-Gi-Oh!
           </span>
       </div>

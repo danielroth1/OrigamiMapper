@@ -14,7 +14,8 @@ export default function TemplateSelect({ onTemplate }: TemplateSelectProps) {
 
   useEffect(() => {
     if (selected) {
-      fetch(`/origami-mapper/templates/${selected}`)
+      const base = (import.meta as any).env?.BASE_URL ?? '/';
+      fetch(`${base}templates/${selected}`)
         .then(res => res.text())
         .then(onTemplate);
     }
