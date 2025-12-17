@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node ./scripts/fetch-pyodide.js",
     "build": "tsc -b && vite build",
+    "postbuild": "node ./scripts/copy-htaccess.js",
+    "copy-htaccess": "node ./scripts/copy-htaccess.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

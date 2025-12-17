@@ -1,0 +1,53 @@
+# .htaccess to be copied into dist by Vite on build
+# See webpage/dist/.htaccess for contents and explanations
+# This file will be included in the built output when placed in `public/`.
+
+AddType application/javascript .js
+AddType text/css .css
+AddType image/png .png
+AddType image/jpeg .jpeg .jpg
+AddType image/svg+xml .svg
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # If request is for assets folder, always serve files directly (avoid rewrites)
+  RewriteRule ^assets/ - [L]
+
+  # If the request is for a real file or directory, serve it
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Otherwise, rewrite to index.html for SPA routing (relative, portable)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Disable gzip for JS/CSS during debugging to avoid corrupted content issues
+<IfModule mod_deflate.c>
+  SetEnvIfNoCase Request_URI \.js$ no-gzip
+  SetEnvIfNoCase Request_URI \.css$ no-gzip
+</IfModule>
+
+# Prefer index.html as default
+DirectoryIndex index.html
+
+# Avoid caching index.html
+<FilesMatch "index\.html$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
