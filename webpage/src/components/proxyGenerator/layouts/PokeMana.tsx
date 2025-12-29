@@ -253,24 +253,34 @@ const PokeMana = forwardRef<HTMLDivElement, PokeManaProps>(({ cardData, frame, m
           position: 'absolute',
           top: '0.5em',
           bottom: '0.5em',
-          right: '0.2em',
+          // Slightly closer to the outer border so preview and
+          // exported PDF match more tightly on the right edge.
+          right: '0.05em',
           writingMode: 'vertical-rl',
-          textOrientation: 'mixed',
+          // Use upright orientation for Latin glyphs to get consistent
+          // rendering across browsers and html2canvas captures.
+          textOrientation: 'upright',
           fontSize: '0.45em', // very small
           lineHeight: 1.1,
-          letterSpacing: '0.02em',
+          letterSpacing: '0.06em',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           color: frame.bottomInfoText || '#666',
           zIndex: 4,
           pointerEvents: 'none',
           opacity: 0.9
         }}
       >
-        {[
-          cardData?.rarity,
-          cardData?.setCode,
-      cardData?.language,
-      cardData?.collectorNo
-        ].filter(Boolean).join(' • ')}
+        <span>
+          {[
+            cardData?.rarity,
+            cardData?.setCode,
+            cardData?.language,
+            cardData?.collectorNo
+          ].filter(Boolean).join('\u00A0•\u00A0')}
+        </span>
       </div>
     )}
     </div>

@@ -694,8 +694,11 @@ const ProxyGenerator: React.FC = () => {
         // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
         await new Promise(resolve => setTimeout(resolve, 120));
         // For multi-card export, rely on the layout/styling defined in CardPreview/PTGStyle
-        // itself. Avoid copying styles from the currently visible card on screen, which can
-        // leak background/frame colors into other cards during export.
+        // itself for most elements, but explicitly sync the vertical right-side info
+        // (rarity/setCode/language/collectorNo) so its writing-mode, font and positioning
+        // exactly match the on-screen preview. This helper only affects that small element
+        // and does not copy card frame colors, avoiding the earlier cross-card color leak.
+        try { copyVerticalSideInfo(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
 
       // Replace <img> elements with high-resolution canvases so the exported PNG is sharp
       const replaceImgsWithCanvasMulti = async () => {
