@@ -1,9 +1,10 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  /* Remove global padding so header and hero text aren't offset from the left */
+  /* Adaptive padding: 1em on desktop, 0.5em on mobile */
   padding: 1em;
   text-align: center;
+  box-sizing: border-box;
 }
 
 body {
@@ -15,12 +16,12 @@ body {
 /* Shared page content container used across pages to ensure consistent width and styling */
 .content-container {
   max-width: 1200px;
-  width: calc(100% - 2em);
+  width: 100%;
   box-sizing: border-box;
   margin: 2em auto;
   background: #181818;
   border-radius: 12px;
-  padding: 2em;
+  padding: 1.5em;
   color: #fff;
   box-shadow: 0 2px 12px #0006;
 }
@@ -180,6 +181,10 @@ body {
   .nav-link { height: 42px; padding: 0 0.75rem; font-size: 0.9rem; }
 }
 @media (max-width: 700px) {
+  #root {
+    padding: 0.5em;
+  }
+
   .nav-grid {
     grid-template-columns: 1fr; /* stack */
     gap: 0.5rem;
@@ -192,8 +197,9 @@ body {
   .content-container {
     padding: 1em;
     margin: 0.5em auto;
-    width: calc(100vw - 1em);
-    max-width: calc(100vw - 1em);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 

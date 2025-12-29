@@ -1,4 +1,5 @@
 import React from 'react';
+import './PokeManaConfigForm.css';
 import {
   ImageControlsSection,
   ManaCostSection,
@@ -21,9 +22,9 @@ interface PokeManaConfigFormProps {
 
 const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
   return (
-    <form style={{ display: 'flex', flexDirection: 'column', gap: '1em', borderRadius: '8px', padding: '1em' }}>
+    <form className="pokemana-config-form">
       {/* Card Style and Color selectors - first row */}
-      <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+      <div className="pokemana-row pokemana-row--top" style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
           <label htmlFor="card-template-select">Card Style:</label>
           <select
@@ -53,7 +54,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
       </div>
 
       {/* Title Section - Specific to PokeMana template */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
+      <div className="pokemana-row pokemana-row--title" style={{ display: 'flex', alignItems: 'center', gap: '1em' }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}>
           <input
             type="checkbox"
@@ -141,7 +142,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
       </div>
 
       {/* Mana Cost Section */}
-      <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+      <div className="pokemana-row pokemana-row--mana" style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
         <label>
           <input
             type="checkbox"
@@ -178,7 +179,7 @@ const PokeManaConfigForm: React.FC<PokeManaConfigFormProps> = (props) => {
       />
 
       {/* Bottom text field */}
-      <div style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
+      <div className="pokemana-row pokemana-row--bottom" style={{ display: 'flex', gap: '1em', alignItems: 'center' }}>
         <label>Bottom Text:</label>
         <input 
           type="text" 
