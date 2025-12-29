@@ -4,7 +4,8 @@ import {
   ImageControlsSection,
   ManaCostSection,
   PowerToughnessSection,
-  CollectorInfoSection
+  CollectorInfoSection,
+  CardColorSelect
 } from './SharedCardFormComponents';
 
 interface PTGConfigFormProps {
@@ -22,6 +23,23 @@ interface PTGConfigFormProps {
 const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
   return (
     <form className="ptg-config-form">
+      {/* Card Style and Color selectors - first row */}
+      <div style={{ display: 'flex', gap: '1em', alignItems: 'center', marginBottom: '1em' }}>
+        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
+          <label htmlFor="card-template-select">Card Style:</label>
+          <select
+            id="card-template-select"
+            value={props.templateType}
+            onChange={e => props.setTemplateType(e.target.value)}
+            style={{ minWidth: '120px' }}
+          >
+            <option value="PTG Style">PTG Style</option>
+            <option value="Mana/Token">Mana/Token</option>
+          </select>
+        </div>
+        <CardColorSelect cardStyle={props.cardStyle} setCardStyle={props.setCardStyle} />
+      </div>
+
       <div className="ptg-top-bar">
         <ImageControlsSection
           cardData={props.cardData}
@@ -40,6 +58,17 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
       </div>
 
       <div className="ptg-mana-selects">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1em', marginBottom: '0.5em' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+            <input
+              type="checkbox"
+              name="showMana"
+              checked={props.cardData.showMana !== false}
+              onChange={props.onChange}
+            />
+            Show Mana Cost
+          </label>
+        </div>
         <ManaCostSection
           cardData={props.cardData}
           manaSelects={props.manaSelects}

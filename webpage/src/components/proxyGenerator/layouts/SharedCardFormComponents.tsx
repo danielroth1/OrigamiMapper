@@ -79,6 +79,9 @@ export const getStyleFallback = (styleName?: string): string => {
   return (s && s.artFallback) ? s.artFallback : '#ffffff';
 };
 
+// Re-export CardColorSelect for use in other components
+export { default as CardColorSelect } from './CardColorSelect';
+
 // Image Controls Section
 export const ImageControlsSection: React.FC<ImageControlsProps> = ({
   cardData,
@@ -94,21 +97,10 @@ export const ImageControlsSection: React.FC<ImageControlsProps> = ({
       {/* Top controls row */}
       <div style={{ display: 'flex', gap: '1em', alignItems: 'center', flexWrap: 'wrap' }}>
         <ImageUploadProxy label="Upload Card Image" onImage={onImage} />
-        <CardColorSelect cardStyle={cardStyle} setCardStyle={setCardStyle} />
-        
-        <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
-          <label htmlFor="card-template-select">Card Style:</label>
-          <select
-            id="card-template-select"
-            value={templateType}
-            onChange={e => setTemplateType(e.target.value)}
-            style={{ minWidth: '120px' }}
-          >
-            <option value="PTG Style">PTG Style</option>
-            <option value="Mana/Token">Mana/Token</option>
-          </select>
-        </div>
+      </div>
 
+      {/* Image Background controls - separate row */}
+      <div style={{ display: 'flex', gap: '1em', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '0.5em', alignItems: 'center' }}>
           <label htmlFor="imageBg">Image BG:</label>
           <input

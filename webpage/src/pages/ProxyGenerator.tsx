@@ -159,6 +159,7 @@ const ProxyGenerator: React.FC = () => {
   // When the selected template/style changes, adjust the visible card title/name.
   // - Switching to 'Mana/Token': if the user is not using a custom title, set a sensible default ('Mana')
   // - Switching away from 'Mana/Token': restore the saved `normalName` if present
+  // - Switching to 'PTG Style': ensure mana cost is enabled
   React.useEffect(() => {
     setCardData(prev => {
       if (templateType === 'Mana/Token') {
@@ -173,6 +174,10 @@ const ProxyGenerator: React.FC = () => {
       // switching back to PTG (or other) -> restore the saved `normalName` if available
       if (prev.normalName) {
         return { ...prev, name: prev.normalName };
+      }
+      // switching to PTG Style -> ensure mana cost is enabled
+      if (templateType === 'PTG Style') {
+        return { ...prev, showMana: true };
       }
       return prev;
     });
@@ -237,7 +242,7 @@ const ProxyGenerator: React.FC = () => {
   };
 
   const manaIcon = (Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, sizeClass: string) =>
-    (color: string) => <Icon className={`mana-icon ${sizeClass}`} style={{ color }} />;
+    (color: string) => <Icon className={`mana-icon ${sizeClass}`} style={{ color, fill: color }} />;
 
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
     R: manaIcon(BsFire, 'mana-icon--lg'),
@@ -658,14 +663,14 @@ const ProxyGenerator: React.FC = () => {
       tempDiv.style.overflow = 'hidden';
       tempDiv.style.display = 'block';
       tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
-      // Reset all child element margins/padding to avoid unexpected top/bottom gaps
-      // Use an id so we can override inline styles with !important when rendering for export
+      // Use an id so we can override styles specifically for the export wrapper
       tempDiv.id = 'export-temp';
       const resetStyle = document.createElement('style');
   const exportFit = (savedCards[i].data as any).imageFit || 'contain';
   resetStyle.textContent = `
-      /* Reset spacing but preserve root layout so absolute/vertical elements keep position */
-      #export-temp, #export-temp * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+      /* Keep the export root tightly sized, but do not wipe out all inner paddings/margins,
+         otherwise typography and box spacing differ between cards. */
+      #export-temp { margin: 0 !important; box-sizing: border-box !important; }
       #export-temp > div:first-child { display: flex !important; position: relative !important; }
       /* Ensure art area images obey selected fit without forcing container display */
       #export-temp img { width: 100% !important; height: 100% !important; object-fit: ${exportFit} !important; display: block !important; }
@@ -686,11 +691,11 @@ const ProxyGenerator: React.FC = () => {
         />
       );
 
-      // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
-      await new Promise(resolve => setTimeout(resolve, 120));
-
-  try { copyComputedStyles(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
-  try { copyVerticalSideInfo(cardRef.current, tempDiv.firstElementChild as HTMLElement | null); } catch {}
+        // Kurze Verzögerung, um sicherzustellen, dass alles gerendert ist
+        await new Promise(resolve => setTimeout(resolve, 120));
+        // For multi-card export, rely on the layout/styling defined in CardPreview/PTGStyle
+        // itself. Avoid copying styles from the currently visible card on screen, which can
+        // leak background/frame colors into other cards during export.
 
       // Replace <img> elements with high-resolution canvases so the exported PNG is sharp
       const replaceImgsWithCanvasMulti = async () => {
@@ -775,8 +780,12 @@ const ProxyGenerator: React.FC = () => {
         })));
       };
       try { await replaceImgsWithCanvasMulti(); } catch {}
-      // Render the actual card element (first child) and measure it to avoid clipping
-      const element = tempDiv.firstElementChild as HTMLElement || tempDiv;
+      // Render the actual card element (first child) and measure it to avoid clipping.
+      // Force a consistent design size so every card snapshot has identical dimensions.
+      const element = (tempDiv.firstElementChild as HTMLElement) || tempDiv;
+      element.style.width = `${designCssWidth}px`;
+      element.style.height = `${designCssHeight}px`;
+      element.style.margin = '0';
       const rect = element.getBoundingClientRect();
       // html2canvas: render at a higher pixel density (scale) so the PNG has enough resolution
       const canvas = await html2canvas(element, {
