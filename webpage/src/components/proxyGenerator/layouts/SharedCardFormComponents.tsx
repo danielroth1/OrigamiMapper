@@ -1,5 +1,4 @@
 import React from 'react';
-import CardColorSelect from './CardColorSelect';
 import ImageUploadProxy from '../ImageUploadProxy';
 // Import card style definitions
 import black from '../../../cardStyles/black.json';
@@ -83,15 +82,8 @@ export const getStyleFallback = (styleName?: string): string => {
 export { default as CardColorSelect } from './CardColorSelect';
 
 // Image Controls Section
-export const ImageControlsSection: React.FC<ImageControlsProps> = ({
-  cardData,
-  cardStyle,
-  templateType,
-  setTemplateType,
-  setCardStyle,
-  onImage,
-  onChange
-}) => {
+export const ImageControlsSection: React.FC<ImageControlsProps> = (props) => {
+  const { cardData, cardStyle, onImage, onChange } = props;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
       {/* Top controls row */}
