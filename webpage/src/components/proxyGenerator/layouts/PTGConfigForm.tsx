@@ -187,7 +187,14 @@ const PTGConfigForm: React.FC<PTGConfigFormProps> = (props) => {
       <div className="ptg-text-inline">
         <div className="ptg-inline-field">
           <label htmlFor="rulesText">Rules Text:</label>
-          <textarea id="rulesText" name="rulesText" rows={4} value={props.cardData.rulesText} onChange={props.onChange} />
+          <textarea 
+            id="rulesText" 
+            name="rulesText" 
+            rows={4} 
+            value={props.cardData.rulesText} 
+            onChange={props.onChange}
+            title="Available mana symbols: {W} White, {U} Blue, {B} Black, {R} Red, {G} Green, {C} Colorless, {T} Tap, {0-20} Generic mana, {X} Variable mana"
+          />
         </div>
         <div className="ptg-inline-field">
           <label htmlFor="flavorText">Flavor Text:</label>
