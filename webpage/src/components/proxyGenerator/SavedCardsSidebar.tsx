@@ -124,6 +124,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
         <div className="saved-cards-list">
           <ul className="saved-cards-items">
             {savedCards.map((card, idx) => {
+              if (!card) return null;
               const isActive = idx === currentCardIdx;
               // Map card style to color
               const styleColorMap: Record<string, string> = {
@@ -136,10 +137,10 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
                 Yellow: '#fbc02d',
                 Artifact: '#b0bec5',
               };
-              const fontColor = styleColorMap[card.color] || '#fff';
+              const fontColor = styleColorMap[card.color ?? ''] || '#fff';
               // Card style (template type) is stored in the 'template' property, not color or card.data
               const cardStyleType = card.template || 'PTG Style';
-              const displayName = card.data.name || 'Untitled Card';
+              const displayName = (card.data && card.data.name) ? card.data.name : 'Untitled Card';
               return (
                 <li key={idx} className="saved-cards-item">
                   <button
@@ -167,7 +168,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
             Save Project
           </button>
           <button type="button" onClick={triggerLoadProject} className="action-button">
-            Load Project
+            Load Deck
           </button>
           <button type="button" onClick={onExportAllPDF} className="action-button">
             Export PDF
