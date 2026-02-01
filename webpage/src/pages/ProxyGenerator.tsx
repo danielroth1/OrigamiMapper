@@ -34,8 +34,8 @@ const initialCardData = {
   typeLine: 'Creature — Plague Rat',
   power: 4,
   toughness: 4,
-  rulesText: "Whenever this creature attacks, it deals 1 damage to any target. If you control another Electric creature, this gains haste.",
-  flavorText: "A spark of energy and joy, always ready to light up the battlefield with a cheerful charge.",
+  rulesText: "Proxy the Gathering is the best game ever created.\n Pay {B} to draw two cards.",
+  flavorText: "'This is a sample flavor text to show how it looks on the card.'",
   collectorNo: '0217',
   rarity: 'M',
   setCode: 'PTG',
@@ -80,9 +80,8 @@ const ProxyGenerator: React.FC = () => {
   // savedCards entries now include color and template for switchable layouts
   const [savedCards, setSavedCards] = useState<Array<{ data: typeof initialCardData, color: string, template: string, mana: string[] }>>([]);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
-  // -------------------------
-  // Persistence (IndexedDB) for ProxyGenerator settings
-  // -------------------------
+  // Track if default project has been loaded to avoid re-adding it
+  const [defaultLoaded, setDefaultLoaded] = useState(false);
   const DB_NAME = 'proxy-generator';
   const STORE_NAME = 'settings';
   const DB_VERSION = 1;
@@ -115,7 +114,7 @@ const ProxyGenerator: React.FC = () => {
   // Autosave current state under id 'autosave'
   const saveAutosave = async () => {
     try {
-      const item = { id: 'autosave', updatedAt: Date.now(), cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx };
+      const item = { id: 'autosave', updatedAt: Date.now(), cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx, defaultLoaded };
       await putItem(item);
     } catch (err) {
       console.warn('Failed to save settings:', err);
@@ -132,6 +131,7 @@ const ProxyGenerator: React.FC = () => {
       setManaSelects(rec.manaSelects);
       setSavedCards(rec.savedCards);
       setCurrentCardIdx(rec.currentCardIdx);
+      setDefaultLoaded(rec.defaultLoaded ?? false);
     } catch (err) {
       console.warn('Failed to load settings:', err);
     }
@@ -145,6 +145,18 @@ const ProxyGenerator: React.FC = () => {
   }, [cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx]);
   // Load on mount
   useEffect(() => { void loadAutosave(); }, []);
+  // Load default project if no saved cards and not already loaded
+  useEffect(() => {
+    if (!defaultLoaded && savedCards.length === 0) {
+      fetch('/assets/Green_Tree_Proxy_The_Gathering.json')
+        .then(r => r.json())
+        .then(config => {
+          handleLoadProject(config);
+          setDefaultLoaded(true);
+        })
+        .catch(e => console.warn('Failed to load default project:', e));
+    }
+  }, [savedCards.length, defaultLoaded]);
   // Autosave: update selected card in savedCards whenever cardData, cardStyle, or manaSelects change
   React.useEffect(() => {
     if (currentCardIdx !== null && currentCardIdx >= 0 && currentCardIdx < savedCards.length) {
@@ -185,6 +197,10 @@ const ProxyGenerator: React.FC = () => {
 
   const handleLoadCard = (card: { data: typeof initialCardData, color: string, template: string, mana: string[] }, idx: number) => {
     if (currentCardIdx === idx) {
+      // If there's only one saved card, do not allow deselecting it by clicking again.
+      if (savedCards.length === 1) {
+        return;
+      }
       setCurrentCardIdx(null);
       // reset defaults
       setCardData(initialCardData);
@@ -967,6 +983,26 @@ const ProxyGenerator: React.FC = () => {
               className="proxy-action-button"
             >
               Add Card
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Add a fresh empty card and switch to it
+                const emptyData = JSON.parse(JSON.stringify(initialCardData));
+                setCardData(emptyData);
+                setCardColor('Black');
+                setTemplateType('PTG Style');
+                setManaSelects(['', '', '', '', '']);
+                setSavedCards(prev => {
+                  const newCard = { data: emptyData, color: 'Black', template: 'PTG Style', mana: ['', '', '', '', ''] };
+                  const newArr = [...prev, newCard];
+                  setCurrentCardIdx(newArr.length - 1);
+                  return newArr;
+                });
+              }}
+              className="proxy-action-button"
+            >
+              Add Empty Card
             </button>
             <button
               type="button"
