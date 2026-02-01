@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { computeAutoBgFromDataUrl, mmToPt } from './BackgroundImageUtils';
 import { IoLeafSharp, IoSkullSharp, IoFlashSharp, IoWater, IoCog } from 'react-icons/io5';
-import { GiSun } from 'react-icons/gi';
+import { GiSun, GiHand } from 'react-icons/gi';
 import { BsFire } from 'react-icons/bs';
 import CardPreview from '../components/proxyGenerator/CardPreview';
 import SavedCardsSidebar from '../components/proxyGenerator/SavedCardsSidebar';
@@ -244,6 +244,28 @@ const ProxyGenerator: React.FC = () => {
   const manaIcon = (Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, sizeClass: string) =>
     (color: string) => <Icon className={`mana-icon ${sizeClass}`} style={{ color, fill: color }} />;
 
+  const parseManaText = (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any) => {
+    if (!text) return null;
+    
+    // Split text by mana symbols {symbol}
+    const parts = text.split(/(\{[^}]+\})/g);
+    
+    return parts.map((part, index) => {
+      const match = part.match(/^\{([^}]+)\}$/);
+      if (match) {
+        const symbol = match[1];
+        // Use contentManaIconColors if available, otherwise fall back to manaIconColors
+        const colorSource = frame.contentManaIconColors || frame.manaIconColors;
+        const color = colorSource && colorSource[symbol] ? colorSource[symbol] : '#000';
+        const iconFunc = manaIcons[symbol];
+        if (iconFunc) {
+          return <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 0.05em' }}>{iconFunc(color)}</span>;
+        }
+      }
+      return part;
+    });
+  };
+
   const manaIcons: Record<string, (color: string) => React.ReactNode> = {
     R: manaIcon(BsFire, 'mana-icon--lg'),
     W: manaIcon(GiSun, 'mana-icon--lg'),
@@ -252,6 +274,31 @@ const ProxyGenerator: React.FC = () => {
     B: manaIcon(IoSkullSharp, 'mana-icon--md'),
     Y: manaIcon(IoFlashSharp, 'mana-icon--md'),
     A: manaIcon(IoCog, 'mana-icon--md'),
+    T: manaIcon(GiHand, 'mana-icon--md'),
+    // Generic mana symbols - just display as text for now
+    '0': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>0</span>,
+    '1': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>1</span>,
+    '2': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>2</span>,
+    '3': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>3</span>,
+    '4': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>4</span>,
+    '5': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>5</span>,
+    '6': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>6</span>,
+    '7': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>7</span>,
+    '8': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>8</span>,
+    '9': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>9</span>,
+    '10': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>10</span>,
+    '11': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>11</span>,
+    '12': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>12</span>,
+    '13': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>13</span>,
+    '14': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>14</span>,
+    '15': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>15</span>,
+    '16': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>16</span>,
+    '17': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>17</span>,
+    '18': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>18</span>,
+    '19': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>19</span>,
+    '20': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>20</span>,
+    X: (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>X</span>,
+    C: (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>C</span>,
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -473,6 +520,7 @@ const ProxyGenerator: React.FC = () => {
         frame={frame}
         manaSelects={manaSelects}
         manaIcons={manaIcons}
+        parseManaText={parseManaText}
         template={templateType}
       />
     );
@@ -687,6 +735,7 @@ const ProxyGenerator: React.FC = () => {
           frame={frame}
           manaSelects={savedCards[i].mana}
           manaIcons={manaIcons}
+          parseManaText={parseManaText}
           template={savedCards[i].template}
         />
       );
@@ -887,6 +936,7 @@ const ProxyGenerator: React.FC = () => {
               frame={frame}
               manaSelects={manaSelects}
               manaIcons={manaIcons}
+              parseManaText={parseManaText}
               template={templateType}
               onImageOffsetChange={(x:number,y:number) => setCardData(prev => ({ ...prev, imageOffsetX: x, imageOffsetY: y }))}
               onImageZoomChange={(z:number) => setCardData(prev => ({ ...prev, imageZoom: z }))}

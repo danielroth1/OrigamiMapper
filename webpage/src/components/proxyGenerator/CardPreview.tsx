@@ -8,19 +8,20 @@ interface CardPreviewProps {
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
   template: string; // template type for switchable layouts
+  parseManaText?: (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any) => React.ReactNode;
   onImageOffsetChange?: (x:number,y:number) => void;
   onImageZoomChange?: (zoom:number) => void;
 }
 
 const CardPreview = forwardRef<HTMLDivElement, CardPreviewProps>((props, ref) => {
-  const { template } = props;
+  const { template, parseManaText } = props;
   switch (template) {
     case 'PTG Style':
-      return <PTGStyle ref={ref} {...props} />;
+      return <PTGStyle ref={ref} {...props} parseManaText={parseManaText} />;
     case 'Mana/Token':
       return <PokeMana ref={ref} {...props} />;
     default:
-      return <PTGStyle ref={ref} {...props} />;
+      return <PTGStyle ref={ref} {...props} parseManaText={parseManaText} />;
   }
 });
 
