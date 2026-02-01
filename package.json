@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "dev": "npm run dev --prefix webpage",
+    "build": "npm run build --prefix webpage",
+    "lint": "npm run lint --prefix webpage",
+    "preview": "npm run preview --prefix webpage"
+  },
   "dependencies": {
     "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.3.0",
