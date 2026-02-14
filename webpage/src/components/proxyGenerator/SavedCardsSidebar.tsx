@@ -21,11 +21,12 @@ interface SavedCardsSidebarProps {
   currentCardIdx: number | null;
   // Optional deck name from loaded project
   initialDeckName?: string;
+  isExportingPDF?: boolean;
   onLoadProject: (config: ProjectConfig) => void;
   onReorder?: (newSavedCards: SavedCardEntry[]) => void;
 }
 
-const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoadCard, onExportAllPDF, currentCardIdx, initialDeckName, onLoadProject, onReorder }) => {
+const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoadCard, onExportAllPDF, currentCardIdx, initialDeckName, isExportingPDF = false, onLoadProject, onReorder }) => {
   // Modal state for deck name input
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deckNameInput, setDeckNameInput] = useState('');
@@ -188,8 +189,18 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
           <button type="button" onClick={triggerLoadProject} className="action-button">
             Load Deck
           </button>
-          <button type="button" onClick={onExportAllPDF} className="action-button">
-            Export PDF
+          <button
+            type="button"
+            onClick={onExportAllPDF}
+            className="action-button"
+            disabled={isExportingPDF}
+          >
+            {isExportingPDF ? (
+              <span className="action-button-label">
+                <span className="inline-spinner" aria-hidden="true" />
+                Exporting PDF…
+              </span>
+            ) : 'Export PDF'}
           </button>
         </div>
       </div>

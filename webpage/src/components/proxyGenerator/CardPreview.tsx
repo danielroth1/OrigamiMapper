@@ -8,7 +8,7 @@ interface CardPreviewProps {
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
   template: string; // template type for switchable layouts
-  parseManaText?: (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any) => React.ReactNode;
+  parseManaText?: (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any, isContent?: boolean) => React.ReactNode;
   onImageOffsetChange?: (x:number,y:number) => void;
   onImageZoomChange?: (zoom:number) => void;
 }

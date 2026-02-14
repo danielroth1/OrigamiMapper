@@ -137,6 +137,7 @@ const ProxyGenerator: React.FC = () => {
   const [cardCopies, setCardCopies] = useState<number>(COPIES_MIN);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
   const [deckName, setDeckName] = useState<string | undefined>(undefined);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
   // Track if default project has been loaded to avoid re-adding it
   const [defaultLoaded, setDefaultLoaded] = useState(false);
   const DB_NAME = 'proxy-generator';
@@ -360,7 +361,7 @@ const ProxyGenerator: React.FC = () => {
   const manaIcon = (Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>, sizeClass: string) =>
     (color: string) => <Icon className={`mana-icon ${sizeClass}`} style={{ color, fill: color }} />;
 
-  const parseManaText = (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any) => {
+  const parseManaText = (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any, isContent: boolean = false) => {
     if (!text) return null;
     
     // Split text by mana symbols {symbol}
@@ -370,31 +371,40 @@ const ProxyGenerator: React.FC = () => {
       const match = part.match(/^\{([^}]+)\}$/);
       if (match) {
         const symbol = match[1];
-        // If the symbol is a plain number, render it as a circled mana
-        // icon in the content area so it matches the title-bar style.
+        // If the symbol is a plain number
         if (/^\d+$/.test(symbol)) {
-          const manaBg = frame.manaCostBg;
-          const manaText = frame.manaCostText || '#000';
-          const manaBorder = frame.manaCostBorder || frame.manaCostText || '#ffffff';
-          const manaBorderWidth = typeof frame.manaCostBorderWidth === 'number' ? `${frame.manaCostBorderWidth}px` : (frame.manaCostBorderWidth || '2px');
-          return (
-            <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 0.05em' }}>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '1.05em',
-                height: '1.05em',
-                borderRadius: '50%',
-                background: manaBg,
-                border: `${manaBorderWidth} solid ${manaBorder}`,
-                fontSize: '0.95em',
-                fontWeight: 900,
-                color: manaText,
-                lineHeight: 1
-              }}>{symbol}</span>
-            </span>
-          );
+          if (isContent) {
+            // In content, render as plain black text without border
+            return (
+              <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 0.05em', color: '#000000', fontWeight: 'bold' }}>
+                {symbol}
+              </span>
+            );
+          } else {
+            // In title, render as circled mana icon
+            const manaBg = frame.manaCostBg;
+            const manaText = frame.manaCostText || '#000';
+            const manaBorder = frame.manaCostBorder || frame.manaCostText || '#ffffff';
+            const manaBorderWidth = typeof frame.manaCostBorderWidth === 'number' ? `${frame.manaCostBorderWidth}px` : (frame.manaCostBorderWidth || '2px');
+            return (
+              <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 0.05em' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '1.05em',
+                  height: '1.05em',
+                  borderRadius: '50%',
+                  background: manaBg,
+                  border: `${manaBorderWidth} solid ${manaBorder}`,
+                  fontSize: '0.95em',
+                  fontWeight: 900,
+                  color: manaText,
+                  lineHeight: 1
+                }}>{symbol}</span>
+              </span>
+            );
+          }
         }
         // Use contentManaIconColors if available, otherwise fall back to manaIconColors
         const colorSource = frame.contentManaIconColors || frame.manaIconColors;
@@ -814,12 +824,15 @@ const ProxyGenerator: React.FC = () => {
     document.body.removeChild(tempDiv);
   };
   const handleExportAllPDF = async () => {
-    if (savedCards.length === 0) return;
+    if (savedCards.length === 0 || isExportingPDF) return;
     const cardsToExport: SavedCardEntry[] = savedCards.flatMap(card => {
       const copies = sanitizeCopies(card.numberOfCopies);
       return Array.from({ length: copies }, () => card);
     });
     if (cardsToExport.length === 0) return;
+
+    setIsExportingPDF(true);
+    try {
 
   // Umrechnung: mm → pt (1 pt = 1/72 inch, 1 inch = 25.4 mm)
   // use mmToPt helper from ./ProxyGenerator
@@ -1061,6 +1074,11 @@ const ProxyGenerator: React.FC = () => {
     link.href = URL.createObjectURL(blob);
     link.download = 'mtg_cards.pdf';
     link.click();
+  } catch (err) {
+    console.error('Failed to export PDF', err);
+  } finally {
+    setIsExportingPDF(false);
+  }
   };
 
 
@@ -1075,6 +1093,7 @@ const ProxyGenerator: React.FC = () => {
             onExportAllPDF={handleExportAllPDF}
             currentCardIdx={currentCardIdx}
             initialDeckName={deckName}
+            isExportingPDF={isExportingPDF}
             onLoadProject={handleLoadProject}
             onReorder={(newSaved) => {
               // preserve the selected card if possible
@@ -1201,6 +1220,12 @@ const ProxyGenerator: React.FC = () => {
               Remove Card
             </button>
           </div>
+          {isExportingPDF && (
+            <div className="pdf-export-indicator" role="status" aria-live="polite">
+              <span className="pdf-export-spinner" aria-hidden="true" />
+              <span>Building PDF…</span>
+            </div>
+          )}
           <CardConfigForm
             cardData={cardData}
             cardStyle={cardColor}

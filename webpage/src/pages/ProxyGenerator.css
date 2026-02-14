@@ -116,6 +116,18 @@
   box-sizing: border-box;
 }
 
+.saved-cards-actions .action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  justify-content: center;
+}
+
 .card-preview-wrapper {
   display: flex;
   justify-content: center;
@@ -213,6 +225,34 @@
 
 .proxy-action-button--remove {
   background: rgba(73, 0, 0, 1);
+}
+
+.inline-spinner,
+.pdf-export-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: proxy-spin 0.9s linear infinite;
+}
+
+.pdf-export-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65em;
+  color: #fff;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 0.35em 0.95em;
+  margin-bottom: 1em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes proxy-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .mana-icon {

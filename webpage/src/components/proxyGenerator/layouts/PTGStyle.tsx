@@ -5,7 +5,7 @@ interface PTGStyleProps {
   frame: any;
   manaSelects: string[];
   manaIcons: Record<string, (color: string) => React.ReactNode>;
-  parseManaText?: (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any) => React.ReactNode;
+  parseManaText?: (text: string, manaIcons: Record<string, (color: string) => React.ReactNode>, frame: any, isContent?: boolean) => React.ReactNode;
   onImageOffsetChange?: (x: number, y: number) => void;
   onImageZoomChange?: (zoom: number) => void;
 }
@@ -333,7 +333,7 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
         </div>
       ) : (
         <>
-          {parseManaText ? parseManaText(cardData.rulesText, manaIcons, frame) : cardData.rulesText}
+          {parseManaText ? parseManaText(cardData.rulesText, manaIcons, frame, true) : cardData.rulesText}
           {cardData.flavorText && (
             <div className="card-flavor-text" style={{ marginTop: '0.5em', color: frame.flavorTextColor || '#444', textAlign: 'justify' }}>
               {cardData.flavorText}
