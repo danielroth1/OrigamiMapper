@@ -237,6 +237,10 @@ const PTGStyle = forwardRef<HTMLDivElement, PTGStyleProps>(({
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.18em' }}>
           {manaSelects.map((symbol, i) => {
             if (!symbol) return null;
+            // If this select contains a plain numeric value that matches the
+            // circled `cardData.manaCost`, don't render it a second time as an
+            // uncircled number (avoids duplicate '2' showing next to the circled '2').
+            if (/^\d+$/.test(symbol) && String(cardData.manaCost) === String(symbol)) return null;
             const color = frame.manaIconColors && frame.manaIconColors[symbol] ? frame.manaIconColors[symbol] : '#000';
             return (
               <span key={i}>

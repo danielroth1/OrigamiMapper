@@ -57,6 +57,61 @@ const initialCardData = {
   bottomText: '',
 };
 
+const cloneInitialCardData = (): typeof initialCardData => JSON.parse(JSON.stringify(initialCardData));
+
+const createEmptyManaSlots = (): string[] => ['', '', '', '', ''];
+
+const COPIES_MIN = 1;
+const COPIES_MAX = 99;
+
+const sanitizeCopies = (value?: number | string | null): number => {
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    if (!Number.isNaN(parsed)) {
+      return Math.max(COPIES_MIN, Math.min(COPIES_MAX, parsed));
+    }
+    return COPIES_MIN;
+  }
+  if (typeof value === 'number') {
+    const normalized = Math.floor(value);
+    if (!Number.isFinite(normalized)) return COPIES_MIN;
+    return Math.max(COPIES_MIN, Math.min(COPIES_MAX, normalized));
+  }
+  return COPIES_MIN;
+};
+
+const normalizeManaSlots = (mana?: string[]): string[] => {
+  if (!Array.isArray(mana)) return createEmptyManaSlots();
+  const slots = mana.slice(0, 5);
+  while (slots.length < 5) slots.push('');
+  return slots;
+};
+
+type SavedCardEntry = {
+  data: typeof initialCardData;
+  color: string;
+  template: string;
+  mana: string[];
+  numberOfCopies: number;
+};
+
+type ProjectConfig = {
+  deckName?: string;
+  savedCards: SavedCardEntry[];
+  currentCardIdx: number | null;
+};
+
+const normalizeSavedCard = (card?: Partial<SavedCardEntry>): SavedCardEntry => {
+  const mana = normalizeManaSlots(card?.mana);
+  return {
+    data: card?.data ?? cloneInitialCardData(),
+    color: card?.color ?? 'Black',
+    template: card?.template ?? 'PTG Style',
+    mana,
+    numberOfCopies: sanitizeCopies(card?.numberOfCopies),
+  };
+};
+
 const frameDefs: Record<string, any> = {
   Black: blackFrame,
   Black2: black2Frame,
@@ -76,10 +131,12 @@ const ProxyGenerator: React.FC = () => {
   // Card color (frame) and template layout (style)
   const [cardColor, setCardColor] = useState('Black');
   const [templateType, setTemplateType] = useState('PTG Style');
-  const [manaSelects, setManaSelects] = useState(['', '', '', '', '']);
-  // savedCards entries now include color and template for switchable layouts
-  const [savedCards, setSavedCards] = useState<Array<{ data: typeof initialCardData, color: string, template: string, mana: string[] }>>([]);
+  const [manaSelects, setManaSelects] = useState<string[]>(createEmptyManaSlots());
+  // savedCards entries now include color, template, and copy count for switchable layouts
+  const [savedCards, setSavedCards] = useState<SavedCardEntry[]>([]);
+  const [cardCopies, setCardCopies] = useState<number>(COPIES_MIN);
   const [currentCardIdx, setCurrentCardIdx] = useState<number | null>(null);
+  const [deckName, setDeckName] = useState<string | undefined>(undefined);
   // Track if default project has been loaded to avoid re-adding it
   const [defaultLoaded, setDefaultLoaded] = useState(false);
   const DB_NAME = 'proxy-generator';
@@ -114,7 +171,19 @@ const ProxyGenerator: React.FC = () => {
   // Autosave current state under id 'autosave'
   const saveAutosave = async () => {
     try {
-      const item = { id: 'autosave', updatedAt: Date.now(), cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx, defaultLoaded };
+      const item = {
+        id: 'autosave',
+        updatedAt: Date.now(),
+        cardData,
+        cardColor,
+        templateType,
+        manaSelects,
+        savedCards,
+        currentCardIdx,
+        defaultLoaded,
+        cardCopies,
+        deckName,
+      };
       await putItem(item);
     } catch (err) {
       console.warn('Failed to save settings:', err);
@@ -125,13 +194,24 @@ const ProxyGenerator: React.FC = () => {
     try {
       const rec = await getItem('autosave');
       if (!rec) return;
-      setCardData(rec.cardData);
-      setCardColor(rec.cardColor);
-      setTemplateType(rec.templateType);
-      setManaSelects(rec.manaSelects);
-      setSavedCards(rec.savedCards);
-      setCurrentCardIdx(rec.currentCardIdx);
+      setCardData(rec.cardData || initialCardData);
+      setCardColor(rec.cardColor || 'Black');
+      setTemplateType(rec.templateType || 'PTG Style');
+      setManaSelects(normalizeManaSlots(rec.manaSelects));
+      const normalizedSavedCards = Array.isArray(rec.savedCards)
+        ? rec.savedCards.map((card: Partial<SavedCardEntry>) => normalizeSavedCard(card))
+        : [];
+      setSavedCards(normalizedSavedCards);
+      const sanitizedCopies = sanitizeCopies(rec.cardCopies);
+      if (typeof rec.currentCardIdx === 'number' && normalizedSavedCards[rec.currentCardIdx]) {
+        setCurrentCardIdx(rec.currentCardIdx);
+        setCardCopies(normalizedSavedCards[rec.currentCardIdx].numberOfCopies);
+      } else {
+        setCurrentCardIdx(null);
+        setCardCopies(sanitizedCopies);
+      }
       setDefaultLoaded(rec.defaultLoaded ?? false);
+      setDeckName(rec.deckName);
     } catch (err) {
       console.warn('Failed to load settings:', err);
     }
@@ -142,7 +222,7 @@ const ProxyGenerator: React.FC = () => {
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
     autosaveTimer.current = window.setTimeout(() => { void saveAutosave(); }, 500);
     return () => { if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current); };
-  }, [cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx]);
+  }, [cardData, cardColor, templateType, manaSelects, savedCards, currentCardIdx, cardCopies, deckName]);
   // Load on mount
   useEffect(() => { void loadAutosave(); }, []);
   // Load default project if no saved cards and not already loaded
@@ -162,11 +242,11 @@ const ProxyGenerator: React.FC = () => {
     if (currentCardIdx !== null && currentCardIdx >= 0 && currentCardIdx < savedCards.length) {
       setSavedCards(prev => prev.map((card, idx) =>
         idx === currentCardIdx
-          ? { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] }
+          ? { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects], numberOfCopies: cardCopies }
           : card
       ));
     }
-  }, [cardData, cardColor, templateType, manaSelects, currentCardIdx]);
+  }, [cardData, cardColor, templateType, manaSelects, currentCardIdx, cardCopies]);
 
   // When the selected template/style changes, adjust the visible card title/name.
   // - Switching to 'Mana/Token': if the user is not using a custom title, set a sensible default ('Mana')
@@ -195,7 +275,7 @@ const ProxyGenerator: React.FC = () => {
     });
   }, [templateType]);
 
-  const handleLoadCard = (card: { data: typeof initialCardData, color: string, template: string, mana: string[] }, idx: number) => {
+  const handleLoadCard = (card: SavedCardEntry, idx: number) => {
     if (currentCardIdx === idx) {
       // If there's only one saved card, do not allow deselecting it by clicking again.
       if (savedCards.length === 1) {
@@ -206,6 +286,8 @@ const ProxyGenerator: React.FC = () => {
       setCardData(initialCardData);
       setCardColor('Black');
       setTemplateType('PTG Style');
+      setManaSelects(createEmptyManaSlots());
+      setCardCopies(COPIES_MIN);
       return;
     }
     // If switching to Poké Mana, set cardData.name to Title value
@@ -216,8 +298,9 @@ const ProxyGenerator: React.FC = () => {
     }
     setCardColor(card.color);
     setTemplateType(card.template);
-    setManaSelects(card.mana);
+    setManaSelects([...card.mana]);
     setCurrentCardIdx(idx);
+    setCardCopies(sanitizeCopies(card.numberOfCopies));
   };
 
   const handleRemoveCard = () => {
@@ -231,29 +314,46 @@ const ProxyGenerator: React.FC = () => {
         setCardData(nextCard.data);
         setCardColor(nextCard.color);
         setTemplateType(nextCard.template);
-        setManaSelects(nextCard.mana);
+        setManaSelects([...nextCard.mana]);
         setCurrentCardIdx(nextIdx);
+        setCardCopies(sanitizeCopies(nextCard.numberOfCopies));
       } else {
         setCardData(initialCardData);
         setCardColor('Black');
         setTemplateType('PTG Style');
-  setManaSelects(['', '', '', '', '']);
+        setManaSelects(createEmptyManaSlots());
         setCurrentCardIdx(null);
+        setCardCopies(COPIES_MIN);
       }
       return newCards;
     });
   };
   // Load project configuration from JSON
-  const handleLoadProject = (config: { deckName: string; savedCards: typeof savedCards; currentCardIdx: number | null }) => {
+  const handleLoadProject = (config: ProjectConfig) => {
     if (!config || !Array.isArray(config.savedCards)) return;
-    setSavedCards(config.savedCards);
-    setCurrentCardIdx(config.currentCardIdx);
-    if (config.currentCardIdx !== null && config.savedCards[config.currentCardIdx]) {
-      const card = config.savedCards[config.currentCardIdx];
+    const normalizedCards = config.savedCards.map(card => normalizeSavedCard(card));
+    setSavedCards(normalizedCards);
+    setDeckName(config.deckName);
+    let nextIdx: number | null = null;
+    if (typeof config.currentCardIdx === 'number' && normalizedCards[config.currentCardIdx]) {
+      nextIdx = config.currentCardIdx;
+    } else if (normalizedCards.length > 0) {
+      nextIdx = 0;
+    }
+    setCurrentCardIdx(nextIdx);
+    if (nextIdx !== null) {
+      const card = normalizedCards[nextIdx];
       setCardData(card.data);
       setCardColor(card.color);
       setTemplateType(card.template);
-      setManaSelects(card.mana);
+      setManaSelects([...card.mana]);
+      setCardCopies(card.numberOfCopies);
+    } else {
+      setCardData(initialCardData);
+      setCardColor('Black');
+      setTemplateType('PTG Style');
+      setManaSelects(createEmptyManaSlots());
+      setCardCopies(COPIES_MIN);
     }
   };
 
@@ -270,6 +370,32 @@ const ProxyGenerator: React.FC = () => {
       const match = part.match(/^\{([^}]+)\}$/);
       if (match) {
         const symbol = match[1];
+        // If the symbol is a plain number, render it as a circled mana
+        // icon in the content area so it matches the title-bar style.
+        if (/^\d+$/.test(symbol)) {
+          const manaBg = frame.manaCostBg;
+          const manaText = frame.manaCostText || '#000';
+          const manaBorder = frame.manaCostBorder || frame.manaCostText || '#ffffff';
+          const manaBorderWidth = typeof frame.manaCostBorderWidth === 'number' ? `${frame.manaCostBorderWidth}px` : (frame.manaCostBorderWidth || '2px');
+          return (
+            <span key={index} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 0.05em' }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '1.05em',
+                height: '1.05em',
+                borderRadius: '50%',
+                background: manaBg,
+                border: `${manaBorderWidth} solid ${manaBorder}`,
+                fontSize: '0.95em',
+                fontWeight: 900,
+                color: manaText,
+                lineHeight: 1
+              }}>{symbol}</span>
+            </span>
+          );
+        }
         // Use contentManaIconColors if available, otherwise fall back to manaIconColors
         const colorSource = frame.contentManaIconColors || frame.manaIconColors;
         const color = colorSource && colorSource[symbol] ? colorSource[symbol] : '#000';
@@ -290,31 +416,31 @@ const ProxyGenerator: React.FC = () => {
     B: manaIcon(IoSkullSharp, 'mana-icon--md'),
     Y: manaIcon(IoFlashSharp, 'mana-icon--md'),
     A: manaIcon(IoCog, 'mana-icon--md'),
-    T: manaIcon(GiHand, 'mana-icon--md'),
-    // Generic mana symbols - just display as text for now
-    '0': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>0</span>,
-    '1': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>1</span>,
-    '2': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>2</span>,
-    '3': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>3</span>,
-    '4': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>4</span>,
-    '5': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>5</span>,
-    '6': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>6</span>,
-    '7': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>7</span>,
-    '8': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>8</span>,
-    '9': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>9</span>,
-    '10': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>10</span>,
-    '11': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>11</span>,
-    '12': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>12</span>,
-    '13': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>13</span>,
-    '14': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>14</span>,
-    '15': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>15</span>,
-    '16': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>16</span>,
-    '17': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>17</span>,
-    '18': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>18</span>,
-    '19': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>19</span>,
-    '20': (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>20</span>,
-    X: (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>X</span>,
-    C: (color: string) => <span style={{ color, fontWeight: 'bold', fontSize: '0.9em' }}>C</span>,
+    T: (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontSize: '1.2em' }}>⤵</span>,
+    // Generic mana symbols - display as styled inline icons to match other mana icons
+    '0': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>0</span>,
+    '1': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>1</span>,
+    '2': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>2</span>,
+    '3': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>3</span>,
+    '4': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>4</span>,
+    '5': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>5</span>,
+    '6': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>6</span>,
+    '7': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>7</span>,
+    '8': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>8</span>,
+    '9': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>9</span>,
+    '10': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>10</span>,
+    '11': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>11</span>,
+    '12': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>12</span>,
+    '13': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>13</span>,
+    '14': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>14</span>,
+    '15': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>15</span>,
+    '16': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>16</span>,
+    '17': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>17</span>,
+    '18': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>18</span>,
+    '19': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>19</span>,
+    '20': (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>20</span>,
+    X: (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>X</span>,
+    C: (color: string) => <span className={`mana-icon mana-icon--md`} style={{ color, fontWeight: 'bold' }}>C</span>,
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -356,6 +482,18 @@ const ProxyGenerator: React.FC = () => {
       updated[index] = value;
       return updated;
     });
+  };
+
+  const handleCopiesInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCardCopies(sanitizeCopies(e.target.value));
+  };
+
+  const decrementCopies = () => {
+    setCardCopies(prev => sanitizeCopies(prev - 1));
+  };
+
+  const incrementCopies = () => {
+    setCardCopies(prev => sanitizeCopies(prev + 1));
   };
 
   const handleImageUpload = (dataUrl: string) => {
@@ -677,6 +815,11 @@ const ProxyGenerator: React.FC = () => {
   };
   const handleExportAllPDF = async () => {
     if (savedCards.length === 0) return;
+    const cardsToExport: SavedCardEntry[] = savedCards.flatMap(card => {
+      const copies = sanitizeCopies(card.numberOfCopies);
+      return Array.from({ length: copies }, () => card);
+    });
+    if (cardsToExport.length === 0) return;
 
   // Umrechnung: mm → pt (1 pt = 1/72 inch, 1 inch = 25.4 mm)
   // use mmToPt helper from ./ProxyGenerator
@@ -704,8 +847,9 @@ const ProxyGenerator: React.FC = () => {
     const offsetYmm = Math.max(0, (DIN_A4_HEIGHT_MM - gridHeightMm) / 2);
 
     // Schritt 1: PNGs generieren
-    const pngs = [];
-    for (let i = 0; i < savedCards.length; i++) {
+    const pngs: string[] = [];
+    for (let i = 0; i < cardsToExport.length; i++) {
+      const cardEntry = cardsToExport[i];
       const tempDiv = document.createElement('div');
       // Target rendering DPI for the generated PNGs (higher = crisper print)
       const targetDPI = 300;
@@ -729,8 +873,8 @@ const ProxyGenerator: React.FC = () => {
       tempDiv.style.backgroundColor = 'white'; // Weißer Hintergrund für bessere Druckqualität
       // Use an id so we can override styles specifically for the export wrapper
       tempDiv.id = 'export-temp';
-      const resetStyle = document.createElement('style');
-  const exportFit = (savedCards[i].data as any).imageFit || 'contain';
+        const resetStyle = document.createElement('style');
+      const exportFit = (cardEntry.data as any).imageFit || 'contain';
   resetStyle.textContent = `
       /* Keep the export root tightly sized, but do not wipe out all inner paddings/margins,
          otherwise typography and box spacing differ between cards. */
@@ -742,17 +886,17 @@ const ProxyGenerator: React.FC = () => {
       tempDiv.appendChild(resetStyle);
       document.body.appendChild(tempDiv);
 
-      const frame = frameDefs[savedCards[i].color] || blackFrame;
+      const frame = frameDefs[cardEntry.color] || blackFrame;
       const { createRoot } = await import('react-dom/client');
       const root = createRoot(tempDiv);
       root.render(
         <CardPreview
-          cardData={savedCards[i].data}
+          cardData={cardEntry.data}
           frame={frame}
-          manaSelects={savedCards[i].mana}
+          manaSelects={cardEntry.mana}
           manaIcons={manaIcons}
           parseManaText={parseManaText}
-          template={savedCards[i].template}
+          template={cardEntry.template}
         />
       );
 
@@ -794,7 +938,7 @@ const ProxyGenerator: React.FC = () => {
                 const iw = loadImg.naturalWidth || loadImg.width || canvas.width;
                 const ih = loadImg.naturalHeight || loadImg.height || canvas.height;
                 // Apply selected filter from the saved card data when drawing
-                const exportFilterValue = (((savedCards[i].data as any).imageFilter) || 'none');
+                const exportFilterValue = (((cardEntry.data as any).imageFilter) || 'none');
                 let exportFilterCss = 'none';
                 switch (exportFilterValue) {
                   case 'grayscale': exportFilterCss = 'grayscale(100%)'; break;
@@ -831,7 +975,7 @@ const ProxyGenerator: React.FC = () => {
               else if (exportFit === 'fill') wrapper.style.backgroundSize = '100% 100%';
               else wrapper.style.backgroundSize = exportFit;
               // Apply selected filter to the fallback wrapper
-              const exportFilterVal = (((savedCards[i].data as any).imageFilter) || 'none');
+              const exportFilterVal = (((cardEntry.data as any).imageFilter) || 'none');
               switch (exportFilterVal) {
                 case 'grayscale': wrapper.style.filter = 'grayscale(100%)'; break;
                 case 'invert': wrapper.style.filter = 'invert(100%)'; break;
@@ -930,6 +1074,7 @@ const ProxyGenerator: React.FC = () => {
             onLoadCard={(card, idx) => handleLoadCard(card, idx)}
             onExportAllPDF={handleExportAllPDF}
             currentCardIdx={currentCardIdx}
+            initialDeckName={deckName}
             onLoadProject={handleLoadProject}
             onReorder={(newSaved) => {
               // preserve the selected card if possible
@@ -961,6 +1106,36 @@ const ProxyGenerator: React.FC = () => {
         </div>
         <div>
           <div className="proxy-action-bar">
+            <div className="copies-control">
+              <label htmlFor="card-copies-input">Copies</label>
+              <div className="copies-control-input">
+                <button
+                  type="button"
+                  onClick={decrementCopies}
+                  aria-label="Decrease number of copies"
+                  disabled={cardCopies <= COPIES_MIN}
+                >
+                  -
+                </button>
+                <input
+                  id="card-copies-input"
+                  type="number"
+                  min={COPIES_MIN}
+                  max={COPIES_MAX}
+                  value={cardCopies}
+                  onChange={handleCopiesInputChange}
+                  aria-label="Number of copies"
+                />
+                <button
+                  type="button"
+                  onClick={incrementCopies}
+                  aria-label="Increase number of copies"
+                  disabled={cardCopies >= COPIES_MAX}
+                >
+                  +
+                </button>
+              </div>
+            </div>
             <button
               type="button"
               onClick={handleExportSinglePNG}
@@ -973,7 +1148,13 @@ const ProxyGenerator: React.FC = () => {
               onClick={() => {
                 // Use functional update so we can compute the new index atomically
                 setSavedCards(prev => {
-                  const newCard = { data: cardData, color: cardColor, template: templateType, mana: [...manaSelects] };
+                  const newCard: SavedCardEntry = {
+                    data: cardData,
+                    color: cardColor,
+                    template: templateType,
+                    mana: [...manaSelects],
+                    numberOfCopies: cardCopies,
+                  };
                   const newArr = [...prev, newCard];
                   // select the newly added card
                   setCurrentCardIdx(newArr.length - 1);
@@ -988,13 +1169,21 @@ const ProxyGenerator: React.FC = () => {
               type="button"
               onClick={() => {
                 // Add a fresh empty card and switch to it
-                const emptyData = JSON.parse(JSON.stringify(initialCardData));
+                const emptyData = cloneInitialCardData();
                 setCardData(emptyData);
                 setCardColor('Black');
                 setTemplateType('PTG Style');
-                setManaSelects(['', '', '', '', '']);
+                const blankMana = createEmptyManaSlots();
+                setManaSelects(blankMana);
+                setCardCopies(COPIES_MIN);
                 setSavedCards(prev => {
-                  const newCard = { data: emptyData, color: 'Black', template: 'PTG Style', mana: ['', '', '', '', ''] };
+                  const newCard: SavedCardEntry = {
+                    data: emptyData,
+                    color: 'Black',
+                    template: 'PTG Style',
+                    mana: [...blankMana],
+                    numberOfCopies: COPIES_MIN,
+                  };
                   const newArr = [...prev, newCard];
                   setCurrentCardIdx(newArr.length - 1);
                   return newArr;

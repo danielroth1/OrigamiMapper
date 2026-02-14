@@ -1,14 +1,28 @@
 import React, { useState, useRef } from 'react';
 
+interface SavedCardEntry {
+  data: any;
+  color: string;
+  template: string;
+  mana: string[];
+  numberOfCopies: number;
+}
+
+interface ProjectConfig {
+  deckName?: string;
+  savedCards: SavedCardEntry[];
+  currentCardIdx: number | null;
+}
+
 interface SavedCardsSidebarProps {
-  savedCards: Array<{ data: any; color: string; template: string; mana: string[] }>;
-  onLoadCard: (card: { data: any; color: string; template: string; mana: string[] }, idx: number) => void;
+  savedCards: SavedCardEntry[];
+  onLoadCard: (card: SavedCardEntry, idx: number) => void;
   onExportAllPDF: () => void;
   currentCardIdx: number | null;
   // Optional deck name from loaded project
   initialDeckName?: string;
-  onLoadProject: (config: { deckName: string; savedCards: Array<{ data: any; color: string; template: string; mana: string[] }>; currentCardIdx: number | null }) => void;
-  onReorder?: (newSavedCards: Array<{ data: any; color: string; template: string; mana: string[] }>) => void;
+  onLoadProject: (config: ProjectConfig) => void;
+  onReorder?: (newSavedCards: SavedCardEntry[]) => void;
 }
 
 const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoadCard, onExportAllPDF, currentCardIdx, initialDeckName, onLoadProject, onReorder }) => {
@@ -88,7 +102,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const config = JSON.parse(reader.result as string);
+        const config = JSON.parse(reader.result as string) as ProjectConfig;
         onLoadProject(config);
       } catch {
         console.error('Invalid project file');
@@ -131,16 +145,20 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
                 Black: 'hsla(304, 100%, 78%, 1.00)',
                 Black2: 'hsla(281, 100%, 60%, 1.00)',
                 White: '#eee',
+                White2: '#f5f5f5',
                 Blue: '#2196f3',
+                Blue2: '#64b5f6',
                 Red: '#e53935',
+                Red2: '#ef5350',
                 Green: '#43a047',
                 Yellow: '#fbc02d',
                 Artifact: '#b0bec5',
               };
               const fontColor = styleColorMap[card.color ?? ''] || '#fff';
-              // Card style (template type) is stored in the 'template' property, not color or card.data
-              const cardStyleType = card.template || 'PTG Style';
               const displayName = (card.data && card.data.name) ? card.data.name : 'Untitled Card';
+              const copiesLabel = Number.isFinite(card.numberOfCopies) && card.numberOfCopies > 0
+                ? card.numberOfCopies
+                : 1;
               return (
                 <li key={idx} className="saved-cards-item">
                   <button
@@ -155,7 +173,7 @@ const SavedCardsSidebar: React.FC<SavedCardsSidebarProps> = ({ savedCards, onLoa
                     onClick={() => onLoadCard(card, idx)}
                   >
                     <span className="saved-card-name" title={displayName}>{displayName}</span>
-                    <span className="saved-card-template" style={{ color: fontColor }}>{cardStyleType}</span>
+                    <span className="saved-card-copies" style={{ color: fontColor }} aria-label="Copies">x{copiesLabel}</span>
                   </button>
                 </li>
               );
